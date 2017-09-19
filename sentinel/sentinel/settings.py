@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
+    'hub',
 ]
 
 MIDDLEWARE = [
@@ -50,6 +52,13 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'sentinel.urls'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "asgiref.inmemory.ChannelLayer",
+        "ROUTING": "sentinel.routing.channel_routing",
+    },
+}
 
 TEMPLATES = [
     {

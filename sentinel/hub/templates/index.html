@@ -1,0 +1,20 @@
+<html>
+	<head>
+		<script defer>
+			// Note that the path doesn't matter right now; any WebSocket
+			// connection gets bumped over to WebSocket consumers
+			var socket = new WebSocket("ws://" + window.location.host + "/chat/");
+			function onButtonPressed() {
+				socket.send("on");
+			}
+
+			function offButtonPressed() {
+				socket.send("off");
+			}
+		</script>
+	</head>
+	<body>
+		<button onclick="onButtonPressed()"">On</button>
+		<button onclick="offButtonPressed()">Off</button>
+	</body>
+</html>
