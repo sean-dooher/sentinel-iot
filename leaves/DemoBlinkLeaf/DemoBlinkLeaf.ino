@@ -68,7 +68,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 void setup() {
   pinMode(4, OUTPUT);
-  WifiFulti.addAP("ssid", "password")
+  WiFiMulti.addAP("The Loft", "icysocks019");
 
   //WiFi.disconnect();
   while(WiFiMulti.run() != WL_CONNECTED) {
@@ -99,7 +99,7 @@ void setup() {
   ArduinoOTA.setHostname("RFID-Node");
 
   // server address, port and URL
-  webSocket.begin("192.168.1.8", 8000, "/"); // Put the address and port of your Sentinel Hub server
+  webSocket.begin("192.168.1.2", 8000, "/");
 
   // event handler
   webSocket.onEvent(webSocketEvent);
