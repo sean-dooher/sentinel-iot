@@ -1,18 +1,28 @@
 from channels import Group
-
+import json
 # Connected to websocket.connect
-def ws_add(message):
+@channel_session
+def ws_add(message, group):
     # Accept the connection
     message.reply_channel.send({"accept": True})
-    # Add to the chat group
-    Group("chat").add(message.reply_channel)
+    message.channel_session['group'] = group
+    Group(group).add(message.reply_channel)
 
-# Connected to websocket.receive
+@channel_session
 def ws_message(message):
-    Group("chat").send({
-        "text": message.content['text'],
-    })
+    # Group("chat").send({
+    #     "text": message.content['text'],
+    # })
+    # print(message.content['text'])
+    mess = json.loads(message.content['text'])
+    if('type' in mess and mess['type'] == 'RESPONSE'):
+    	print(mess['data'])
+    elif('type' in mess and mess['type'] == 'CONFIG'):
+    	message.channel_session['interface'] = mess['interface']
+    	message.channel_session['model'] = mess['model']
+    	message.channel_session['serial'] = message['serial']
+    	message.channel_session['name'] = message['name']
 
-# Connected to websocket.disconnect
+@channel_session
 def ws_disconnect(message):
-    Group("chat").discard(message.reply_channel)
+    Group(message.channel_session['group']).discard(message.reply_channel)

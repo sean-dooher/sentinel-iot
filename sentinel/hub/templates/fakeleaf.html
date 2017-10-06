@@ -1,0 +1,115 @@
+<html>
+	<head>
+		<meta charset="utf8">
+	</head>
+	<body>
+		New sensor value: <input type="text" name="sensor" id="sensor"> <br>
+		<button onclick="submit()">Set</button>
+
+		<h4 id="currval">313123</h4>
+		<h4>auto: <span id="auto">1</span></h4>
+		<script type="text/javascript">
+			var lastRead = 312341;
+			var isAuto = 1;
+			var leaf = {
+				type: 'CONFIG',
+				inteface: 'out',
+				model: 'rfid01',
+				name: 'RFID Scanner',
+				serial: 001001,
+			};
+			function submit() {
+				lastRead = parseInt(document.querySelector("#sensor").value, 10);
+				document.querySelector("#currval").innerHTML = lastRead;
+				if(isAuto) {
+					var msg = {
+						type: 'SENSOR_UPDATE',
+						device: {
+							name: 'rfid',
+							format: 'int32',
+							value: lastRead,
+						},
+					};
+				}
+			}
+			var socket = new WebSocket("ws://" + window.location.host + "/hub/");
+			socket.onopen = function(event) {
+				socket.send(JSON.stringify(leaf));
+			}
+			socket.onmessage = function(event) {
+				var message = JSON.parse(event.data);
+				console.log(event);
+				var response = {
+					type: 'RESPONSE',
+					data: null,
+				}; // 2 - sensor not found
+				switch (message.type) {
+					case 'SET_NAME':
+						leaf.name = message.data;
+						response.data = {
+							status: 0,
+						};
+						break;
+					case 'GET_NAME':
+						response.data = {
+							device_name: leaf.name,
+						};
+						break;
+					case 'SENSOR_LIST':
+						response.data = {
+							sensors: [{
+								name: 'rfid',
+								format: 'int32',
+								options: {auto:isAuto},
+							}],
+						}
+						break;
+					case 'SET_OPTION':
+						if(message.data.device === 'rfid' && message.data.option === 'auto') {
+							isAuto = parseInt(message.data.value, 10);
+							document.querySelector("#auto").innerHTML = isAuto;
+							response.data = {
+								status: 0,
+							}
+						} else {
+							response.data = {
+								status: 2,
+							}
+						}
+						break;
+					case 'GET_OPTION':
+						if(message.data.device === 'rfid' && message.data.option === 'auto') {
+							response.data = {
+								status: 0,
+								value: isAuto,
+							}
+						}
+						break;
+					case 'GET_SENSOR':
+						if (message.data.device === 'rfid') {
+							response.data = {
+								status: 0,
+								sensor: {
+									name: 'rfid',
+									format: 'int32',
+									value: lastRead,
+								},
+							}
+						} else {
+							response.data = {
+								status: 2,
+							}
+						}
+						break;
+					case 'GET_CONFIG':
+						response = leaf;
+						break;
+					default:
+						break;
+				}
+				console.log(response);
+				socket.send(JSON.stringify(response));
+			}
+		</script>
+	</body>
+</html>

@@ -15,8 +15,9 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from hub.views import main
+from hub.views import main, fake
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', main),
+    url(r'^fake/$', fake)
 ]
