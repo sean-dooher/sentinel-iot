@@ -16,7 +16,7 @@
 				inteface: 'out',
 				model: 'rfid01',
 				name: 'RFID Scanner',
-				serial: '001001',
+				serial: 001001,
 			};
 			function submit() {
 				lastRead = parseInt(document.querySelector("#sensor").value, 10);
@@ -44,13 +44,13 @@
 					data: null,
 				}; // 2 - sensor not found
 				switch (message.type) {
-					case 'NAME_SET':
+					case 'SET_NAME':
 						leaf.name = message.data;
 						response.data = {
 							status: 0,
 						};
 						break;
-					case 'NAME_GET':
+					case 'GET_NAME':
 						response.data = {
 							device_name: leaf.name,
 						};
@@ -102,7 +102,7 @@
 						}
 						break;
 					case 'GET_CONFIG':
-						response.data = leaf;
+						response = leaf;
 						break;
 					default:
 						break;
