@@ -34,22 +34,24 @@ WebSockets allow for a much more free form interface, simply connect to your "hu
 
 ### HTTP Interface
 This table descripes the various ways to use the HTTP API to interface with your Hub. The responses will be the same as the WebSockets API (see [Hub Messages](#hubmess)). Authentication through OAuth?(need to look into that). You can also go to one of the "broader" urls (/leaves/, /devices/, /hub/) and send a JSON request identical to the WebSockets ones below.
+
 | Name | Reciever | HTTP Method | URL |
-| ----------- | -------- | ----------- | --- |
+| ---- | -------- | ----------- | --- |
 | Setting Set  | Hub | POST |  https://myhub.sentinel.iot/\<hub_id\>/config/?option=\<option\>&value=\<value\> |
 | Setting Get  | Hub | GET |  https://myhub.sentinel.iot/\<hub_id\>/config/?option=\<option\> |
-| List Leaves  | Hub | GET |  https://myhub.sentinel.iot/\<hub_id\>/leaves/?list=1|
+| List Leaves  | Hub | GET |  https://myhub.sentinel.iot/\<hub_id\>/leaves/?list=1 |
 | List Devices  | Leaf | GET |  https://myhub.sentinel.iot/\<hub_id\>/\<leaf_id\>/devices/?list=1 |
 | Output Set  | Leaf | POST |  https://myhub.sentinel.iot/\<hub_id\>/\<leaf_id\>/\<device_id\>/?value=\<value\> |
 | Sensor Get  | Leaf | GET |  https://myhub.sentinel.iot/\<hub_id\>/\<leaf_id\>/\<device_id\>/ |
 | List Options | Leaf | GET |  https://myhub.sentinel.iot/\<hub_id\>/\<leaf_id\>/config/?list=1 |
 | Option Set  | Leaf | POST |  https://myhub.sentinel.iot/\<hub_id\>/\<leaf_id\>/config/?option=\<option\>&value=\<value\> |
 | Option Get  | Leaf | GET |  https://myhub.sentinel.iot/\<hub_id\>/\<leaf_id\>/config/?option=\<option\> |
+
 Note that these are ways to interface with the server for a client app. Ways for Leaves to interface via HTML will be added soon.
 
 ### Leaf Messages
 These are the messages a leaf will send to a hub. They are JSON messages in the following form.
-```JSON
+```
 {
     'type':'[TYPE]',
     'uuid':'[UUID]',
@@ -68,14 +70,14 @@ Only the type and uid attributes are required, all other attributes are specific
 | Device Status | DEVICE_STATUS | device: name of device <br> status: status of device | The status for a device will either be it's sensor value (for input devices) or it's current state (for output devices) | After recieving a SET_OUTPUT or GET_DEVICE command |
 | Unknown Device | UNKNOWN_DEVICE |  device: name of unknown device | Used to respond to a request regarding a device that the leaf is not configured to accept | After recieving an invalid SET_OPTION or GET_OPTION command |
 | List Options | OPTION_LIST | device: name of device list is for <br> options: list of all options and their value types | This command lists all the options available for a particular device. For leaf-wide options, the device will simply be 'leaf' | After recieving a LIST_OPTIONS message |
-| Unknown Option | UNKNOWN_DEVICE |  device: name of device <br> option: name of unknown option | Used to respond to a request regarding an option that a device does not have | After recieving an invalid SET_OUTPUT or GET_DEVICE command |
+| Unknown Option | UNKNOWN_OPTION |  device: name of device <br> option: name of unknown option | Used to respond to a request regarding an option that a device does not have | After recieving an invalid SET_OUTPUT or GET_DEVICE command |
 | Option Update  | OPTION | device: name of device <br> option: name of option <br> value: current setting of option | Gives the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | After recieving a SET_OPTION or GET_OPTION message |
 | Invalid Value | INVALID_VALUE |  device: name of device <br> mode: option/device <br> value: the value that was invalid | Used to respond to a request regarding an improper value for an option or output | After recieving an invalid SET_OUTPUT or SET_OPTION command |
 #### Devices
 This section deals with the various formatting a device
 ##### Device Config
 When sending a list of devices each element of the list should be in the following format:
-```JSON
+```
 {
     'device':'[DEVICE_NAME]',
     'format':'[FORMAT_TYPE]',
@@ -85,7 +87,7 @@ When sending a list of devices each element of the list should be in the followi
 The formats are listed below and mode must take the value of either IN or OUT.
 ##### Status Updates
 When a device reports it's status to the Hub it will submit a message that looks like this:
-```JSON
+```
 {
     'type':'DEVICE_STATUS',
     'uuid':'[UUID]',
@@ -101,17 +103,19 @@ When a device reports it's status to the Hub it will submit a message that looks
 ```
 ##### Data formats
 These are all of the currently supported data formats for leaf devices. If an unrecognized format is reported, it will default to being interpreted as a String.
+
 | Name | JSON Representation | Description | Example |
 | ---- | ------------------- | ----------- | ------- |
-| Number | 'number' | A number | { <br> 'format':'number', <br> 'value':12345132 <br>} |
+| Number | 'number' | A number | { <br> 'format':'number', <br> 'value':12345132 <br> } |
 | Number with Units | 'number+units' | A number and some units | { <br> 'format':'number+units', <br> 'value':12345132, <br> units:'°C' <br>} |
 | String | 'string' | A text string | {<br>'format':'string',<br>'value':132123<br>} |
-| Boolean | 'bool' | A true/false value represented as  either a 0 or a 1 | {<br>'format':'bool',<br>'value':0<br>}
+| Boolean | 'bool' | A true/false value represented as  either a 0 or a 1 | {<br>'format':'bool',<br>'value':0<br>} |
+
 
 ##### Options
 Both Leaves themselves and their devices can have options.\
 Options are reported to the server in the following manner:
-```JSON
+```
 {
     'option':'[OPTION_NAME]',
     'format':'[DATA_FORMAT]',
@@ -121,7 +125,7 @@ Options are reported to the server in the following manner:
 When you send a list of options, simply send a JSON list containing multiple options in this format.
 ### Hub Messages
 These are the messages your leaf must recieve and process in order to properly interact with the Sentinel IoT hub it is connected to. The format is as follows:
-```JSON
+```
 {
     'type':'[OPTION_NAME]',
     'uuid':[UUID of Leaf],
