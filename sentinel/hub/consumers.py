@@ -64,8 +64,8 @@ def ws_handle_status(message, mess):
 	device_name = mess["device"]
 	device_format = mess["format"]
 	try:
-		device = leaf.device_set.get(name=device_name)
-	except ObjectDoesNotExist:
+		device = leaf.get_devices()[device_name]
+	except KeyError:
 		device = leaf.create_device(device_name, device_format)
 	device.update_value(mess)
 	device.save()

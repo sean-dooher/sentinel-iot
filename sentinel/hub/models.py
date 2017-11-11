@@ -50,7 +50,14 @@ class Leaf(models.Model):
 	def get_devices(self, update=True):
 		if update:
 			self.refresh_devices()
-		return self.device_set.all()
+		device_sets = [self.booleandevice_set, self.stringdevice_set,\
+					  self.numberdevice_set, self.unitdevice_set]
+		devices = {}
+		for device_set in device_sets:
+			for device in device_set.all():
+				devices[device.name] = device
+
+		return devices
 
 	def get_name(self):
 		return self.name
@@ -104,9 +111,14 @@ class Leaf(models.Model):
 		return {"uuid":self.uuid, "hub_id":self.hub_id}
 
 	def __repr__(self):
-		return "SentinelLeaf <name: {}, uuid:{}>".format(self.name, self.uuid)
+		return "Leaf <name: {}, uuid:{}>".format(self.name, self.uuid)
+
+	def __str__(self):
+		return repr(self)
 
 class Device(models.Model):
+	class Meta:
+		abstract = True
 	name=models.CharField(max_length=100)
 	leaf=models.ForeignKey(Leaf, on_delete=models.CASCADE)
 
@@ -115,7 +127,7 @@ class Device(models.Model):
 
 	def __str__(self):
 		return repr(self)
-	
+
 	def __repr__(self):
 		return "Device <name: {}>".format(self.name)
 

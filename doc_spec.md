@@ -145,7 +145,7 @@ These are the messages your leaf must recieve and process in order to properly i
 | Set Output | SET_OUTPUT | device: name of device <br> value: new value of output| Changes the output state, if valid, of device | Change the device's output value (or send INVALID_VALUE) and send a DEVICE_STATUS message|
 | List Options | LIST_OPTIONS | device: name of device list is for | This command lists all the options available for a particular device. For leaf-wide options, the device will simply be 'leaf' | Send a OPTION_LIST message |
 | Get Option  | GET_OPTION | device: name of device <br> option: name of option  | Requests the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | Send an OPTION message or a UNKNOWN_DEVICE, UNKNOWN_OPTION |
-| Set Option  | OPTION | device: name of device <br> option: name of option <br> value: new setting of option | Changes the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | Change option and send OPTION message if sucessful else send UNKNOWN_DEVICE, UNKNOWN_OPTION, or INVALID_VALUE |
+| Set Option  | SET_OPTION | device: name of device <br> option: name of option <br> value: new setting of option | Changes the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | Change option and send OPTION message if sucessful else send UNKNOWN_DEVICE, UNKNOWN_OPTION, or INVALID_VALUE |
 ## Sentinel Backend
 
 The backend is where the magic happens. It's what takes all of these parts and combines them together into something that actually works! The functionality is broadly based on the app IFTT that I used back in highschool (but uh hopefully better because that app was super buggy sometimes). The backend is implemented in Django using Django Channels and websockets.
@@ -156,3 +156,8 @@ Condtions are a set of boolean logically statements that evaluate to either _tru
 ### Websockets and HTTP
 
 There will be two ways for leaves to interface with the backend: websockets (for real-time updates) and http for a more RESTful interface. Either way is fine, but I find websockets to be generally easier to work with. The HTTP interface will be good if you are writing some sort of client app for Sentinel. More info on this is in the IoT section.
+
+TODO:
+*Add CONFIG_COMPLETE
+*Change DEVICE_STATUS attributes
+*ADD More info to config on limitations
