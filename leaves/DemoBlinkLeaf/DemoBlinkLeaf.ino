@@ -9,15 +9,13 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-
 #include <ArduinoOTA.h>
 #include <WebSocketsClient.h>
+#include <Wiegand.h>
 
-#include <Hash.h>
-
+WIEGAND wg;
 ESP8266WiFiMulti WiFiMulti;
 WebSocketsClient webSocket;
-
 
 #define USE_SERIAL Serial1
 
@@ -48,10 +46,10 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       } else if(strcmp(buff,"off") == 0) {
         digitalWrite(4, LOW);
       } else {
-         digitalWrite(4, HIGH);
-         delay(1000);                       // wait for a second
-         digitalWrite(4, LOW);    // turn the LED off by making the voltage LOW
-         delay(1000);      
+//         digitalWrite(4, HIGH);
+//         delay(1000);                       // wait for a second
+//         digitalWrite(4, LOW);    // turn the LED off by making the voltage LOW
+//         delay(1000);      
       }
       free(buff);
       break;
@@ -67,7 +65,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 }
 
 void setup() {
-  pinMode(4, OUTPUT);
+  wg.begin(5, digitalPinToInterrupt(5), 4, digitalPinToInterrupt(4));
   WiFiMulti.addAP("The Loft", "icysocks019");
 
   //WiFi.disconnect();
@@ -99,7 +97,7 @@ void setup() {
   ArduinoOTA.setHostname("RFID-Node");
 
   // server address, port and URL
-  webSocket.begin("192.168.1.2", 8000, "/");
+  webSocket.begin("192.168.1.8", 8000, "/");
 
   // event handler
   webSocket.onEvent(webSocketEvent);
@@ -114,5 +112,14 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+  if(wg.available())
+  {
+    char* cardCodeString = (char*) malloc(100*sizeof(char));
+      sprintf(cardCodeString, "%ld", wg.getCode());
+      webSocket.sendTXT(cardCodeString);
+      free(cardCodeString);
+  }
+
   webSocket.loop();
 }
+
