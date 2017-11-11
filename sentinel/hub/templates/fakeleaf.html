@@ -10,26 +10,27 @@
 		<h4>auto: <span id="auto">1</span></h4>
 		<script type="text/javascript">
 			var lastRead = 312341;
+			var uuid = '0000001';
 			var isAuto = 1;
 			var leaf = {
 				type: 'CONFIG',
-				inteface: 'out',
+				uuid: uuid,
 				model: 'rfid01',
 				name: 'RFID Scanner',
-				serial: 001001,
+				api_version: '0.1.0',
 			};
 			function submit() {
 				lastRead = parseInt(document.querySelector("#sensor").value, 10);
 				document.querySelector("#currval").innerHTML = lastRead;
 				if(isAuto) {
 					var msg = {
-						type: 'SENSOR_UPDATE',
-						device: {
-							name: 'rfid',
-							format: 'int32',
-							value: lastRead,
-						},
+						type: 'DEVICE_STATUS',
+						uuid: uuid,
+						device: 'rfid',
+						format: 'number',
+						value: lastRead,
 					};
+					socket.send(JSON.stringify(msg));
 				}
 			}
 			var socket = new WebSocket("ws://" + window.location.host + "/hub/");
@@ -40,65 +41,69 @@
 				var message = JSON.parse(event.data);
 				console.log(event);
 				var response = {
-					type: 'RESPONSE',
-					data: null,
-				}; // 2 - sensor not found
+					uuid: leaf.uuid,
+				} // 2 - sensor not found
 				switch (message.type) {
 					case 'SET_NAME':
 						leaf.name = message.data;
-						response.data = {
-							status: 0,
-						};
+						response.type = 'NAME';
+						response.name = leaf.nam;
 						break;
 					case 'GET_NAME':
-						response.data = {
-							device_name: leaf.name,
-						};
+						response.type = 'NAME';
+						response.name = leaf.nam;
 						break;
-					case 'SENSOR_LIST':
-						response.data = {
-							sensors: [{
-								name: 'rfid',
-								format: 'int32',
-								options: {auto:isAuto},
-							}],
-						}
+					case 'LIST_DEVICES':
+						response.type = 'DEVICE_LIST';
+						response.sensors =[{
+							name: 'rfid',
+							format: 'number',
+							options: {auto:isAuto}}];
+						break;
+					case 'CONFIG_COMPLETE':
+						response = {
+							type: 'DEVICE_STATUS',
+							uuid: uuid,
+							device: 'rfid',
+							format: 'number',
+							value: lastRead,
+						};
 						break;
 					case 'SET_OPTION':
 						if(message.data.device === 'rfid' && message.data.option === 'auto') {
 							isAuto = parseInt(message.data.value, 10);
 							document.querySelector("#auto").innerHTML = isAuto;
-							response.data = {
-								status: 0,
-							}
+							response.type = "OPTION";
+							response.option = message.data.option;
+							response.value = isAuto;
+						} else if (message.data.device == 'rfid') {
+							response.type = "UNKNOWN_OPTION";
+							response.option = message.data.option;
 						} else {
-							response.data = {
-								status: 2,
-							}
+							response.type = "UNKNOWN_DEVICE";
+							response.device = message.data.device;
 						}
 						break;
 					case 'GET_OPTION':
 						if(message.data.device === 'rfid' && message.data.option === 'auto') {
-							response.data = {
-								status: 0,
-								value: isAuto,
-							}
+							response.type = "OPTION";
+							response.option = message.data.option;
+							response.value = isAuto;
+						} else if (message.data.device == 'rfid') {
+							response.type = "UNKNOWN_OPTION";
+							response.option = message.data.option;
+						} else {
+							response.type = "UNKNOWN_DEVICE";
+							response.device = message.data.device;
 						}
 						break;
 					case 'GET_SENSOR':
 						if (message.data.device === 'rfid') {
-							response.data = {
-								status: 0,
-								sensor: {
-									name: 'rfid',
-									format: 'int32',
-									value: lastRead,
-								},
-							}
+							response.type = 'DEVICE_STATUS';
+							response.value = lastRead;
+							response.format = "number";
 						} else {
-							response.data = {
-								status: 2,
-							}
+							response.type = 'UNKNOWN_DEVICE';
 						}
 						break;
 					case 'GET_CONFIG':
