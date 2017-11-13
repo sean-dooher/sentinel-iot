@@ -165,7 +165,7 @@ class Leaf {
 				return;
 			case 'SUBSCRIBER_UPDATE':
 				if (this.subscriptionHandler) {
-					this.subscriptionHandler(message["message"]);
+					this.subscriptionHandler(JSON.parse(message["message"]));
 				}
 				return;
 			default:
