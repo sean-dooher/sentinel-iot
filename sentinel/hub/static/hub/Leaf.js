@@ -44,6 +44,15 @@ class Leaf {
 		this.socket.send(JSON.stringify(leaf));
 	}
 
+	sendSubscribe(uuid) {
+		var message = {
+			type: 'SUBSCRIBE',
+			uuid: this.uuid,
+			sub_uuid: uuid,
+		};
+		this.socket.send(JSON.stringify(message));
+	}
+
 	sendStatus(device) {
 		if(!this._isConnected) {
 			return;
@@ -80,6 +89,7 @@ class Leaf {
 
 	parseMessage(event) {
 		var message = JSON.parse(event.data);
+		console.log(message);
 		var response = {
 			uuid: this.uuid,
 		} 
@@ -96,13 +106,14 @@ class Leaf {
 			case 'LIST_DEVICES':
 				response.type = 'DEVICE_LIST';
 				var devices = [];
-				for(var i = 0; i < this.devices; i++) {
-					devices.push[{
+				console.log(this.devices.length)
+				for(var i = 0; i < this.devices.length; i++) {
+					devices.push([{
 						name:this.devices[i].name,
 						format:this.devices[i].format,
 						mode:this.devices[i].mode,
 						options:this.devices[i].options,
-					}]
+					}]);
 				}
 				response.devices = devices;
 				break;
@@ -151,6 +162,11 @@ class Leaf {
 				break;
 			case 'GET_CONFIG':
 				this.sendConfig();
+				return;
+			case 'SUBSCRIBER_UPDATE':
+				if (this.subscriptionHandler) {
+					this.subscriptionHandler(message["message"]);
+				}
 				return;
 			default:
 				break;

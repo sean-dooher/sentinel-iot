@@ -45,7 +45,7 @@ class Leaf(models.Model):
 	def get_device(self, device, update=True):
 		if update:
 			self.refresh_device(device)
-		return self.device_set.get(name=device)
+		return self.get_devices(False)[device]
 
 	def get_devices(self, update=True):
 		if update:
