@@ -20,7 +20,6 @@ def ws_message(message):
 			if 'uuid' in mess:
 				sub_message = {"type":"SUBSCRIBER_UPDATE","hub_id":1, "message":message.content['text']}
 				response = {"text":json.dumps(sub_message)}
-				print(response)
 				Group(mess['uuid'] + "-sub").send(response)
 
 			type = mess['type']
