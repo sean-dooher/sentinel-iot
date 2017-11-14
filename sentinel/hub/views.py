@@ -6,3 +6,6 @@ def main(request):
 
 def fake(request):
 	return render(request, "fakeleaf.html")
+
+def rfid_demo(request):
+	return render(request, "rfid_demo.html")

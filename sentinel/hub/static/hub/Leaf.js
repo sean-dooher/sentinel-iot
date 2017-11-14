@@ -7,6 +7,7 @@ class Leaf {
 		this.connect(socket);
 		this._isConnected = false;
 		this.subscriptions = {};
+		this.messageQueue = [];
 	}
 
 	connect(socket) {
@@ -16,6 +17,10 @@ class Leaf {
 			this.socket = new WebSocket(socket);
 			this.socket.onopen = event => {
 				this._isConnected = true;
+				for(var i = 0; i < this.messageQueue.length; i++) {
+					this.messageQueue[i]();
+				}
+				this.messageQueue = [];
 				this.sendConfig();
 			};
 			this.socket.onmessage = event => this.parseMessage(event);
@@ -46,6 +51,10 @@ class Leaf {
 	}
 
 	subscribe(uuid, callback) {
+		if(!this._isConnected){
+			this.messageQueue.push(()=>this.subscribe(uuid, callback));
+			return;
+		}
 		var message = {
 			type: 'SUBSCRIBE',
 			uuid: this.uuid,

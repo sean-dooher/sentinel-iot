@@ -1,5 +1,5 @@
 # Sentinel IOT
-Sentinel IOT is a robust and exstensible platform for home automation and IOT development. This project was born out of my roommates' and my desire to shout at our lights and have them actually listen to us (compared to the current reality of us just looking insane).
+Sentinel IOT is a robust and exstensible platform for home automation and IOT development.
 
 Sentinel consists of a few components:
  * Sentinel Hub - The front end interface that allows a user to easily interface with all of the other components
