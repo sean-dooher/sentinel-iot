@@ -5,7 +5,8 @@ class Leaf {
 		this.uuid = uuid;
 		this.model = model;
 		this.connect(socket);
-		this._isConnected = false
+		this._isConnected = false;
+		this.subscriptions = {};
 	}
 
 	connect(socket) {
@@ -44,12 +45,13 @@ class Leaf {
 		this.socket.send(JSON.stringify(leaf));
 	}
 
-	sendSubscribe(uuid) {
+	subscribe(uuid, callback) {
 		var message = {
 			type: 'SUBSCRIBE',
 			uuid: this.uuid,
 			sub_uuid: uuid,
 		};
+		this.subscriptions[uuid] = callback;
 		this.socket.send(JSON.stringify(message));
 	}
 
@@ -89,7 +91,6 @@ class Leaf {
 
 	parseMessage(event) {
 		var message = JSON.parse(event.data);
-		console.log(message);
 		var response = {
 			uuid: this.uuid,
 		} 
@@ -106,7 +107,6 @@ class Leaf {
 			case 'LIST_DEVICES':
 				response.type = 'DEVICE_LIST';
 				var devices = [];
-				console.log(this.devices.length)
 				for(var i = 0; i < this.devices.length; i++) {
 					devices.push([{
 						name:this.devices[i].name,
@@ -164,8 +164,9 @@ class Leaf {
 				this.sendConfig();
 				return;
 			case 'SUBSCRIBER_UPDATE':
-				if (this.subscriptionHandler) {
-					this.subscriptionHandler(JSON.parse(message["message"]));
+				var remoteMessage = JSON.parse(message["message"]);
+				if ("uuid" in remoteMessage && remoteMessage["uuid"] in this.subscriptions) {
+					this.subscriptions[remoteMessage["uuid"]](remoteMessage);
 				}
 				return;
 			default:
