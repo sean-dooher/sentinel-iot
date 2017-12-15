@@ -1,4 +1,4 @@
-import websocket
+from websocket import WebSocketApp
 import threading
 import json
 
@@ -31,11 +31,11 @@ class PyLeaf:
             self.connected = True
             self.send_config()
 
-        self.socket = websocket.WebSocketApp(socket,
-                                             on_open=on_connect,
-                                             on_close=lambda message: self.attempt_reconnect(),
-                                             on_message=lambda ws, message: self.parse_message(message),
-                                             on_error=lambda ws, error: self.process_error(error))
+        self.socket = PyLeaf.create_socket(socket,
+                                           on_open=on_connect,
+                                           on_close=lambda message: self.attempt_reconnect(),
+                                           on_message=lambda ws, message: self.parse_message(message),
+                                           on_error=lambda ws, error: self.process_error(error))
         self.socket_thread = threading.Thread(target=self.socket.run_forever)
 
         # override default join behavior to shut down thread properly when exiting program
@@ -53,16 +53,15 @@ class PyLeaf:
     def disconnect(self):
         if self.socket:
             self.socket.on_close = None
+            self.socket.on_error = None
+            self.socket.keep_running = False
             self.socket.close()
+            self.socket_thread.join()
 
     def attempt_reconnect(self):
-        self.socket.on_close = None
-        self.socket.on_error = None
-        self.socket.keep_running = False
-        self.socket.close()
-        self.socket_thread.join()
+        self.disconnect()
         if self.connect_attempt < self.max_connect_attempt:
-            self.connect(socket.url)
+            self.connect(self.socket.url)
 
     def process_error(self, error):
         print("WebSocket Error: {}".format(error))
@@ -241,6 +240,10 @@ class PyLeaf:
                    'type': 'UNKNOWN_DEVICE',
                    'device': device_name}
         self.socket.send(json.dumps(message))
+
+    @classmethod
+    def create_socket(cls, socket, on_open, on_close, on_message, on_error):
+        return WebSocketApp(socket, on_open, on_close, on_message, on_error)
 
 
 class Device:

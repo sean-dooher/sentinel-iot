@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='PyLeaf',
-      version='0.1',
+      version='0.1.2',
       description='Sentinel Leaf Implementation in Python',
       author='Sean Dooher',
       author_email='sean@dooher.net',

@@ -105,7 +105,7 @@ class Leaf {
 		} 
 		switch (message.type) {
 			case 'SET_NAME':
-			 	this.name = message.data;
+			 	this.name = message.name;
 				response.type = 'NAME';
 				response.name = this.name;
 				break;
