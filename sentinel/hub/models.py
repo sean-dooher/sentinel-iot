@@ -2,6 +2,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from channels import Group
 import json
+import itertools
+from .utils import name_hash
 
 
 class Leaf(models.Model):
@@ -37,12 +39,12 @@ class Leaf(models.Model):
         if update:
             self.refresh_option(device, option)
         # TODO: Replace following code with real code, add option
-        return self.device_set.get(name=device).option_set.filter(name=option)
+        return self.get_device(device, update=False).option_set.filter(name=option)
 
     def get_options(self, device, update=True):
         if update:
             self.refresh_options()
-        return self.device_set.get(name=device).option_set.all()
+        return self.get_device(device, update=False).option_set.all()
 
     def get_device(self, device, update=True):
         if update:
@@ -52,11 +54,9 @@ class Leaf(models.Model):
     def get_devices(self, update=True):
         if update:
             self.refresh_devices()
-        device_sets = [self.booleandevice_set, self.stringdevice_set, \
-                       self.numberdevice_set, self.unitdevice_set]
+
         devices = {}
-        for device_set in device_sets:
-            for device in device_set.all():
+        for device in self.devices:
                 devices[device.name] = device
 
         return devices
@@ -97,7 +97,6 @@ class Leaf(models.Model):
         Group(self.uuid).send(message)
 
     def create_device(self, device_name, format):
-        print(format)
         if format == 'bool':
             device = BooleanDevice(name=device_name, leaf=self, value=False)
         elif format == 'number+units':
@@ -108,6 +107,24 @@ class Leaf(models.Model):
             # treat unknown formats as strings per API
             device = StringDevice(name=device_name, leaf=self, value="")
         return device
+
+    def send_subscriber_update(self, device):
+        seen_devices = set()
+        status = {'type': 'SUBSCRIPTION_UPDATE',
+                  'sub_uuid': self.uuid,
+                  'sub_device': device.name,
+                  'message': device.status_update_dict}
+
+        message = {'text': json.dumps(status)}
+        for subscription in self.subscribers.filter(target_device=device.name):
+            subscriber_uuid = subscription.subscriber.uuid
+            seen_devices.add(subscriber_uuid)
+            Group(subscriber_uuid).send(message)
+
+    @property
+    def devices(self):
+        return itertools.chain(self.booleandevice_set.all(), self.stringdevice_set.all(),
+                               self.numberdevice_set.all(), self.unitdevice_set.all())
 
     @property
     def message_template(self):
@@ -125,7 +142,9 @@ class Leaf(models.Model):
         name = message['name']
         api = message['api_version']
         uuid = message['uuid']
-        return cls(name=name, model=model, uuid=uuid, api_version=api)
+        leaf = cls(name=name, model=model, uuid=uuid, api_version=api)
+        leaf.save()
+        return leaf
 
 
 class Device(models.Model):
@@ -138,6 +157,19 @@ class Device(models.Model):
 
     def update_value(self, message):
         self.value = message['value']
+        self.leaf.send_subscriber_update(self)
+        self.save()
+
+    @property
+    def status_update_dict(self):
+        status_update = {
+            'type': 'DEVICE_STATUS',
+            'uuid': self.leaf.uuid,
+            'device': self.name,
+            'value': self.value,
+            'format': self.format,
+        }
+        return status_update
 
     def __str__(self):
         return repr(self)
@@ -158,20 +190,21 @@ class Device(models.Model):
 
         format = message['format']
         if format == 'number':
-            return NumberDevice(name=message['name'], value=message['value'], leaf=leaf)
+            device = NumberDevice(name=message['name'], value=message['value'], leaf=leaf)
         elif format == 'number+units':
-            return UnitDevice(name=message['name'], value=message['value'], leaf=leaf)
+            device = UnitDevice(name=message['name'], value=message['value'], leaf=leaf)
         elif format == 'bool':
-            return BooleanDevice(name=message['name'], value=message['value'], leaf=leaf)
+            device = BooleanDevice(name=message['name'], value=message['value'], leaf=leaf)
         else:
-            return StringDevice(name=message['name'], value=message['value'], leaf=leaf)
+            device = StringDevice(name=message['name'], value=message['value'], leaf=leaf)
+        device.save()
+        return device
 
     @staticmethod
     def create_from_device_list(message):
         uuid = message['uuid']
         for device in message['devices']:
             Device.create_from_message(device, uuid)
-
 
 
 class StringDevice(Device):
@@ -219,5 +252,17 @@ class UnitDevice(Device):
     def format(self):
         return "number+units"
 
+    @property
+    def status_update_dict(self):
+        status = super().status_update_dict
+        status['units'] = self.units
+        return status
+
     def __repr__(self):
         return "UnitDevice <name:{}, value: {}>".format(self.name, self.value)
+
+
+class Subscription(models.Model):
+    subscriber = models.ForeignKey(Leaf, related_name='subscriptions',on_delete=models.CASCADE)
+    target_leaf = models.ForeignKey(Leaf, related_name='subscribers', on_delete=models.CASCADE)
+    target_device = models.CharField(max_length=100)
