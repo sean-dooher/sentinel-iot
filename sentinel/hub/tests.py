@@ -147,7 +147,7 @@ class ConsumerTests(TestCase):
         self.assertIsNone(response, "Only expected two responses")
 
         # ensure that using group to talk to client works
-        Group(db_leaf.uuid).send({'text': "Data", 'reply_channel': 'websocket.receive'})
+        Group(db_leaf.uuid).send({'text': {}})
         self.assertIsNotNone(client.receive(), "Expected a response")
 
 

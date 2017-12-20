@@ -120,6 +120,13 @@ class Leaf(models.Model):
             subscriber_uuid = subscription.subscriber.uuid
             seen_devices.add(subscriber_uuid)
             Group(subscriber_uuid).send(message)
+        status['sub_device'] = 'leaf'
+        message = {'text': json.dumps(status)}
+        for subscription in self.subscribers.filter(target_device="leaf"):
+            subscriber_uuid = subscription.subscriber.uuid
+            if not subscriber_uuid in seen_devices:
+                Group(subscriber_uuid).send(message)
+
 
     @property
     def devices(self):
