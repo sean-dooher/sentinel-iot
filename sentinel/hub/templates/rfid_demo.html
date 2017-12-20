@@ -11,8 +11,6 @@
     <meta name="Arjun Vasudevan" content="">
 
     <title>rfid_demo</title>
-
-
     <!-- Bootstrap core CSS -->
 
     <link href="{% static 'hub/rfid_demo.css' %}" rel="stylesheet" type="text/css">
@@ -21,14 +19,12 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script src="{% static 'hub/Leaf.js' %}"></script>
-
   </head>
 
     <!-- Custom styles for this template -->
 
-
   <body>
-
+  <div id="main">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
       <div class="container">
@@ -86,40 +82,29 @@
             <span class="badge badge-pill badge-warning">Away</span>
         </div>
 
+        <div id="adam" class="col-lg-4 col-sm-6 text-center mb-4">
+          <img class="rounded-circle img-fluid d-block mx-auto" src="{% static 'hub/img/adam.jpg' %}" alt="">
+          <br>
+          <h3>Adam Huang</h3>
+            <span class="badge badge-pill badge-warning">Away</span>
+        </div>
+
       </div>
     </div>
 
     <br>
     <br>
 
-  <!-- Input Forms -->
+  <!-- Real Time Graph -->
 
-  <div id="idInput" class="row">
-    <form class="col-sm-6 text-center" onsubmit="return false;" method="post" name="myForm">
-
-      <label>Student ID</label>
-      <input type="text" name="name" id="student_id_in"/>
-
-      <button name="submit" onclick="checkIn(document.getElementById('student_id_in').value)">Check In</button>
-  
-    </form>
-
-    <form class="col-sm-6 text-center" onsubmit="return false;" method="post" name="myForm">
-
-      <label>Student ID</label>
-      <input type="text" name="name" id="student_id_out"/>
-
-      <button name="submit" onclick="checkOut(document.getElementById('student_id_out').value)">Check Out</button>
-  
-    </form>
+  <div id="smoothie-graph">
+      <h2>Power Usage</h2>
+      <canvas id="mycanvas" width="925" height="300"></canvas>
   </div>
 
   <br>
   <br>
-
   <!-- Table -->
-
-
     <div class="container">
       <h2>Connected Leaves</h2>
       <p>Displays in real time the leaves active for this hub.</p>            
@@ -182,13 +167,26 @@
       </table>
     </div>
 
+    <br>
+    </div>
 
+    <div id="time-text">01:00</div>
+    <div id="time-overlay">
+          <button id="deactivate" onclick="deactivateBLM()">DEACTIVATE</button>
 
+    </div>
+    <button onclick="activateBLM()">Blue Light Mode</button>
 
     <!-- Javascript Functions -->
     <script>var samsung_flowers = "{% static 'hub/audio/samsung_flowers.mp3' %}";
-             var notification11 = "{% static 'hub/audio/notification11.mp3' %}";</script>
+            var notification11 = "{% static 'hub/audio/notification11.mp3' %}";
+            var blm_activated = "{% static 'hub/audio/blm_activated.mp3' %}";
+            var blm_deactivated = "{% static 'hub/audio/blm_deactivated.mp3' %}";
+    </script>
+    <script src="{% static 'hub/netgear.js' %}"></script>
+    <script src="{% static 'hub/smoothie.js' %}"></script>
     <script src="{% static 'hub/rfid_demo.js' %}"></script>
+
 
 </html>
 

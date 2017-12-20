@@ -31,7 +31,6 @@ body {
         width: 200px;
         height: 200px;
         opacity: 0.5;
-
       }
 
       #arjun img {
@@ -39,7 +38,6 @@ body {
         width:200px;
         height:200px;
         opacity :0.5;
-
       }
 
       #victor img {
@@ -47,6 +45,55 @@ body {
         width:200px;
         height:200px;
         opacity :0.5;
+      }
+
+      #adam img {
+        filter: grayscale(100%);
+        width:200px;
+        height:200px;
+        opacity :0.5;  
+      }
+
+      .blur {
+        filter: blur(5px);
+      }
+
+      #time-overlay {
+        position: fixed;
+        display: none;
+        width: 120%;
+        height: 120%;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #15286B;
+        opacity: 0.9;
+        z-index: 2;
+        cursor: pointer;
+        font-size: 50px;
+        color: white;
+      }
+
+      #time-text {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        font-size: 250px;
+        filter: none;
+        z-index: 3;
+        color: white;
+        transform: translate(-50%,-50%);
+        -ms-transform: translate(-50%,-50%);
+      }
+
+      #smoothie-graph {
+        margin: auto;
+        width: 87%;
+      }
+
+      #smoothie-graph .text {
 
       }
       

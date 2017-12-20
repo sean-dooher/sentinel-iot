@@ -87,7 +87,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
 void setup() {
   rfidReader.begin(5,digitalPinToInterrupt(5), 4, digitalPinToInterrupt(4), 100, 25);
-  WiFiMulti.addAP("The Loft", "");
+  WiFiMulti.addAP("The Loft", "icysocks019");
 
   //WiFi.disconnect();
   while(WiFiMulti.run() != WL_CONNECTED) {
@@ -118,7 +118,8 @@ void setup() {
   ArduinoOTA.setHostname("RFID-Node");
 
   // server address, port and URL
-  webSocket.begin("192.168.1.6", 8000, "/hub/");
+  webSocket.begin("192.168.1.4", 8000, "/hub/");
+
 
   // event handler
   webSocket.onEvent(webSocketEvent);
