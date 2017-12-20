@@ -1,9 +1,8 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from polymorphic.models import PolymorphicModel
 from channels import Group
 import json
-import itertools
-from .utils import name_hash
 
 
 class Leaf(models.Model):
@@ -49,14 +48,14 @@ class Leaf(models.Model):
     def get_device(self, device, update=True):
         if update:
             self.refresh_device(device)
-        return self.get_devices(False)[device]
+        return self.devices.get(name=device)
 
     def get_devices(self, update=True):
         if update:
             self.refresh_devices()
 
         devices = {}
-        for device in self.devices:
+        for device in self.devices.all():
                 devices[device.name] = device
 
         return devices
@@ -116,22 +115,16 @@ class Leaf(models.Model):
                   'message': device.status_update_dict}
 
         message = {'text': json.dumps(status)}
-        for subscription in self.subscribers.filter(target_device=device.name):
-            subscriber_uuid = subscription.subscriber.uuid
-            seen_devices.add(subscriber_uuid)
-            Group(subscriber_uuid).send(message)
+        subscriptions = Subscription.objects.filter(target_uuid=self.uuid)
+        for subscription in subscriptions.filter(target_device=device.name):
+            seen_devices.add(subscription.subscriber_uuid)
+            Group(subscription.subscriber_uuid).send(message)
+        # send messages to whole leaf subscribers
         status['sub_device'] = 'leaf'
         message = {'text': json.dumps(status)}
-        for subscription in self.subscribers.filter(target_device="leaf"):
-            subscriber_uuid = subscription.subscriber.uuid
-            if subscriber_uuid not in seen_devices:
-                Group(subscriber_uuid).send(message)
-
-
-    @property
-    def devices(self):
-        return itertools.chain(self.booleandevice_set.all(), self.stringdevice_set.all(),
-                               self.numberdevice_set.all(), self.unitdevice_set.all())
+        for subscription in subscriptions.filter(target_device="leaf"):
+            if subscription.subscriber_uuid not in seen_devices:
+                Group(subscription.subscriber_uuid).send(message)
 
     @property
     def message_template(self):
@@ -154,12 +147,9 @@ class Leaf(models.Model):
         return leaf
 
 
-class Device(models.Model):
-    class Meta:
-        abstract = True
-
+class Device(PolymorphicModel):
     name = models.CharField(max_length=100)
-    leaf = models.ForeignKey(Leaf, on_delete=models.CASCADE)
+    leaf = models.ForeignKey(Leaf, related_name='devices', on_delete=models.CASCADE)
     is_input = models.BooleanField(default=True)
 
     def update_value(self, message):
@@ -212,6 +202,10 @@ class Device(models.Model):
         uuid = message['uuid']
         for device in message['devices']:
             Device.create_from_message(device, uuid)
+
+    @property
+    def format(self):
+        return "Normal"
 
 
 class StringDevice(Device):
@@ -268,8 +262,10 @@ class UnitDevice(Device):
     def __repr__(self):
         return "UnitDevice <name:{}, value: {}>".format(self.name, self.value)
 
-
 class Subscription(models.Model):
-    subscriber = models.ForeignKey(Leaf, related_name='subscriptions',on_delete=models.CASCADE)
-    target_leaf = models.ForeignKey(Leaf, related_name='subscribers', on_delete=models.CASCADE)
+    subscriber_uuid = models.CharField(max_length=36)
+    target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=100)
+
+class DatastoreValue(PolymorphicModel):
+    name = models.CharField(max_length=30)

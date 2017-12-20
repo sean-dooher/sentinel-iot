@@ -55,7 +55,7 @@ def ws_handle_status(message, mess):
     device_format = mess["format"].lower()
     try:
         device = leaf.get_device(device_name, False)
-    except KeyError:
+    except ObjectDoesNotExist:
         device = leaf.create_device(device_name, device_format)
     device.update_value(mess)
     logger.info('Status updated: {}'.format(device))
@@ -68,14 +68,15 @@ def ws_handle_subscribe(message, mess):
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
     try:
         subscriber = Leaf.objects.get(pk=subscriber_uuid)
-        target_leaf = Leaf.objects.get(pk=target_uuid)
-    except ObjectDoesNotExist:
+        if not target_uuid == 'datastore':
+            target_leaf = Leaf.objects.get(pk=target_uuid)
+    except ObjectDoesNotExist as e:
         return
 
     try:
-        subscription = Subscription.objects.get(subscriber=subscriber, target_leaf=target_leaf, target_device=device)
+        subscription = Subscription.objects.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
     except ObjectDoesNotExist:
-        subscription = Subscription(subscriber=subscriber, target_leaf=target_leaf, target_device=device)
+        subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
         subscription.save()
 
 
