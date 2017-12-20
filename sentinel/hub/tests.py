@@ -5,39 +5,10 @@ from channels.test import ChannelTestCase, WSClient, HttpClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
 from channels import Group
 from .models import Leaf, Device, BooleanDevice, StringDevice, NumberDevice, UnitDevice
-from PyLeaf import PyLeaf
-from PyLeaf import Device as PyDevice
 import json
 
 
-class FakeSocket:
-    def __init__(self, url, on_open=None, on_close=None, on_message=None, on_error=None):
-        self.on_message = on_message
-        self.on_close = on_close
-        self.keep_running = True
-        self.on_open = on_open
-        self.on_error = on_error
-        self.client = WSClient()
-
-    def send(self, content):
-        self.client.send_and_consume('websocket.receive', json.loads(content))
-
-    def connect(self, url):
-        self.client = WSClient()
-        self.client.send_and_consume('websocket.connect', {})
-        self.on_open(self)
-
-    def receive_message(self, message):
-        self.on_message(json.dumps(message))
-
-    def run_forever(self):
-        self.on_open(self)
-
-    def close(self):
-        self.keep_running = False
-
-class LeafTests(ChannelTestCase):
-
+class LeafModelTests(ChannelTestCase):
     def test_refresh_devices(self):
         Group("a581b491-da64-4895-9bb6-5f8d76ebd44e").add("test-channel")
         leaf = Leaf(name="test1", model="01", uuid="a581b491-da64-4895-9bb6-5f8d76ebd44e")
@@ -81,26 +52,15 @@ class LeafTests(ChannelTestCase):
                                     'format': 'bool', 'mode': 'OUT'}]}
         Device.create_from_device_list(fake_message)
         num_found = 0
-        for device in leaf.devices:
+        for device in leaf.devices.all():
             if device.name != 'rfid' and device.name != 'door':
                 self.fail("Unexpected device")
             num_found += 1
         self.assertEqual(num_found, 2, "Expected to find 2 devices")
-        d2 = PyDevice("door", True, "bool")
-
-
-class HubTests(TestCase):
-    pass
-
 
 @apply_routes([route('websocket.connect', lambda request: ws_add(request, "hub")),
                route('websocket.receive', ws_message)])
 class ConsumerTests(TestCase):
-
-    def setUp(self):
-        def create_socket(socket, on_open, on_close, on_message, on_error):
-            return FakeSocket(socket, on_open=on_open, on_close=on_close, on_message=on_message, on_error=on_error)
-        PyLeaf.create_socket = create_socket
 
     def send_create_leaf(self, name, model, uuid, api_version="0.1.0", receive=True):
         client = WSClient()
@@ -152,9 +112,9 @@ class ConsumerTests(TestCase):
 
 
     @staticmethod
-    def send_device_update(client, leaf, device, value, format, mode="IN", options=None, units=None):
+    def send_device_update(client, sender, device, value, format, mode="IN", options=None, units=None):
         device_message = {'type': 'DEVICE_STATUS',
-                          'uuid': leaf.uuid,
+                          'uuid': sender,
                           'device': device,
                           'mode': mode,
                           'format': format,
@@ -172,14 +132,14 @@ class ConsumerTests(TestCase):
         client, db_leaf = self.send_create_leaf(name, model, uuid)
 
         # send initial values, create devices in database
-        self.send_device_update(client, db_leaf, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
-        self.send_device_update(client, db_leaf, 'door', False, 'bool', "OUT")
-        self.send_device_update(client, db_leaf, 'thermometer', 50, 'number+units', "IN", {'auto': 1}, units="F")
-        self.send_device_update(client, db_leaf, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
+        self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
+        self.send_device_update(client, db_leaf.uuid, 'door', False, 'bool', "OUT")
+        self.send_device_update(client, db_leaf.uuid, 'thermometer', 50, 'number+units', "IN", {'auto': 1}, units="F")
+        self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
         self.assertIsNone(client.receive(), "Didn't  expect a response")
 
         db_leaf.refresh_from_db() # refresh leaf
-        devices = {device.name: device for device in db_leaf.devices}
+        devices = db_leaf.get_devices(False)
         self.assertEqual(len(devices), 4, "Expected four devices")
 
         # TODO: uncomment options
@@ -209,13 +169,13 @@ class ConsumerTests(TestCase):
         # self.assertDictEqual({'auto': 1}, led_device.options, "Wrong options dictionary")
 
         # test updating by updating all but door
-        self.send_device_update(client, db_leaf, 'rfid_reader', 33790, 'number', "IN", {'auto': 1})
-        self.send_device_update(client, db_leaf, 'thermometer', 90, 'number+units', "IN", {'auto': 1}, units="F")
-        self.send_device_update(client, db_leaf, 'led_display', "HERE WE", 'string', "OUT", {'auto': 1})
+        self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 33790, 'number', "IN", {'auto': 1})
+        self.send_device_update(client, db_leaf.uuid, 'thermometer', 90, 'number+units', "IN", {'auto': 1}, units="F")
+        self.send_device_update(client, db_leaf.uuid, 'led_display', "HERE WE", 'string', "OUT", {'auto': 1})
         self.assertIsNone(client.receive(), "Didn't  expect a response")
 
         db_leaf.refresh_from_db()
-        devices = {device.name: device for device in db_leaf.devices}
+        devices = db_leaf.get_devices(False)
         self.assertEqual(len(devices), 4, "Expected four devices")
 
         # refresh all devices to check for changes
@@ -233,10 +193,10 @@ class ConsumerTests(TestCase):
         pass
 
     @staticmethod
-    def send_subscribe(observer_client, observer_leaf, other_leaf, other_device):
+    def send_subscribe(observer_client, observer_uuid, other_uuid, other_device):
         sub_message = {'type': 'SUBSCRIBE',
-                       'uuid': observer_leaf.uuid,
-                       'sub_uuid': other_leaf.uuid,
+                       'uuid': observer_uuid,
+                       'sub_uuid': other_uuid,
                        'sub_device': other_device}
         observer_client.send_and_consume('websocket.receive', {'text': sub_message})
 
@@ -246,16 +206,13 @@ class ConsumerTests(TestCase):
         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
 
         # setup devices
-        self.send_device_update(rfid_client, rfid_leaf, 'rfid_reader', 33790, 'number')
-        self.send_device_update(rfid_client, rfid_leaf, 'other_sensor', False, 'bool')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-        self.send_subscribe(observer_client, observer_leaf, rfid_leaf, 'rfid_reader')  # subscribe to the rfid reader
-
-        self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
-        self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
+        self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
 
         # update rfid device
-        self.send_device_update(rfid_client, rfid_leaf, 'rfid_reader', 3032042781, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
         self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
 
         # test that subscription message was received and check parameters
@@ -275,17 +232,28 @@ class ConsumerTests(TestCase):
         self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")  # make sure there are no more messages
 
         # make sure other device doesn't trigger subscription event
-        self.send_device_update(rfid_client, rfid_leaf, 'other_sensor', False, 'bool')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
         self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
         self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
 
-        # test full-leaf subscription
-        self.send_subscribe(observer_client, observer_leaf, rfid_leaf, 'leaf')
+    def test_full_leaf_subscribe(self):
+        # setup leaves
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+
+        # setup devices
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+
+        # subscribe to the rfid reader
+        self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        # subscribe to whole leaf
+        self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
         self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
         self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
 
-        # test that other device now generates subscription event
-        self.send_device_update(rfid_client, rfid_leaf, 'other_sensor', True, 'bool')
+        # test that other device generates subscription event
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', True, 'bool')
         sub_message = observer_client.receive()
         self.assertIsNotNone(sub_message, "Expected to receive a subscription update")
         self.assertEquals(sub_message['type'], 'SUBSCRIPTION_UPDATE', "Wrong type")
@@ -301,8 +269,8 @@ class ConsumerTests(TestCase):
 
         self.assertIsNone(observer_client.receive(), "Didn't  expect a response")  # ensure there are no more messages
 
-        # ensure original device still generates event
-        self.send_device_update(rfid_client, rfid_leaf, 'rfid_reader', 33790, 'number')
+        # ensure original device generates event
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         sub_message = observer_client.receive()
         self.assertIsNotNone(sub_message, "Expected to receive a subscription update")
         self.assertEquals(sub_message['type'], 'SUBSCRIPTION_UPDATE', "Wrong type")
@@ -318,4 +286,211 @@ class ConsumerTests(TestCase):
     def test_unsubscribe(self):
         pass
 
+    def assertDatastoreReadSuccess(self, client, requester, name, expected_value=None, expected_format=None):
+        self.send_get_datastore(client, requester, name)
+        expected_response = {
+            'type': 'DATASTORE_VALUE',
+            'name': name,
+            'value': expected_value,  # value should not have changed from last set request
+            'format': expected_format
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response after requesting data")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['name'], expected_response['name'])
+        self.assertEquals(response['value'], expected_response['value'])
+        self.assertEquals(response['format'], expected_response['format'])
+
+    def assertDatastoreReadFailed(self, client, requester, name):
+        expected_response = {
+                                'type': 'PERMISSION_DENIED',
+                                'request': 'DATASTORE_GET',
+                                'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    def assertDatastoreSetFailed(self, client, requester, name, value):
+        self.send_set_datastore(client, requester, name, value)
+        expected_response = {
+            'type': 'PERMISSION_DENIED',
+            'request': 'DATASTORE_SET',
+            'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response from setting datastore value")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    def assertDatastoreDeleteFailed(self, client, requester, name):
+        self.send_delete_datastore(client, requester, name)
+        expected_response = {
+            'type': 'PERMISSION_DENIED',
+            'request': 'DATASTORE_DELETE',
+            'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response from deleting datastore value")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    def assertUnknownDatastore(self, client, requester, name, method='GET', set_value=None):
+        if method == 'GET':
+            self.send_get_datastore(client, requester, name)
+        else:
+            self.send_set_datastore(client, requester, name, set_value)
+        expected_response = {
+            'type': 'UNKNOWN_DATASTORE',
+            'request': 'DATASTORE_' + method,
+            'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    @staticmethod
+    def send_create_datastore(client, requester, name, value, format, permissions={}):
+        data_message = {
+            'type': 'DATASTORE_CREATE',
+            'uuid': requester,
+            'name': name,
+            'value': value,
+            'format': format,
+        }
+        if permissions:
+            data_message['permissions'] = permissions
+        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+
+    @staticmethod
+    def send_delete_datastore(client, requester, name):
+        data_message = {
+            'type': 'DATASTORE_DELETE',
+            'uuid': requester,
+            'name': name,
+        }
+        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+
+    @staticmethod
+    def send_set_datastore(client, requester, name, value):
+        data_message = {
+            'type': 'DATASTORE_SET',
+            'uuid': requester,
+            'name': name,
+            'value': value
+        }
+        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+
+    @staticmethod
+    def send_get_datastore(client, requester, name):
+        data_message = {
+            'type': 'DATASTORE_GET',
+            'uuid': requester,
+            'name': name
+        }
+        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+
+    def test_datastore_create_delete(self):
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+
+        # make sure the datastore didn't exist beforehand
+        self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
+        self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
+
+        # test create
+        self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        expected_response = {
+            'type': 'DATASTORE_CREATED',
+            'name': 'sean_home',
+            'format': 'bool',
+        }
+        response = rfid_client.receive()
+        self.assertIsNotNone(response, "Expected a message for creating datastore")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['name'], expected_response['name'])
+        self.assertEquals(response['format'], expected_response['format'])
+
+        # make sure value was saved
+        self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+
+        # test delete
+        self.send_delete_datastore(rfid_client, rfid_leaf.uuid, 'sean_home')
+        expected_response = {
+            'type': 'DATASTORE_DELETED',
+            'name': 'sean_home'
+        }
+        response = rfid_client.receive()
+        self.assertIsNotNone(response, "Expected a message for creating datastore")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+        # make sure delete was successful
+        self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
+        self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
+
+    def test_datastore_update(self):
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        self.assertIsNotNone(rfid_client.receive(), "Expected creation message")
+        # set new value and check for success with a read
+
+        self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        self.send_set_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True)
+        self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
+
+    def test_datastore_permissions(self):
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690')
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
+        admin_client, admin_leaf = self.send_create_leaf('other_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
+
+        permissions = {
+            'default': 'deny',  # deny reads and writes by default
+            'cd1b7879-d17a-47e5-bc14-26b3fc554e49': 'read',  # the door can read the value
+            '3cbb357f-3dda-4463-9055-581b82ab8690': 'write',  # the other_client can read and write
+            '2e11b9fc-5725-4843-8b9c-4caf2d69c499': 'admin'
+        }
+        self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        self.assertIsNotNone(rfid_client.receive(), "Expected a response from creating datastore")
+
+        # test deny
+        self.assertDatastoreReadFailed(other_client, other_leaf.uuid, 'sean_home')
+        self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
+        self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
+
+        # test read
+        self.assertDatastoreReadSuccess(door_client, door_leaf.uuid, 'sean_home', False, 'bool')
+        self.assertDatastoreSetFailed(door_client, door_leaf.uuid, 'sean_home', True)
+        self.assertDatastoreDeleteFailed(door_client, door_leaf.uuid, 'sean_home')
+
+        # test write
+        # ensures write read works and last 'set' was not successful
+        self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
+
+        self.send_set_datastore(light_client, light_leaf.uuid, 'sean_home', True)
+        self.assertIsNone(light_client.receive(), "Did not expect a message after updating")
+
+        self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
+        self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
+        # test admin
+        self.send_set_datastore(admin_client, admin_leaf.uuid, 'sean_home', False)
+        self.assertIsNone(admin_client.receive(), "Did not expect a message after updating")
+
+        self.assertDatastoreReadSuccess(admin_client, admin_leaf.uuid, 'sean_home', False, 'bool')
+        self.send_delete_datastore(admin_client, admin_leaf.uuid, 'sean_home')
+        expected_response = {
+            'type': 'DATASTORE_DELETED',
+            'name': 'sean_home'
+        }
+        response = admin_client.receive()
+        self.assertIsNotNone(response, "Expected a message for creating datastore")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['name'], expected_response['name'])
 
