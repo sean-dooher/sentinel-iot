@@ -27,6 +27,8 @@ def ws_message(message):
                 return ws_handle_status(message, mess)
             elif type == 'SUBSCRIBE':
                 return ws_handle_subscribe(message, mess)
+            elif type == 'UNSUBSCRIBE':
+                return ws_handle_unsubscribe(message, mess)
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
 
@@ -70,7 +72,7 @@ def ws_handle_subscribe(message, mess):
         subscriber = Leaf.objects.get(pk=subscriber_uuid)
         if not target_uuid == 'datastore':
             target_leaf = Leaf.objects.get(pk=target_uuid)
-    except ObjectDoesNotExist as e:
+    except ObjectDoesNotExist:
         return
 
     try:
@@ -78,6 +80,24 @@ def ws_handle_subscribe(message, mess):
     except ObjectDoesNotExist:
         subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
         subscription.save()
+
+def ws_handle_unsubscribe(message, mess):
+    target_uuid = mess['sub_uuid'].lower()
+    subscriber_uuid = mess['uuid'].lower()
+    device = mess['sub_device'].lower()
+    logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
+    try:
+        subscriber = Leaf.objects.get(pk=subscriber_uuid)
+        if not target_uuid == 'datastore':
+            target_leaf = Leaf.objects.get(pk=target_uuid)
+    except ObjectDoesNotExist:
+        return
+
+    try:
+        subscription = Subscription.objects.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
+        subscription.delete()
+    except ObjectDoesNotExist:
+        return
 
 
 @channel_session

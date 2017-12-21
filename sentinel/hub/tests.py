@@ -200,6 +200,14 @@ class ConsumerTests(TestCase):
                        'sub_device': other_device}
         observer_client.send_and_consume('websocket.receive', {'text': sub_message})
 
+    @staticmethod
+    def send_unsubscribe(observer_client, observer_uuid, other_uuid, other_device):
+        sub_message = {'type': 'UNSUBSCRIBE',
+                       'uuid': observer_uuid,
+                       'sub_uuid': other_uuid,
+                       'sub_device': other_device}
+        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
+
     def test_subscriptions(self):
         # setup leaves
         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
@@ -209,6 +217,7 @@ class ConsumerTests(TestCase):
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
+        # subscribe
         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
 
         # update rfid device
@@ -284,7 +293,67 @@ class ConsumerTests(TestCase):
         self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
 
     def test_unsubscribe(self):
-        pass
+        # setup leaves
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+
+        # setup devices
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+
+        # subscribe to rfid_leaf
+        self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+
+        # update rfid device
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+        self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
+
+        # test that subscription message was received
+        self.assertIsNotNone(observer_client.receive(), "Expected to receive a subscription update")
+
+        self.assertIsNone(observer_client.receive(), "Didn't  expect a response")  # make sure there are no more messages
+
+        # unsubscribe
+        self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+
+        self.assertIsNone(observer_client.receive()) # should not recieve subscription updates any more
+
+    def test_full_leaf_unsubscribe(self):
+        # setup leaves
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+
+        # setup devices
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+
+        # subscribe to the rfid reader
+        self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        # subscribe to whole leaf
+        self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
+        self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
+
+        # test that other device generates subscription event
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', True, 'bool')
+        self.assertIsNotNone(observer_client.receive(), "Expected to receive a subscription update")
+        self.assertIsNone(observer_client.receive(), "Didn't  expect a response")  # ensure there are no more messages
+
+        # ensure original device generates event
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.assertIsNotNone(observer_client.receive(), "Expected to receive a subscription update")
+        # ensure message doesn't show up twice
+        self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
+
+        # unsubscribe and make sure other sensor doesn't generate subscription events anymore
+        self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        self.assertIsNone(observer_client.receive(), "Did not expect a message from other_sensor after unsubscribing")
+
+        # make sure that the original subscription to the rfid_reader still exists
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.assertIsNotNone(observer_client.receive(), "Expected to still receive a subscription update")
 
     def assertDatastoreReadSuccess(self, client, requester, name, expected_value=None, expected_format=None):
         self.send_get_datastore(client, requester, name)
@@ -366,7 +435,7 @@ class ConsumerTests(TestCase):
         }
         if permissions:
             data_message['permissions'] = permissions
-        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+        client.send_and_consume('websocket.receive', {'text': data_message})
 
     @staticmethod
     def send_delete_datastore(client, requester, name):
@@ -375,7 +444,7 @@ class ConsumerTests(TestCase):
             'uuid': requester,
             'name': name,
         }
-        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+        client.send_and_consume('websocket.receive', {'text': data_message})
 
     @staticmethod
     def send_set_datastore(client, requester, name, value):
@@ -385,7 +454,7 @@ class ConsumerTests(TestCase):
             'name': name,
             'value': value
         }
-        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+        client.send_and_consume('websocket.receive', {'text': data_message})
 
     @staticmethod
     def send_get_datastore(client, requester, name):
@@ -394,7 +463,7 @@ class ConsumerTests(TestCase):
             'uuid': requester,
             'name': name
         }
-        client.send_and_consume('websocket.receive', {'text': json.dumps(data_message)})
+        client.send_and_consume('websocket.receive', {'text': data_message})
 
     def test_datastore_create_delete(self):
         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
