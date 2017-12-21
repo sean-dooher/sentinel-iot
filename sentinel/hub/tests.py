@@ -1,6 +1,7 @@
 from django.test import TestCase
 from channels import Channel, route
 from .consumers import ws_add, ws_handle_subscribe, ws_message, ws_disconnect, ws_handle_config, ws_handle_status
+from .routing import websocket_routing, hub_routing
 from channels.test import ChannelTestCase, WSClient, HttpClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
 from channels import Group
@@ -58,8 +59,8 @@ class LeafModelTests(ChannelTestCase):
             num_found += 1
         self.assertEqual(num_found, 2, "Expected to find 2 devices")
 
-@apply_routes([route('websocket.connect', lambda request: ws_add(request, "hub")),
-               route('websocket.receive', ws_message)])
+
+@apply_routes([websocket_routing, hub_routing])
 class ConsumerTests(TestCase):
 
     def send_create_leaf(self, name, model, uuid, api_version="0.1.0", receive=True):
@@ -70,7 +71,7 @@ class ConsumerTests(TestCase):
                           'model': model,
                           'uuid': uuid,
                           'api_version': api_version}
-        client.send_and_consume('websocket.receive', {'text': config_message})
+        client.send_and_consume('hub.receive', config_message)
         if receive:
             self.assertIsNotNone(client.receive(), "LIST_DEVICES not received")
             self.assertIsNotNone(client.receive(), "CONFIG_COMPLETE not received")
@@ -123,7 +124,7 @@ class ConsumerTests(TestCase):
             device_message['options'] = options
         if units:
             device_message['units'] = units
-        client.send_and_consume('websocket.receive', {'text': device_message})
+        client.send_and_consume('hub.receive', device_message)
 
     def test_devices(self):
         name = "py_device_test"
@@ -198,7 +199,7 @@ class ConsumerTests(TestCase):
                        'uuid': observer_uuid,
                        'sub_uuid': other_uuid,
                        'sub_device': other_device}
-        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
+        observer_client.send_and_consume('hub.receive', sub_message)
 
     @staticmethod
     def send_unsubscribe(observer_client, observer_uuid, other_uuid, other_device):
@@ -206,7 +207,7 @@ class ConsumerTests(TestCase):
                        'uuid': observer_uuid,
                        'sub_uuid': other_uuid,
                        'sub_device': other_device}
-        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
+        observer_client.send_and_consume('hub.receive', sub_message)
 
     def test_subscriptions(self):
         # setup leaves
@@ -435,7 +436,7 @@ class ConsumerTests(TestCase):
         }
         if permissions:
             data_message['permissions'] = permissions
-        client.send_and_consume('websocket.receive', {'text': data_message})
+        client.send_and_consume('hub.receive', data_message)
 
     @staticmethod
     def send_delete_datastore(client, requester, name):
@@ -444,7 +445,7 @@ class ConsumerTests(TestCase):
             'uuid': requester,
             'name': name,
         }
-        client.send_and_consume('websocket.receive', {'text': data_message})
+        client.send_and_consume('hub.receive', {'text': data_message})
 
     @staticmethod
     def send_set_datastore(client, requester, name, value):
@@ -454,7 +455,7 @@ class ConsumerTests(TestCase):
             'name': name,
             'value': value
         }
-        client.send_and_consume('websocket.receive', {'text': data_message})
+        client.send_and_consume('hub.receive', {'text': data_message})
 
     @staticmethod
     def send_get_datastore(client, requester, name):
@@ -463,7 +464,7 @@ class ConsumerTests(TestCase):
             'uuid': requester,
             'name': name
         }
-        client.send_and_consume('websocket.receive', {'text': data_message})
+        client.send_and_consume('hub.receive', {'text': data_message})
 
     def test_datastore_create_delete(self):
         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')

@@ -6,6 +6,7 @@ import json
 
 
 class Leaf(models.Model):
+    # TODO: integrate with authentication, user
     hub_id = 1
     name = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
@@ -109,22 +110,16 @@ class Leaf(models.Model):
 
     def send_subscriber_update(self, device):
         seen_devices = set()
-        status = {'type': 'SUBSCRIPTION_UPDATE',
-                  'sub_uuid': self.uuid,
-                  'sub_device': device.name,
-                  'message': device.status_update_dict}
+        message = device.status_update_dict
 
-        message = {'text': json.dumps(status)}
         subscriptions = Subscription.objects.filter(target_uuid=self.uuid)
         for subscription in subscriptions.filter(target_device=device.name):
             seen_devices.add(subscription.subscriber_uuid)
-            Group(subscription.subscriber_uuid).send(message)
+            subscription.handle_update(self.uuid, device.name, message)
         # send messages to whole leaf subscribers
-        status['sub_device'] = 'leaf'
-        message = {'text': json.dumps(status)}
         for subscription in subscriptions.filter(target_device="leaf"):
             if subscription.subscriber_uuid not in seen_devices:
-                Group(subscription.subscriber_uuid).send(message)
+                subscription.handle_update(self.uuid, 'leaf', message)
 
     @property
     def message_template(self):
@@ -205,7 +200,7 @@ class Device(PolymorphicModel):
 
     @property
     def format(self):
-        return "Normal"
+        return "none"
 
 
 class StringDevice(Device):
@@ -262,10 +257,36 @@ class UnitDevice(Device):
     def __repr__(self):
         return "UnitDevice <name:{}, value: {}>".format(self.name, self.value)
 
+
 class Subscription(models.Model):
     subscriber_uuid = models.CharField(max_length=36)
     target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=100)
 
+    def handle_update(self, uuid, device, message):
+        sub_message = {'type': 'SUBSCRIPTION_UPDATE',
+                       'sub_uuid': uuid,
+                       'sub_device': device,
+                       'message': message}
+        Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
+
+# TODO: use django guardian to give certain users permissions to change, delete, etc
 class DatastoreValue(PolymorphicModel):
     name = models.CharField(max_length=30)
+
+
+class StringValue(DatastoreValue):
+    value = models.CharField(max_length=250)
+
+
+class NumberValue(DatastoreValue):
+    value = models.DecimalField(max_digits=15, decimal_places=4)
+
+
+class UnitValue(DatastoreValue):
+    value = models.DecimalField(max_digits=15, decimal_places=4)
+    units = models.CharField(max_length=10)
+
+
+class BooleanValue(DatastoreValue):
+    value = models.BooleanField()

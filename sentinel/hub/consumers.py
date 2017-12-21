@@ -1,47 +1,40 @@
-from channels import Group
+from channels import Group, Channel
 from channels.sessions import channel_session
+from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Leaf, Subscription
-from .utils import name_hash, is_valid_message
+from .utils import is_valid_message
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-@channel_session
-def ws_add(message, hub):
+@channel_session_user_from_http
+def ws_add(message):
     # Accept the connection
     message.reply_channel.send({"accept": True})
-    message.channel_session['hub'] = hub
 
-@channel_session
+
+@channel_session_user
 def ws_message(message):
     try:
         mess = json.loads(message.content['text'])
-        if 'type' in mess:
-            type = mess['type']
-            if type == 'CONFIG':
-                return ws_handle_config(message, mess)
-            elif type == 'DEVICE_STATUS':
-                return ws_handle_status(message, mess)
-            elif type == 'SUBSCRIBE':
-                return ws_handle_subscribe(message, mess)
-            elif type == 'UNSUBSCRIBE':
-                return ws_handle_unsubscribe(message, mess)
+        mess['reply_channel'] = message.content['reply_channel']
+        Channel("hub.receive").send(mess)
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
 
-
-def ws_handle_config(message, mess):
-    api = mess['api_version']
-    uuid = mess['uuid']
+@channel_session_user
+def ws_handle_config(message):
+    api = message['api_version']
+    uuid = message['uuid']
 
     try:
         leaf = Leaf.objects.get(pk=uuid)
         leaf.api_version = api
     except ObjectDoesNotExist:
-        leaf = Leaf.create_from_message(mess)
+        leaf = Leaf.create_from_message(message)
     leaf.save()
     leaf.refresh_devices()
     Group(uuid).add(message.reply_channel)
@@ -51,45 +44,49 @@ def ws_handle_config(message, mess):
     logger.info('Config received for {}'.format(leaf.name))
 
 
-def ws_handle_status(message, mess):
-    leaf = Leaf.objects.get(pk=mess['uuid'])
-    device_name = mess["device"].lower()
-    device_format = mess["format"].lower()
+@channel_session_user
+def ws_handle_status(message):
+    leaf = Leaf.objects.get(pk=message['uuid'])
+    device_name = message["device"].lower()
+    device_format = message["format"].lower()
     try:
         device = leaf.get_device(device_name, False)
     except ObjectDoesNotExist:
         device = leaf.create_device(device_name, device_format)
-    device.update_value(mess)
+    device.update_value(message)
     logger.info('Status updated: {}'.format(device))
 
 
-def ws_handle_subscribe(message, mess):
-    target_uuid = mess['sub_uuid'].lower()
-    subscriber_uuid = mess['uuid'].lower()
-    device = mess['sub_device'].lower()
+@channel_session_user
+def ws_handle_subscribe(message):
+    target_uuid = message['sub_uuid'].lower()
+    subscriber_uuid = message['uuid'].lower()
+    device = message['sub_device'].lower()
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
     try:
-        subscriber = Leaf.objects.get(pk=subscriber_uuid)
+        Leaf.objects.get(pk=subscriber_uuid)
         if not target_uuid == 'datastore':
-            target_leaf = Leaf.objects.get(pk=target_uuid)
+            Leaf.objects.get(pk=target_uuid)
     except ObjectDoesNotExist:
         return
 
     try:
-        subscription = Subscription.objects.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
+        Subscription.objects.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
     except ObjectDoesNotExist:
         subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
         subscription.save()
 
-def ws_handle_unsubscribe(message, mess):
-    target_uuid = mess['sub_uuid'].lower()
-    subscriber_uuid = mess['uuid'].lower()
-    device = mess['sub_device'].lower()
+
+@channel_session_user
+def ws_handle_unsubscribe(message):
+    target_uuid = message['sub_uuid'].lower()
+    subscriber_uuid = message['uuid'].lower()
+    device = message['sub_device'].lower()
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
     try:
-        subscriber = Leaf.objects.get(pk=subscriber_uuid)
+        Leaf.objects.get(pk=subscriber_uuid)
         if not target_uuid == 'datastore':
-            target_leaf = Leaf.objects.get(pk=target_uuid)
+            Leaf.objects.get(pk=target_uuid)
     except ObjectDoesNotExist:
         return
 
@@ -100,11 +97,10 @@ def ws_handle_unsubscribe(message, mess):
         return
 
 
-@channel_session
+@channel_session_user_from_http
 def ws_disconnect(message):
     if 'leaf' in message.channel_session:
         leaf = Leaf.objects.get(pk=message.channel_session['leaf'])
         leaf.isConnected = False
         leaf.save()
         Group(leaf.uuid).discard(message.reply_channel)
-    # TODO: Add unsubscribe on disconnect
