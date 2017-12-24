@@ -139,18 +139,6 @@ class Leaf(models.Model):
         message = {"text": json.dumps(message)}
         Group(self.uuid).send(message)
 
-    def create_device(self, device_name, format):
-        if format == 'bool':
-            device = BooleanDevice(name=device_name, leaf=self, value=False)
-        elif format == 'number+units':
-            device = UnitDevice(name=device_name, leaf=self, value=0, units="None")
-        elif format == 'number':
-            device = NumberDevice(name=device_name, leaf=self, value=0)
-        else:
-            # treat unknown formats as strings per API
-            device = StringDevice(name=device_name, leaf=self, value="")
-        return device
-
     def send_subscriber_update(self, device):
         seen_devices = set()
         message = device.status_update_dict
@@ -185,7 +173,7 @@ class Leaf(models.Model):
         return leaf
 
 
-class Device(PolymorphicModel):
+class Device(models.Model):
     name = models.CharField(max_length=100)
     leaf = models.ForeignKey(Leaf, related_name='devices', on_delete=models.CASCADE)
     is_input = models.BooleanField(default=True)
@@ -213,9 +201,6 @@ class Device(PolymorphicModel):
         if self.format == 'units':
             status_update['units'] = self._value.units
         return status_update
-
-    def __str__(self):
-        return repr(self)
 
     def refresh_from_db(self, using=None, fields=None):
         self._value.refresh_from_db()
@@ -249,15 +234,12 @@ class Device(PolymorphicModel):
         device.save()
         return device
 
-    @staticmethod
-    def create_from_device_list(message):
-        uuid = message['uuid']
-        for device in message['devices']:
-            Device.create_from_message(device, uuid)
-
     @property
     def format(self):
         return self._value.format
+
+    def __str__(self):
+        return repr(self)
 
     def __repr__(self):
         return "<Device name:{}, value: {}>".format(self.name, repr(self.value))
@@ -274,3 +256,35 @@ class Subscription(models.Model):
                        'sub_device': device,
                        'message': message}
         Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
+
+
+class Datastore(models.Model):
+    _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="datastore")
+    name = models.CharField(max_length=100)
+
+    @property
+    def format(self):
+        return self._value.format
+
+    @property
+    def value(self):
+        return self._value.value
+
+    @value.setter
+    def value(self, new_value):
+        self._value.value = new_value
+        self._value.save()
+        message = {
+            'type': 'DEVICE_STATUS',
+            'value': self.value,
+            'format': self.format,
+            'uuid': 'datastore',
+            'device': self.name
+        }
+        subscriptions = Subscription.objects.filter(target_uuid="datastore", device=self.name)
+        for subscription in subscriptions:
+            subscription.handle_update("datastore", self.name, message)
+
+    def refresh_from_db(self, using=None, fields=None):
+        self._value.refresh_from_db()
+        return super().refresh_from_db(using=using, fields=fields)
