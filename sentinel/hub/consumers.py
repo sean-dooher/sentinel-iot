@@ -1,5 +1,6 @@
 from channels import Group, Channel
-from channels.sessions import channel_session
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Leaf, Subscription, Device
@@ -13,11 +14,6 @@ logger = logging.getLogger(__name__)
 @channel_session_user_from_http
 def ws_add(message):
     # Accept the connection
-    Channel("hub.connect").send(message)
-
-
-@channel_session_user_from_http
-def hub_add(message):
     message.reply_channel.send({"accept": True})
 
 
@@ -34,24 +30,37 @@ def ws_disconnect(message):
 def ws_message(message):
     try:
         mess = json.loads(message.content['text'])
-        mess['reply_channel'] = message.content['reply_channel']
-        Channel("hub.receive").send(mess)
+        message.content['dict'] = mess
+        if mess['type'] == 'CONFIG':
+            return hub_handle_config(message)
+        elif mess['type'] == 'DEVICE_STATUS':
+            return hub_handle_status(message)
+        elif mess['type'] == 'SUBSCRIBE':
+            return hub_handle_subscribe(message)
+        elif mess['type'] == 'UNSUBSCRIBE':
+            return hub_handle_unsubscribe(message)
+        elif mess['type'] == 'DATASTORE_CREATE':
+            return hub_handle_datastore_create(message)
+        elif mess['type'] == 'DATASTORE_GET':
+            return hub_handle_datastore_get(message)
+        elif message['type'] == 'DATSTORE_SET':
+            return hub_handle_datastore_set(message)
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
 
-@channel_session_user
+
 def hub_handle_config(message):
-    api = message['api_version']
-    uuid = message['uuid']
+    mess = message.content['dict']
+    api = mess['api_version']
+    uuid = mess['uuid']
 
     try:
         leaf = Leaf.objects.get(pk=uuid)
         leaf.api_version = api
     except ObjectDoesNotExist:
-        leaf = Leaf.create_from_message(message)
+        leaf = Leaf.create_from_message(mess)
     leaf.save()
     leaf.refresh_devices()
-    message.user.login(username=uuid, password="")
     Group(uuid).add(message.reply_channel)
     message.channel_session['leaf'] = uuid
     response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub_id": 1, "uuid": uuid})}
@@ -59,24 +68,24 @@ def hub_handle_config(message):
     logger.info('Config received for {}'.format(leaf.name))
 
 
-@channel_session_user
 def hub_handle_status(message):
-    leaf = Leaf.objects.get(pk=message['uuid'])
-    device_name = message["device"].lower()
-    device_format = message["format"].lower()
+    mess = message.content['dict']
+    leaf = Leaf.objects.get(pk=mess['uuid'])
+    device_name = mess["device"].lower()
+    device_format = mess["format"].lower()
     try:
         device = leaf.get_device(device_name, False)
     except ObjectDoesNotExist:
-        device = Device.create_from_message(message)
-    device.value = message['value']
+        device = Device.create_from_message(mess)
+    device.value = mess['value']
     logger.info('Status updated: {}'.format(device))
 
 
-@channel_session_user
 def hub_handle_subscribe(message):
-    target_uuid = message['sub_uuid'].lower()
-    subscriber_uuid = message['uuid'].lower()
-    device = message['sub_device'].lower()
+    mess = message.content['dict']
+    target_uuid = mess['sub_uuid'].lower()
+    subscriber_uuid = mess['uuid'].lower()
+    device = mess['sub_device'].lower()
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
     try:
         Leaf.objects.get(pk=subscriber_uuid)
@@ -92,11 +101,11 @@ def hub_handle_subscribe(message):
         subscription.save()
 
 
-@channel_session_user
 def hub_handle_unsubscribe(message):
-    target_uuid = message['sub_uuid'].lower()
-    subscriber_uuid = message['uuid'].lower()
-    device = message['sub_device'].lower()
+    mess = message.content['dict']
+    target_uuid = mess['sub_uuid'].lower()
+    subscriber_uuid = mess['uuid'].lower()
+    device = mess['sub_device'].lower()
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
     try:
         Leaf.objects.get(pk=subscriber_uuid)
@@ -106,22 +115,23 @@ def hub_handle_unsubscribe(message):
         return
 
     try:
-        subscription = Subscription.objects.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
+        subscription = Subscription.objects.get(subscriber_uuid=subscriber_uuid,
+                                                target_uuid=target_uuid, target_device=device)
         subscription.delete()
     except ObjectDoesNotExist:
         return
 
 
-@channel_session_user
 def hub_handle_datastore_create(message):
+    mess = message.content['dict']
     pass
 
 
-@channel_session_user
 def hub_handle_datastore_get(message):
+    mess = message.content['dict']
     pass
 
 
-@channel_session_user
 def hub_handle_datastore_set(message):
+    mess = message.content['dict']
     pass
