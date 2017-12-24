@@ -1,10 +1,8 @@
-from channels import Group, Channel
-from django.contrib.auth import authenticate, login
-from django.contrib.auth.models import User
+from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore
-from .models import Predicate, NOT, AND, OR, XOR, EqualPredicate, SetAction, Condition, ConditionalSubscription
+from .models import NOT, AND, OR, XOR, EqualPredicate, SetAction, Condition, ConditionalSubscription
 from .utils import is_valid_message
 import json
 import logging
@@ -32,6 +30,7 @@ def ws_message(message):
     try:
         mess = json.loads(message.content['text'])
         message.content['dict'] = mess
+        assert is_valid_message(mess)
         if mess['type'] == 'CONFIG':
             return hub_handle_config(message)
         elif mess['type'] == 'DEVICE_STATUS':
@@ -53,8 +52,8 @@ def ws_message(message):
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
         logger.error(mess)
-    except KeyError as k:
-        logger.error("Invalid message: 'type' not found in message")
+    except AssertionError:
+        logger.error("Invalid Message: required attributes missing from message")
         logger.error(mess)
 
 

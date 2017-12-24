@@ -1,9 +1,12 @@
 import unittest
 from .routing import websocket_routing
-from channels.test import ChannelTestCase, WSClient, HttpClient, apply_routes
+from channels.test import ChannelTestCase, WSClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
 from channels import Group
-from .models import Leaf, Device
+from .models import Leaf
+import logging
+
+logging.disable(logging.CRITICAL)
 
 
 @apply_routes(websocket_routing)
@@ -517,8 +520,9 @@ class DatastoreTests(ConsumerTests):
 
 class ConditionsTests(ConsumerTests):
     @staticmethod
-    def send_create_condition(admin_client, predicates, action_type, action_target, action_device, action_value=None):
+    def send_create_condition(admin_client, admin_uuid, predicates, action_type, action_target, action_device, action_value=None):
         message = {'type': 'CONDITION_CREATE',
+                   'uuid': admin_uuid,
                    'predicates': predicates,
                    'action_type': action_type,
                    'action_target': action_target,
@@ -536,8 +540,8 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
         predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781]
-        self.send_create_condition(admin_client, predicates, action_type='SET', action_target=door_leaf.uuid,
-                                   action_device='door_open', action_value=True)
+        self.send_create_condition(admin_client, admin_leaf.uuid, predicates, action_type='SET',
+                                   action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
         self.assertIsNone(door_client.receive())  # condition has not been met yet
@@ -571,8 +575,8 @@ class ConditionsTests(ConsumerTests):
 
         predicates = ['AND', ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
                       ['=', [other_leaf.uuid, 'other_sensor'], True]]
-        self.send_create_condition(admin_client, predicates, action_type='SET', action_target=door_leaf.uuid,
-                                   action_device='door_open', action_value=True)
+        self.send_create_condition(admin_client, admin_leaf.uuid, predicates, action_type='SET',
+                                   action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
         self.assertIsNone(door_client.receive())  # other_sensor is false so the condition doesn't trigger

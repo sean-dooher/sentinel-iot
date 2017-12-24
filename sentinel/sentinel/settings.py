@@ -108,21 +108,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-LOGGING = {
-    'version': 1,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'stream': sys.stdout,
-        }
-    },
-    'loggers': {
-        'hub.consumers': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-        }
-    }
-}
 
 LOGGING = {
     'version': 1,
