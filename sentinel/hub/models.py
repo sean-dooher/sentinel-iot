@@ -5,6 +5,49 @@ from channels import Group
 import json
 
 
+class Value(PolymorphicModel):
+    name = models.CharField(max_length=30)
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class StringValue(Value):
+    value = models.CharField(max_length=250)
+
+    @property
+    def format(self):
+        return "string"
+
+
+class NumberValue(Value):
+    value = models.DecimalField(max_digits=15, decimal_places=4)
+
+    @property
+    def format(self):
+        return "number"
+
+
+class UnitValue(Value):
+    value = models.DecimalField(max_digits=15, decimal_places=4)
+    units = models.CharField(max_length=10)
+
+    @property
+    def format(self):
+        return "number+units"
+
+    def __repr__(self):
+        return "{}{}".format(self.value, self.units)
+
+
+class BooleanValue(Value):
+    value = models.BooleanField()
+
+    @property
+    def format(self):
+        return "bool"
+
+
 class Leaf(models.Model):
     # TODO: integrate with authentication, user
     hub_id = 1
@@ -146,11 +189,17 @@ class Device(PolymorphicModel):
     name = models.CharField(max_length=100)
     leaf = models.ForeignKey(Leaf, related_name='devices', on_delete=models.CASCADE)
     is_input = models.BooleanField(default=True)
+    _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="device")
 
-    def update_value(self, message):
-        self.value = message['value']
+    @property
+    def value(self):
+        return self._value.value
+
+    @value.setter
+    def value(self, new_value):
+        self._value.value = new_value
+        self._value.save()
         self.leaf.send_subscriber_update(self)
-        self.save()
 
     @property
     def status_update_dict(self):
@@ -161,13 +210,16 @@ class Device(PolymorphicModel):
             'value': self.value,
             'format': self.format,
         }
+        if self.format == 'units':
+            status_update['units'] = self._value.units
         return status_update
 
     def __str__(self):
         return repr(self)
 
-    def __repr__(self):
-        return "Device <name: {}>".format(self.name)
+    def refresh_from_db(self, using=None, fields=None):
+        self._value.refresh_from_db()
+        return super().refresh_from_db(using=using, fields=fields)
 
     @staticmethod
     def create_from_message(message, uuid=None):
@@ -180,15 +232,20 @@ class Device(PolymorphicModel):
         except KeyError:
             return
 
-        format = message['format']
+        is_input = message['mode'].upper() == 'IN'
+
+        format = message['format'].lower()
         if format == 'number':
-            device = NumberDevice(name=message['name'], value=message['value'], leaf=leaf)
+            value = NumberValue(value=message['value'])
         elif format == 'number+units':
-            device = UnitDevice(name=message['name'], value=message['value'], leaf=leaf)
+            value = UnitValue(value=message['value'], units=message['units'])
         elif format == 'bool':
-            device = BooleanDevice(name=message['name'], value=message['value'], leaf=leaf)
+            value = BooleanValue(value=message['value'])
         else:
-            device = StringDevice(name=message['name'], value=message['value'], leaf=leaf)
+            value = StringValue(value=message['value'])
+        value.save()
+
+        device = Device(name=message['device'], _value=value, is_input=is_input, leaf=leaf)
         device.save()
         return device
 
@@ -200,62 +257,10 @@ class Device(PolymorphicModel):
 
     @property
     def format(self):
-        return "none"
-
-
-class StringDevice(Device):
-    value = models.CharField(max_length=250)
-
-    @property
-    def format(self):
-        return "string"
+        return self._value.format
 
     def __repr__(self):
-        return "StringDevice <name:{}, value: {}>".format(self.name, self.value)
-
-
-class BooleanDevice(Device):
-    value = models.BooleanField()
-
-    @property
-    def format(self):
-        return "bool"
-
-    def __repr__(self):
-        return "BooleanDevice <name:{}, value: {}>".format(self.name, self.value)
-
-
-class NumberDevice(Device):
-    value = models.DecimalField(max_digits=15, decimal_places=4)
-
-    @property
-    def format(self):
-        return "number"
-
-    def __repr__(self):
-        return "NumberDevice <name:{}, value: {}>".format(self.name, self.value)
-
-
-class UnitDevice(Device):
-    value = models.DecimalField(max_digits=15, decimal_places=4)
-    units = models.CharField(max_length=10)
-
-    def update_value(self, message):
-        self.units = message["units"]
-        super().update_value(message)
-
-    @property
-    def format(self):
-        return "number+units"
-
-    @property
-    def status_update_dict(self):
-        status = super().status_update_dict
-        status['units'] = self.units
-        return status
-
-    def __repr__(self):
-        return "UnitDevice <name:{}, value: {}>".format(self.name, self.value)
+        return "<Device name:{}, value: {}>".format(self.name, repr(self.value))
 
 
 class Subscription(models.Model):
@@ -269,24 +274,3 @@ class Subscription(models.Model):
                        'sub_device': device,
                        'message': message}
         Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
-
-# TODO: use django guardian to give certain users permissions to change, delete, etc
-class DatastoreValue(PolymorphicModel):
-    name = models.CharField(max_length=30)
-
-
-class StringValue(DatastoreValue):
-    value = models.CharField(max_length=250)
-
-
-class NumberValue(DatastoreValue):
-    value = models.DecimalField(max_digits=15, decimal_places=4)
-
-
-class UnitValue(DatastoreValue):
-    value = models.DecimalField(max_digits=15, decimal_places=4)
-    units = models.CharField(max_length=10)
-
-
-class BooleanValue(DatastoreValue):
-    value = models.BooleanField()

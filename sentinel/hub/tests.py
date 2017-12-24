@@ -1,67 +1,13 @@
 from django.test import TestCase
-from channels import Channel, route
-from .consumers import ws_add, ws_handle_subscribe, ws_message, ws_disconnect, ws_handle_config, ws_handle_status
 from .routing import websocket_routing, hub_routing
 from channels.test import ChannelTestCase, WSClient, HttpClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
 from channels import Group
-from .models import Leaf, Device, BooleanDevice, StringDevice, NumberDevice, UnitDevice
-import json
-
-
-class LeafModelTests(ChannelTestCase):
-    def test_refresh_devices(self):
-        Group("a581b491-da64-4895-9bb6-5f8d76ebd44e").add("test-channel")
-        leaf = Leaf(name="test1", model="01", uuid="a581b491-da64-4895-9bb6-5f8d76ebd44e")
-        d1 = BooleanDevice(name="door", leaf=leaf, value=False, is_input=False)
-        leaf.refresh_device("door")
-        result = self.get_next_message("test-channel", require=True)
-        expected_result = {'type': 'GET_DEVICE',
-                           'hub_id': 1,
-                           'uuid': 'a581b491-da64-4895-9bb6-5f8d76ebd44e',
-                           'device': 'door'}
-        result = json.loads(result.content['text'])  # load message content as dictionary for validation
-        self.assertDictEqual(expected_result, result, "Failed get device")
-
-        leaf.refresh_devices()
-        result = self.get_next_message("test-channel", require=True)
-        expected_result = {'type': 'LIST_DEVICES',
-                           'hub_id': 1,
-                           'uuid': 'a581b491-da64-4895-9bb6-5f8d76ebd44e'}
-        result = json.loads(result.content['text'])  # load message content as dictionary for validation
-        self.assertDictEqual(expected_result, result, "Failed list devices")
-
-    def test_create(self):
-        # set up leaf
-        fake_message = {'type': 'CONFIG',
-                        'name': 'python_leaf_test',
-                        'model': '01',
-                        'uuid': "a581b491-da64-4895-9bb6-5f8d76ebd44e",
-                        'api_version': '0.1.0'}
-        leaf = Leaf.create_from_message(fake_message)  # attempt create
-        leaf = Leaf.objects.get(pk=fake_message['uuid'])
-        self.assertEqual(leaf.name, 'python_leaf_test', "Leaf name incorrect")
-        self.assertEqual(leaf.model, '01', "Leaf model incorrect")
-        self.assertEqual(leaf.uuid, 'a581b491-da64-4895-9bb6-5f8d76ebd44e', "Leaf uuid incorrect")
-        self.assertEqual(leaf.api_version, '0.1.0', "Leaf api version incorrect")
-        # set up devices
-        fake_message = {'type': 'DEVICE_LIST',
-                        'uuid': leaf.uuid,
-                        'devices': [{'name': 'rfid', 'value': 0,
-                                    'format': 'number', 'mode': 'IN'},
-                                    {'name': 'door', 'value': False,
-                                    'format': 'bool', 'mode': 'OUT'}]}
-        Device.create_from_device_list(fake_message)
-        num_found = 0
-        for device in leaf.devices.all():
-            if device.name != 'rfid' and device.name != 'door':
-                self.fail("Unexpected device")
-            num_found += 1
-        self.assertEqual(num_found, 2, "Expected to find 2 devices")
+from .models import Leaf, Device
 
 
 @apply_routes([websocket_routing, hub_routing])
-class ConsumerTests(TestCase):
+class ConsumerTests(ChannelTestCase):
 
     def send_create_leaf(self, name, model, uuid, api_version="0.1.0", receive=True):
         client = WSClient()
@@ -147,25 +93,25 @@ class ConsumerTests(TestCase):
         # test all devices
         self.assertTrue('rfid_reader' in devices)  # tests name implicitly
         rfid_device = devices['rfid_reader']
-        self.assertTrue(isinstance(rfid_device, NumberDevice), "Expected rfid to be a number device")
+        self.assertEquals(rfid_device.format, 'number', "Expected rfid to be a number device")
         self.assertEquals(rfid_device.value, 125, "Wrong value")
         # self.assertDictEqual({'auto': 1}, rfid_device.options, "Wrong options dictionary")
 
         self.assertTrue('door' in devices)
         door_device = devices['door']
-        self.assertTrue(isinstance(door_device, BooleanDevice), "Expected door to be a boolean device")
+        self.assertEquals(door_device.format, 'bool', "Expected door to be a boolean device")
         self.assertEquals(door_device.value, 0, "Wrong value")
         # self.assertDictEqual({}, door_device.options, "Wrong options dictionary")
 
         self.assertTrue('thermometer' in devices)
         thermometer_device = devices['thermometer']
-        self.assertTrue(isinstance(thermometer_device, UnitDevice), "Expected device to be a number+unit device")
+        self.assertEquals(thermometer_device.format, 'number+units', "Expected device to be a number+unit device")
         self.assertEquals(thermometer_device.value, 50, "Wrong value")
         # self.assertDictEqual({'auto': 1}, thermometer_devide.options, "Wrong options dictionary")
 
         self.assertTrue('led_display' in devices)
         led_device = devices['led_display']
-        self.assertTrue(isinstance(led_device, StringDevice), "Expected device to be a string device")
+        self.assertEquals(led_device.format, 'string', "Expected device to be a number+unit device")
         self.assertEquals(led_device.value, "BLUE LIGHT MODE", "Wrong value")
         # self.assertDictEqual({'auto': 1}, led_device.options, "Wrong options dictionary")
 
