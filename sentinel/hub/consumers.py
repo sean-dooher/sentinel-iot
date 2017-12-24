@@ -43,7 +43,7 @@ def ws_message(message):
             return hub_handle_datastore_create(message)
         elif mess['type'] == 'DATASTORE_GET':
             return hub_handle_datastore_get(message)
-        elif message['type'] == 'DATSTORE_SET':
+        elif mess['type'] == 'DATASTORE_SET':
             return hub_handle_datastore_set(message)
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
