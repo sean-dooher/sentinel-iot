@@ -6,7 +6,7 @@ import json
 
 
 class Value(PolymorphicModel):
-    name = models.CharField(max_length=30)
+    value = None
 
     def __repr__(self):
         return str(self.value)
@@ -136,7 +136,7 @@ class Leaf(models.Model):
         self.send_message(message)
 
     def send_message(self, message):
-        message = {"text": json.dumps(message)}
+        message = {"text": message}
         Group(self.uuid).send(message)
 
     def send_subscriber_update(self, device):
@@ -245,8 +245,8 @@ class Device(models.Model):
         return "<Device name:{}, value: {}>".format(self.name, repr(self.value))
 
 
-class Subscription(models.Model):
-    subscriber_uuid = models.CharField(max_length=36)
+class Subscription(PolymorphicModel):
+    subscriber_uuid = models.CharField(max_length=36, blank=True, null=True)
     target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=100)
 
@@ -255,7 +255,7 @@ class Subscription(models.Model):
                        'sub_uuid': uuid,
                        'sub_device': device,
                        'message': message}
-        Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
+        Group(self.subscriber_uuid).send({'text': sub_message})
 
 
 class Datastore(models.Model):
@@ -288,3 +288,95 @@ class Datastore(models.Model):
     def refresh_from_db(self, using=None, fields=None):
         self._value.refresh_from_db()
         return super().refresh_from_db(using=using, fields=fields)
+
+
+class Predicate(PolymorphicModel):
+    def evaluate(self):
+        return True
+
+
+class NOT(Predicate):
+    predicate = models.ForeignKey(Predicate, related_name="not+")
+
+    def evaluate(self):
+        return not self.predicate.evaluate()
+
+
+class Bivariate(Predicate):
+    first = models.ForeignKey(Predicate, related_name="first_predicate")
+    second = models.ForeignKey(Predicate, related_name="second_predicate")
+
+    def operator(self, x, y):
+        return False
+
+    def evaluate(self):
+        return self.operator(self.first, self.second)
+
+
+class AND(Bivariate):
+    def operator(self, x, y):
+        return x.evaluate() and y.evaluate()
+
+
+class OR(Bivariate):
+    def operator(self, x, y):
+        return x.evaluate() or y.evaluate()
+
+
+class XOR(Bivariate):
+    def operator(self, x, y):
+        return x.evaluate() and y.evaluate()
+
+
+class LiteralPredicate(Predicate):
+    target_uuid = models.CharField(max_length=36)
+    target_device = models.CharField(max_length=100)
+    value = models.ForeignKey(Value, on_delete=models.CASCADE)
+
+
+class EqualPredicate(LiteralPredicate):
+    def evaluate(self):
+        if self.target_uuid != 'datastore':
+            leaf = Leaf.objects.get(uuid=self.target_uuid)
+            device_value = leaf.get_device(self.target_device, False).value
+        else:
+            datastore = Datastore.objects.get(name=self.target_device)
+            device_value = datastore.value
+
+        return device_value == self.value.value
+
+
+class Action(PolymorphicModel):
+    def run(self):
+        pass
+
+
+class SetAction(Action):
+    target_uuid = models.CharField(max_length=36)
+    target_device = models.CharField(max_length=36)
+    value = models.OneToOneField(Value, on_delete=models.CASCADE)
+
+    def run(self):
+        message = {'type': 'SET_OUTPUT',
+                   'uuid': self.target_uuid,
+                   'device': self.target_device,
+                   'value': self.value.value,
+                   'format': self.value.format}
+        Group(self.target_uuid).send({'text': message})
+
+
+class Condition(models.Model):
+    predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
+    action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
+
+    def execute(self):
+        if self.predicate.evaluate():
+            self.action.run()
+
+
+class ConditionalSubscription(Subscription):
+    condition = models.ForeignKey(Condition, on_delete=models.CASCADE)
+
+    def handle_update(self, uuid, device, message):
+        if message['type'] == 'DEVICE_STATUS':
+            self.condition.execute()

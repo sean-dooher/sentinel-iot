@@ -3,7 +3,8 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
-from .models import Leaf, Subscription, Device
+from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore
+from .models import Predicate, NOT, AND, OR, XOR, EqualPredicate, SetAction, Condition, ConditionalSubscription
 from .utils import is_valid_message
 import json
 import logging
@@ -45,8 +46,14 @@ def ws_message(message):
             return hub_handle_datastore_get(message)
         elif mess['type'] == 'DATASTORE_SET':
             return hub_handle_datastore_set(message)
+        elif mess['type'] == 'CONDITION_CREATE':
+            return hub_handle_condition_create(message)
+        else:
+            logger.error('Invalid Message: Unknown type in message')
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
+    except KeyError:
+        logger.error("Invalid message: 'type' not found in message")
 
 
 def hub_handle_config(message):
@@ -135,3 +142,76 @@ def hub_handle_datastore_get(message):
 def hub_handle_datastore_set(message):
     mess = message.content['dict']
     pass
+
+
+def hub_handle_condition_create(message):
+    mess = message.content['dict']
+    values = {'string': StringValue, 'number': NumberValue,
+              'number+units': UnitValue, 'bool': BooleanValue}
+    operators = {'AND': AND, 'OR': OR, 'XOR': XOR}
+    seen_devices = set()
+
+    def eval_predicates(predicates):
+        if len(predicates) == 0:
+            return
+        first = predicates[0]
+        if first == 'NOT':
+            predicate = eval_predicates(predicates[1])
+            not_predicate = NOT(predicate)
+            not_predicate.save()
+            return not_predicate
+        elif type(first) == str and first in operators:
+            first_predicate = eval_predicates(predicates[1])
+            second_predicate = eval_predicates(predicates[2])
+            predicate = operators[first](first=first_predicate, second=second_predicate)
+            predicate.save()
+            return predicate
+        else:
+            target_uuid, target_device = predicates[1]
+            seen_devices.add((target_uuid, target_device))
+            if target_uuid == 'datastore':
+                format = Datastore.objects.get(target_device).format
+            else:
+                format = Leaf.objects.get(uuid=target_uuid).get_device(target_device, False).format
+            value = values[format](value=predicates[2])
+            value.save()
+            comparator = first[0]
+            if comparator == '=':
+                predicate = EqualPredicate(target_uuid=target_uuid, target_device=target_device, value=value)
+            elif comparator == '!=':
+                predicate = NOT(EqualPredicate(target_uuid=target_uuid, target_device=target_device, value=value))
+            elif comparator == '<':
+                return
+            elif comparator == '<=':
+                return
+            elif comparator == '>':
+                return
+            elif comparator == '>=':
+                return
+            else:
+                return
+            predicate.save()
+            return predicate
+    predicate = eval_predicates(mess['predicates'])
+    if 'action_value' in mess:
+        target_uuid, target_device = mess['action_target'], mess['action_device']
+        seen_devices.add((target_uuid, target_device))
+        if target_uuid == 'datastore':
+            format = Datastore.objects.get(target_device).format
+        else:
+            format = Leaf.objects.get(uuid=target_uuid).get_device(target_device, False).format
+        value = values[format](value=mess['action_value'])
+        value.save()
+        if mess['action_type'] == 'SET':
+            action = SetAction(target_uuid=target_uuid, target_device=target_device, value=value)
+        else:
+            return
+        action.save()
+    else:
+        return
+    condition = Condition(predicate=predicate, action=action)
+    condition.save()
+    for target, device in seen_devices:
+        cond_sub = ConditionalSubscription(target_uuid=target, target_device=device, condition=condition)
+        cond_sub.save()
+
