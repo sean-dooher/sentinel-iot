@@ -1,4 +1,4 @@
-from django.test import TestCase
+import unittest
 from .routing import websocket_routing
 from channels.test import ChannelTestCase, WSClient, HttpClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
@@ -8,7 +8,6 @@ from .models import Leaf, Device
 
 @apply_routes(websocket_routing)
 class ConsumerTests(ChannelTestCase):
-
     def send_create_leaf(self, name, model, uuid, api_version="0.1.0", receive=True):
         client = WSClient()
         client.send_and_consume('websocket.connect')
@@ -29,6 +28,149 @@ class ConsumerTests(ChannelTestCase):
 
         return client, db_leaf
 
+    @staticmethod
+    def send_device_update(client, sender, device, value, format, mode="IN", options=None, units=None):
+        device_message = {'type': 'DEVICE_STATUS',
+                          'uuid': sender,
+                          'device': device,
+                          'mode': mode,
+                          'format': format,
+                          'value': value}
+        if options:
+            device_message['options'] = options
+        if units:
+            device_message['units'] = units
+        client.send_and_consume('websocket.receive', {'text': device_message})
+
+
+    @staticmethod
+    def send_subscribe(observer_client, observer_uuid, other_uuid, other_device):
+        sub_message = {'type': 'SUBSCRIBE',
+                       'uuid': observer_uuid,
+                       'sub_uuid': other_uuid,
+                       'sub_device': other_device}
+        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
+
+    @staticmethod
+    def send_unsubscribe(observer_client, observer_uuid, other_uuid, other_device):
+        sub_message = {'type': 'UNSUBSCRIBE',
+                       'uuid': observer_uuid,
+                       'sub_uuid': other_uuid,
+                       'sub_device': other_device}
+        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
+
+    def assertDatastoreReadSuccess(self, client, requester, name, expected_value=None, expected_format=None):
+        self.send_get_datastore(client, requester, name)
+        expected_response = {
+            'type': 'DATASTORE_VALUE',
+            'name': name,
+            'value': expected_value,  # value should not have changed from last set request
+            'format': expected_format
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response after requesting data")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['name'], expected_response['name'])
+        self.assertEquals(response['value'], expected_response['value'])
+        self.assertEquals(response['format'], expected_response['format'])
+
+    def assertDatastoreReadFailed(self, client, requester, name):
+        expected_response = {
+                                'type': 'PERMISSION_DENIED',
+                                'request': 'DATASTORE_GET',
+                                'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    def assertDatastoreSetFailed(self, client, requester, name, value):
+        self.send_set_datastore(client, requester, name, value)
+        expected_response = {
+            'type': 'PERMISSION_DENIED',
+            'request': 'DATASTORE_SET',
+            'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response from setting datastore value")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    def assertDatastoreDeleteFailed(self, client, requester, name):
+        self.send_delete_datastore(client, requester, name)
+        expected_response = {
+            'type': 'PERMISSION_DENIED',
+            'request': 'DATASTORE_DELETE',
+            'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response from deleting datastore value")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    def assertUnknownDatastore(self, client, requester, name, method='GET', set_value=None):
+        if method == 'GET':
+            self.send_get_datastore(client, requester, name)
+        else:
+            self.send_set_datastore(client, requester, name, set_value)
+        expected_response = {
+            'type': 'UNKNOWN_DATASTORE',
+            'request': 'DATASTORE_' + method,
+            'name': name,
+        }
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response")
+        self.assertEquals(response['type'], expected_response['type'])
+        self.assertEquals(response['request'], expected_response['request'])
+        self.assertEquals(response['name'], expected_response['name'])
+
+    @staticmethod
+    def send_create_datastore(client, requester, name, value, format, permissions={}):
+        data_message = {
+            'type': 'DATASTORE_CREATE',
+            'uuid': requester,
+            'name': name,
+            'value': value,
+            'format': format,
+        }
+        if permissions:
+            data_message['permissions'] = permissions
+        client.send_and_consume('websocket.receive', {'text': data_message})
+
+    @staticmethod
+    def send_delete_datastore(client, requester, name):
+        data_message = {
+            'type': 'DATASTORE_DELETE',
+            'uuid': requester,
+            'name': name,
+        }
+        client.send_and_consume('websocket.receive', {'text': data_message})
+
+    @staticmethod
+    def send_set_datastore(client, requester, name, value):
+        data_message = {
+            'type': 'DATASTORE_SET',
+            'uuid': requester,
+            'name': name,
+            'value': value
+        }
+        client.send_and_consume('websocket.receive', {'text': data_message})
+
+    @staticmethod
+    def send_get_datastore(client, requester, name):
+        data_message = {
+            'type': 'DATASTORE_GET',
+            'uuid': requester,
+            'name': name
+        }
+        client.send_and_consume('websocket.receive', {'text': data_message})
+
+
+class LeafTests(ConsumerTests):
     def test_create(self):
         """
         Tests creating a leaf
@@ -57,21 +199,6 @@ class ConsumerTests(ChannelTestCase):
         Group(db_leaf.uuid).send({'text': {}})
         self.assertIsNotNone(client.receive(), "Expected a response")
 
-
-    @staticmethod
-    def send_device_update(client, sender, device, value, format, mode="IN", options=None, units=None):
-        device_message = {'type': 'DEVICE_STATUS',
-                          'uuid': sender,
-                          'device': device,
-                          'mode': mode,
-                          'format': format,
-                          'value': value}
-        if options:
-            device_message['options'] = options
-        if units:
-            device_message['units'] = units
-        client.send_and_consume('websocket.receive', {'text': device_message})
-
     def test_devices(self):
         name = "py_device_test"
         model = "01"
@@ -85,7 +212,7 @@ class ConsumerTests(ChannelTestCase):
         self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
         self.assertIsNone(client.receive(), "Didn't  expect a response")
 
-        db_leaf.refresh_from_db() # refresh leaf
+        db_leaf.refresh_from_db()  # refresh leaf
         devices = db_leaf.get_devices(False)
         self.assertEqual(len(devices), 4, "Expected four devices")
 
@@ -138,22 +265,6 @@ class ConsumerTests(ChannelTestCase):
 
     def test_options(self):
         pass
-
-    @staticmethod
-    def send_subscribe(observer_client, observer_uuid, other_uuid, other_device):
-        sub_message = {'type': 'SUBSCRIBE',
-                       'uuid': observer_uuid,
-                       'sub_uuid': other_uuid,
-                       'sub_device': other_device}
-        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
-
-    @staticmethod
-    def send_unsubscribe(observer_client, observer_uuid, other_uuid, other_device):
-        sub_message = {'type': 'UNSUBSCRIBE',
-                       'uuid': observer_uuid,
-                       'sub_uuid': other_uuid,
-                       'sub_device': other_device}
-        observer_client.send_and_consume('websocket.receive', {'text': sub_message})
 
     def test_subscriptions(self):
         # setup leaves
@@ -302,116 +413,9 @@ class ConsumerTests(ChannelTestCase):
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         self.assertIsNotNone(observer_client.receive(), "Expected to still receive a subscription update")
 
-    def assertDatastoreReadSuccess(self, client, requester, name, expected_value=None, expected_format=None):
-        self.send_get_datastore(client, requester, name)
-        expected_response = {
-            'type': 'DATASTORE_VALUE',
-            'name': name,
-            'value': expected_value,  # value should not have changed from last set request
-            'format': expected_format
-        }
-        response = client.receive()
-        self.assertIsNotNone(response, "Expected a response after requesting data")
-        self.assertEquals(response['type'], expected_response['type'])
-        self.assertEquals(response['name'], expected_response['name'])
-        self.assertEquals(response['value'], expected_response['value'])
-        self.assertEquals(response['format'], expected_response['format'])
 
-    def assertDatastoreReadFailed(self, client, requester, name):
-        expected_response = {
-                                'type': 'PERMISSION_DENIED',
-                                'request': 'DATASTORE_GET',
-                                'name': name,
-        }
-        response = client.receive()
-        self.assertIsNotNone(response, "Expected a response")
-        self.assertEquals(response['type'], expected_response['type'])
-        self.assertEquals(response['request'], expected_response['request'])
-        self.assertEquals(response['name'], expected_response['name'])
-
-    def assertDatastoreSetFailed(self, client, requester, name, value):
-        self.send_set_datastore(client, requester, name, value)
-        expected_response = {
-            'type': 'PERMISSION_DENIED',
-            'request': 'DATASTORE_SET',
-            'name': name,
-        }
-        response = client.receive()
-        self.assertIsNotNone(response, "Expected a response from setting datastore value")
-        self.assertEquals(response['type'], expected_response['type'])
-        self.assertEquals(response['request'], expected_response['request'])
-        self.assertEquals(response['name'], expected_response['name'])
-
-    def assertDatastoreDeleteFailed(self, client, requester, name):
-        self.send_delete_datastore(client, requester, name)
-        expected_response = {
-            'type': 'PERMISSION_DENIED',
-            'request': 'DATASTORE_DELETE',
-            'name': name,
-        }
-        response = client.receive()
-        self.assertIsNotNone(response, "Expected a response from deleting datastore value")
-        self.assertEquals(response['type'], expected_response['type'])
-        self.assertEquals(response['request'], expected_response['request'])
-        self.assertEquals(response['name'], expected_response['name'])
-
-    def assertUnknownDatastore(self, client, requester, name, method='GET', set_value=None):
-        if method == 'GET':
-            self.send_get_datastore(client, requester, name)
-        else:
-            self.send_set_datastore(client, requester, name, set_value)
-        expected_response = {
-            'type': 'UNKNOWN_DATASTORE',
-            'request': 'DATASTORE_' + method,
-            'name': name,
-        }
-        response = client.receive()
-        self.assertIsNotNone(response, "Expected a response")
-        self.assertEquals(response['type'], expected_response['type'])
-        self.assertEquals(response['request'], expected_response['request'])
-        self.assertEquals(response['name'], expected_response['name'])
-
-    @staticmethod
-    def send_create_datastore(client, requester, name, value, format, permissions={}):
-        data_message = {
-            'type': 'DATASTORE_CREATE',
-            'uuid': requester,
-            'name': name,
-            'value': value,
-            'format': format,
-        }
-        if permissions:
-            data_message['permissions'] = permissions
-        client.send_and_consume('websocket.receive', {'text': data_message})
-
-    @staticmethod
-    def send_delete_datastore(client, requester, name):
-        data_message = {
-            'type': 'DATASTORE_DELETE',
-            'uuid': requester,
-            'name': name,
-        }
-        client.send_and_consume('websocket.receive', {'text': data_message})
-
-    @staticmethod
-    def send_set_datastore(client, requester, name, value):
-        data_message = {
-            'type': 'DATASTORE_SET',
-            'uuid': requester,
-            'name': name,
-            'value': value
-        }
-        client.send_and_consume('websocket.receive', {'text': data_message})
-
-    @staticmethod
-    def send_get_datastore(client, requester, name):
-        data_message = {
-            'type': 'DATASTORE_GET',
-            'uuid': requester,
-            'name': name
-        }
-        client.send_and_consume('websocket.receive', {'text': data_message})
-
+@unittest.skip("Datastores not implemented yet")
+class DatastoreTests(ConsumerTests):
     def test_datastore_create_delete(self):
         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
 
@@ -509,4 +513,3 @@ class ConsumerTests(ChannelTestCase):
         self.assertIsNotNone(response, "Expected a message for creating datastore")
         self.assertEquals(response['type'], expected_response['type'])
         self.assertEquals(response['name'], expected_response['name'])
-
