@@ -1,0 +1,25 @@
+<html>
+	<head>
+		<meta charset="utf8">
+		{% load static %}
+		<script src="{% static 'hub/Leaf.js' %}"></script>
+	</head>
+	<body>
+		Open Door: <h4 id="currval"></h4>
+        <button onclick="sendCond()">Send Condition</button>
+        <script type="text/javascript">
+			var uuid = 'f7bad74c-a876-41da-ab37-6c5752e94a25';
+			var fakeLeaf = new Leaf("Door", "door01", uuid, "ws://" + window.location.host + "/hub/");
+
+			var scanner = new Device("door_open", false, "bool", DeviceMode.OUT);
+			fakeLeaf.registerDevice(scanner);
+			scanner.addListener((d) => document.querySelector("#currval").innerHTML = d.value);
+
+			function sendCond() {
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "predicates": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042781], "action_type": "SET", "action_target": "f7bad74c-a876-41da-ab37-6c5752e94a25", "action_device": "door_open", "action_value": true}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "predicates": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042780], "action_type": "SET", "action_target": "f7bad74c-a876-41da-ab37-6c5752e94a25", "action_device": "door_open", "action_value": false}')
+			}
+
+		</script>
+    </body>
+</html>

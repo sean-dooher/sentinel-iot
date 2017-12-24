@@ -4,3 +4,5 @@ from .models import *
 
 admin.site.register(Leaf)
 admin.site.register(Device)
+admin.site.register(Condition)
+admin.site.register(ConditionalSubscription)

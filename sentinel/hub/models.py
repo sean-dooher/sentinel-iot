@@ -3,6 +3,8 @@ from django.db import models
 from polymorphic.models import PolymorphicModel
 from channels import Group
 import json
+from datetime import datetime
+from django.utils.timezone import utc
 
 
 class Value(PolymorphicModel):
@@ -370,9 +372,13 @@ class SetAction(Action):
 class Condition(models.Model):
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
     action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
+    last_executed = models.DateTimeField(auto_now=True)
 
     def execute(self):
-        if self.predicate.evaluate():
+        elapsed_time = (datetime.utcnow().replace(tzinfo=utc) - self.last_executed).microseconds
+        if  elapsed_time > 100 * 1000 and self.predicate.evaluate():
+            self.last_executed = datetime.utcnow().replace(tzinfo=utc)
+            self.save()
             self.action.run()
 
 

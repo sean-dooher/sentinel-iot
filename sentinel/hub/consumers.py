@@ -52,8 +52,10 @@ def ws_message(message):
             logger.error('Invalid Message: Unknown type in message')
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
-    except KeyError:
+        logger.error(mess)
+    except KeyError as k:
         logger.error("Invalid message: 'type' not found in message")
+        logger.error(mess)
 
 
 def hub_handle_config(message):
@@ -195,7 +197,6 @@ def hub_handle_condition_create(message):
     predicate = eval_predicates(mess['predicates'])
     if 'action_value' in mess:
         target_uuid, target_device = mess['action_target'], mess['action_device']
-        seen_devices.add((target_uuid, target_device))
         if target_uuid == 'datastore':
             format = Datastore.objects.get(target_device).format
         else:
@@ -214,4 +215,5 @@ def hub_handle_condition_create(message):
     for target, device in seen_devices:
         cond_sub = ConditionalSubscription(target_uuid=target, target_device=device, condition=condition)
         cond_sub.save()
+    logger.info("Condition set up")
 

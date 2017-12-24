@@ -539,8 +539,9 @@ class ConditionsTests(ConsumerTests):
         self.send_create_condition(admin_client, predicates, action_type='SET', action_target=door_leaf.uuid,
                                    action_device='door_open', action_value=True)
 
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
+        self.assertIsNone(door_client.receive())  # condition has not been met yet
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-        self.assertIsNone(rfid_client.receive())
 
         expected = {
             'type': 'SET_OUTPUT',
@@ -556,6 +557,7 @@ class ConditionsTests(ConsumerTests):
         self.assertEqual(expected['device'], response['device'])
         self.assertEqual(expected['value'], response['value'])
         self.assertEqual(expected['format'], response['format'])
+        self.assertIsNone(door_client.receive())  # only gets one update
 
     def test_binary_condition(self):
         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
@@ -591,4 +593,6 @@ class ConditionsTests(ConsumerTests):
         self.assertEqual(expected['device'], response['device'])
         self.assertEqual(expected['value'], response['value'])
         self.assertEqual(expected['format'], response['format'])
+        self.assertIsNone(door_client.receive())  # only gets one update
+
 

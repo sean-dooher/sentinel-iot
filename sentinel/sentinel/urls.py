@@ -15,10 +15,11 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from hub.views import main, fake, rfid_demo
+from hub.views import main, fake_in, fake_out, rfid_demo
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', rfid_demo),
-    url(r'^fake/$', fake),
+    url(r'^fake_in/$', fake_in),
+    url(r'^fake_out/$', fake_out),
     url(r'^rfid_demo/$', rfid_demo)
 ]

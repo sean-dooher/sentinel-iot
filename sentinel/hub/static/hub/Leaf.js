@@ -22,6 +22,7 @@ class Leaf {
 				}
 				this.messageQueue = [];
 				this.sendConfig();
+				console.log("Config sent")
 			};
 			this.socket.onmessage = event => this.parseMessage(event);
 		}
@@ -78,8 +79,15 @@ class Leaf {
 			device: device.name,
 			format: device.format,
 			value: device.value,
+			mode: device.mode,
 		};
 		this.socket.send(JSON.stringify(message));
+		console.log("status sent");
+	}
+
+	set_output(device, value) {
+	    device = this.getDevice(device);
+	    device.value = value;
 	}
 
 	getDevice(device) {
@@ -94,7 +102,7 @@ class Leaf {
 
 	registerDevice(device) {
 		this.devices.push(device);
-		device.onchange = d => this.sendStatus(d);
+		device.addListener(d => this.sendStatus(d));
 		this.sendStatus(device);
 	}
 
@@ -115,60 +123,23 @@ class Leaf {
 				break;
 			case 'LIST_DEVICES':
 				response.type = 'DEVICE_LIST';
-				var devices = [];
 				for(var i = 0; i < this.devices.length; i++) {
-					devices.push([{
-						name:this.devices[i].name,
-						format:this.devices[i].format,
-						mode:this.devices[i].mode,
-						options:this.devices[i].options,
-					}]);
+					this.sendStatus(this.devices[i].name);
 				}
-				response.devices = devices;
 				break;
 			case 'CONFIG_COMPLETE':
-				for(var i = 0; i < this.devices.length; i++) {
-					this.sendStatus(this.devices[i]);
-				};
 				break;
 			case 'SET_OPTION':
-				// if(message.data.device === 'rfid' && message.data.option === 'auto') {
-				// 	isAuto = parseInt(message.data.value, 10);
-				// 	document.querySelector("#auto").innerHTML = isAuto;
-				// 	response.type = "OPTION";
-				// 	response.option = message.data.option;
-				// 	response.value = isAuto;
-				// } else if (message.data.device == 'rfid') {
-				// 	response.type = "UNKNOWN_OPTION";
-				// 	response.option = message.data.option;
-				// } else {
-				// 	response.type = "UNKNOWN_DEVICE";
-				// 	response.device = message.data.device;
-				// }
 				break;
 			case 'GET_OPTION':
-				// if(message.data.device === 'rfid' && message.data.option === 'auto') {
-				// 	response.type = "OPTION";
-				// 	response.option = message.data.option;
-				// 	response.value = isAuto;
-				// } else if (message.data.device == 'rfid') {
-				// 	response.type = "UNKNOWN_OPTION";
-				// 	response.option = message.data.option;
-				// } else {
-				// 	response.type = "UNKNOWN_DEVICE";
-				// 	response.device = message.data.device;
-				// }
 				break;
 			case 'GET_DEVICE':
-				this.sendStatus(name);
-				if (message.data.device === 'rfid') {
-					response.type = 'DEVICE_STATUS';
-					response.value = lastRead;
-					response.format = "number";
-				} else {
-					response.type = 'UNKNOWN_DEVICE';
-				}
-				break;
+				this.sendStatus(message.device);
+				return;
+			case 'SET_OUTPUT':
+			    console.log("Output set received")
+			    this.set_output(message.device, message.value);
+			    break;
 			case 'GET_CONFIG':
 				this.sendConfig();
 				return;
@@ -181,7 +152,6 @@ class Leaf {
 			default:
 				break;
 		}
-		this.socket.send(JSON.stringify(response));
 	}
 }
 
@@ -195,7 +165,11 @@ class Device {
 		this._value = initial;
 		this.format = format;
 		this.units = units;
-		this.onchange = onchange;
+		this.onchange = [];
+		if(onchange) {
+		    this.addListener(onchange);
+		}
+		this.mode = mode;
 	}
 
 	get value() {
@@ -204,12 +178,18 @@ class Device {
 
 	set value(newValue) {
 		this._value = newValue;
-		if(this.onchange) {
-			this.onchange(this);
+		if(this.onchange.length > 0) {
+		    for(var i = 0; i < this.onchange.length; i++){
+			    this.onchange[i](this);
+			}
 		}
 	}
 
 	get options() {
 		return {'auto': true};
+	}
+
+	addListener(func) {
+	    this.onchange.push(func)
 	}
 }
