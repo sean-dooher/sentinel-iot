@@ -136,7 +136,7 @@ class Leaf(models.Model):
         self.send_message(message)
 
     def send_message(self, message):
-        message = {"text": message}
+        message = {"text": json.dumps(message)}
         Group(self.uuid).send(message)
 
     def send_subscriber_update(self, device):
@@ -255,7 +255,7 @@ class Subscription(PolymorphicModel):
                        'sub_uuid': uuid,
                        'sub_device': device,
                        'message': message}
-        Group(self.subscriber_uuid).send({'text': sub_message})
+        Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
 
 
 class Datastore(models.Model):
@@ -347,6 +347,8 @@ class EqualPredicate(LiteralPredicate):
 
 
 class Action(PolymorphicModel):
+    id = models.AutoField(primary_key=True)
+
     def run(self):
         pass
 
@@ -362,7 +364,7 @@ class SetAction(Action):
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': message})
+        Group(self.target_uuid).send({'text': json.dumps(message)})
 
 
 class Condition(models.Model):
