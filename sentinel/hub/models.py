@@ -296,21 +296,30 @@ class Predicate(PolymorphicModel):
 
 
 class NOT(Predicate):
-    predicate = models.ForeignKey(Predicate, related_name="not+")
+    predicate = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="not+")
 
     def evaluate(self):
         return not self.predicate.evaluate()
 
+    def delete(self, *args, **kwargs):
+        self.predicate.delete()
+        super().delete(*args, **kwargs)
+
 
 class Bivariate(Predicate):
-    first = models.ForeignKey(Predicate, related_name="first_predicate")
-    second = models.ForeignKey(Predicate, related_name="second_predicate")
+    first = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="first_predicate")
+    second = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="second_predicate")
 
     def operator(self, x, y):
         return False
 
     def evaluate(self):
         return self.operator(self.first, self.second)
+
+    def delete(self, *args, **kwargs):
+        self.first.delete()
+        self.second.delete()
+        super().delete(*args, **kwargs)
 
 
 class AND(Bivariate):
@@ -325,18 +334,27 @@ class OR(Bivariate):
 
 class XOR(Bivariate):
     def operator(self, x, y):
-        return x.evaluate() and y.evaluate()
+        x = x.evaluate()
+        y = y.evaluate()
+        return x ^ y
 
 
 class ComparatorPredicate(Predicate):
-    first_value = models.ForeignKey(Value, related_name="first")
-    second_value = models.ForeignKey(Value, related_name="second")
+    first_value = models.ForeignKey(Value, on_delete=models.CASCADE, related_name="first")
+    second_value = models.ForeignKey(Value, on_delete=models.CASCADE, related_name="second")
 
     def save(self, *args, **kwargs):
         if self.first_value.format != self.second_value.format:
             raise TypeError("Type format mismatch. {} does not equal {}".format(self.first_value.format,
                                                                                 self.second_value.format))
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        try:
+            self.second_value.device  # see if the value is a literal or device value
+        except ObjectDoesNotExist:
+            self.second_value.delete()  # delete the value if it's a literal
+        super().delete(*args, **kwargs)
 
 
 class EqualPredicate(ComparatorPredicate):
@@ -370,7 +388,7 @@ class SetAction(Action):
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': json.dumps(message)})
+        Group(self.target_uuid).send({'text': message})
 
 
 class ChangeAction(Action):
@@ -384,7 +402,7 @@ class ChangeAction(Action):
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': json.dumps(message)})
+        Group(self.target_uuid).send({'text': message})
 
 
 class Condition(models.Model):
@@ -395,6 +413,11 @@ class Condition(models.Model):
     def execute(self):
         if self.predicate.evaluate():
             self.action.run()
+
+    def delete(self, *args, **kwargs):
+        self.predicate.delete()
+        self.action.delete()
+        super().delete(*args, **kwargs)
 
 
 class ConditionalSubscription(Subscription):

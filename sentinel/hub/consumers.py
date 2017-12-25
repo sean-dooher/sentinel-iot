@@ -2,7 +2,7 @@ from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore
-from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription
+from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
 from .utils import is_valid_message, get_device
 import json
@@ -225,6 +225,8 @@ def hub_handle_condition_create(message):
 
         if mess['action_type'] == 'SET':
             action = SetAction(target_uuid=target_uuid, target_device=target_device, value=value)
+        elif mess['action_type'] == 'CHANGE':
+            action = ChangeAction(target_uuid=target_uuid, target_device=target_device, value=value)
         else:
             return
         action.save()
