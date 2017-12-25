@@ -53,7 +53,7 @@ class Leaf(models.Model):
     hub_id = 1
     name = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
-    uuid = models.CharField(primary_key=True, max_length=36)
+    uuid = models.CharField(primary_key=True, max_length=36, unique=True)
     api_version = models.CharField(max_length=10, default="0.1.0")
     isConnected = models.BooleanField(default=True)
 
@@ -328,27 +328,33 @@ class XOR(Bivariate):
         return x.evaluate() and y.evaluate()
 
 
-class LiteralPredicate(Predicate):
-    target_uuid = models.CharField(max_length=36)
-    target_device = models.CharField(max_length=100)
-    value = models.ForeignKey(Value, on_delete=models.CASCADE)
+class ComparatorPredicate(Predicate):
+    first_value = models.ForeignKey(Value, related_name="first")
+    second_value = models.ForeignKey(Value, related_name="second")
+
+    def save(self, *args, **kwargs):
+        if self.first_value.format != self.second_value.format:
+            raise TypeError("Type format mismatch. {} does not equal {}".format(self.first_value.format,
+                                                                                self.second_value.format))
+        super().save(*args, **kwargs)
 
 
-class EqualPredicate(LiteralPredicate):
+class EqualPredicate(ComparatorPredicate):
     def evaluate(self):
-        if self.target_uuid != 'datastore':
-            leaf = Leaf.objects.get(uuid=self.target_uuid)
-            device_value = leaf.get_device(self.target_device, False).value
-        else:
-            datastore = Datastore.objects.get(name=self.target_device)
-            device_value = datastore.value
+        return self.first_value.value == self.second_value.value
 
-        return device_value == self.value.value
+
+class LessThanPredicate(ComparatorPredicate):
+    def evaluate(self):
+        return self.first_value.value < self.second_value.value
+
+
+class GreaterThanPredicate(ComparatorPredicate):
+    def evaluate(self):
+        return self.first_value.value > self.second_value.value
 
 
 class Action(PolymorphicModel):
-    id = models.AutoField(primary_key=True)
-
     def run(self):
         pass
 
@@ -367,7 +373,22 @@ class SetAction(Action):
         Group(self.target_uuid).send({'text': json.dumps(message)})
 
 
+class ChangeAction(Action):
+    target_uuid = models.CharField(max_length=36)
+    target_device = models.CharField(max_length=36)
+    value = models.OneToOneField(Value, on_delete=models.CASCADE)
+
+    def run(self):
+        message = {'type': 'CHANGE_OUTPUT',
+                   'uuid': self.target_uuid,
+                   'device': self.target_device,
+                   'value': self.value.value,
+                   'format': self.value.format}
+        Group(self.target_uuid).send({'text': json.dumps(message)})
+
+
 class Condition(models.Model):
+    name = models.CharField(max_length=100, unique=True)
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
     action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
 

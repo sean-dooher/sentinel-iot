@@ -2,8 +2,9 @@ from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore
-from .models import NOT, AND, OR, XOR, EqualPredicate, SetAction, Condition, ConditionalSubscription
-from .utils import is_valid_message
+from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription
+from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
+from .utils import is_valid_message, get_device
 import json
 import logging
 
@@ -47,6 +48,8 @@ def ws_message(message):
             return hub_handle_datastore_set(message)
         elif mess['type'] == 'CONDITION_CREATE':
             return hub_handle_condition_create(message)
+        elif mess['type'] == 'CONDITION_DELETE':
+            return hub_handle_condition_delete(message)
         else:
             logger.error('Invalid Message: Unknown type in message')
     except json.decoder.JSONDecodeError:
@@ -147,6 +150,7 @@ def hub_handle_datastore_set(message):
 
 def hub_handle_condition_create(message):
     mess = message.content['dict']
+
     values = {'string': StringValue, 'number': NumberValue,
               'number+units': UnitValue, 'bool': BooleanValue}
     operators = {'AND': AND, 'OR': OR, 'XOR': XOR}
@@ -170,38 +174,55 @@ def hub_handle_condition_create(message):
         else:
             target_uuid, target_device = predicates[1]
             seen_devices.add((target_uuid, target_device))
-            if target_uuid == 'datastore':
-                format = Datastore.objects.get(target_device).format
+            first_value = get_device(target_uuid, target_device)._value
+
+            if type(predicates[2]) != list:
+                second_value = values[first_value.format](value=predicates[2])
+                second_value.save()
             else:
-                format = Leaf.objects.get(uuid=target_uuid).get_device(target_device, False).format
-            value = values[format](value=predicates[2])
-            value.save()
-            comparator = first[0]
+                remote_uuid, remote_device = predicates[2]
+                seen_devices.add((remote_uuid, remote_device))
+                second_value = get_device(remote_uuid, remote_device)._value
+
+            comparator = first
             if comparator == '=':
-                predicate = EqualPredicate(target_uuid=target_uuid, target_device=target_device, value=value)
+                predicate = EqualPredicate(first_value=first_value, second_value=second_value)
             elif comparator == '!=':
-                predicate = NOT(EqualPredicate(target_uuid=target_uuid, target_device=target_device, value=value))
+                equal = EqualPredicate(first_value=first_value, second_value=second_value)
+                equal.save()
+                predicate = NOT(predicate=equal)
             elif comparator == '<':
-                return
+                predicate = LessThanPredicate(first_value=first_value, second_value=second_value)
             elif comparator == '<=':
-                return
+                greater_than = GreaterThanPredicate(first_value=first_value, second_value=second_value)
+                greater_than.save()
+                predicate = NOT(predicate=greater_than)
             elif comparator == '>':
-                return
+                predicate = GreaterThanPredicate(first_value=first_value, second_value=second_value)
             elif comparator == '>=':
-                return
+                less_than = LessThanPredicate(first_value=first_value, second_value=second_value)
+                less_than.save()
+                predicate = NOT(predicate=less_than)
             else:
+                logger.error("Invalid predicate comparator: {}".format(comparator))
                 return
             predicate.save()
             return predicate
     predicate = eval_predicates(mess['predicates'])
-    if 'action_value' in mess:
+    if predicate and 'action_value' in mess:
         target_uuid, target_device = mess['action_target'], mess['action_device']
-        if target_uuid == 'datastore':
-            format = Datastore.objects.get(target_device).format
-        else:
-            format = Leaf.objects.get(uuid=target_uuid).get_device(target_device, False).format
+        format = get_device(target_uuid, target_device).format
         value = values[format](value=mess['action_value'])
         value.save()
+
+        if type(mess['action_value']) != list:
+            value = values[format](value=mess['action_value'])
+            value.save()
+        else:
+            remote_uuid, remote_device = mess['action_value']
+            seen_devices.add((remote_uuid, remote_device))
+            value = get_device(remote_uuid, remote_device)._value
+
         if mess['action_type'] == 'SET':
             action = SetAction(target_uuid=target_uuid, target_device=target_device, value=value)
         else:
@@ -209,10 +230,18 @@ def hub_handle_condition_create(message):
         action.save()
     else:
         return
-    condition = Condition(predicate=predicate, action=action)
+    condition = Condition(name=mess['name'], predicate=predicate, action=action)
     condition.save()
     for target, device in seen_devices:
         cond_sub = ConditionalSubscription(target_uuid=target, target_device=device, condition=condition)
         cond_sub.save()
     logger.info("Condition set up")
 
+
+def hub_handle_condition_delete(message):
+    mess = message.content['dict']
+    try:
+        condition = Condition.objects.get(name=mess['name'])
+        condition.delete()
+    except ObjectDoesNotExist:
+        logger.error("Tried to delete condition that does not exist")

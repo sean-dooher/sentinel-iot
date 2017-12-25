@@ -1,4 +1,5 @@
-import hashlib
+from django.core.exceptions import ObjectDoesNotExist
+from .models import Datastore, Leaf
 import re
 uuid_pattern = re.compile('[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\Z', re.I)
 
@@ -31,10 +32,13 @@ def is_valid_message(message):
     elif message['type'] == 'DATASTORE_DELETE':
         valid = valid and 'name' in message
     elif message['type'] == 'CONDITION_CREATE':
+        valid = valid and 'name' in message
         valid = valid and 'predicates' in message
         valid = valid and 'action_type' in message
         valid = valid and 'action_target' in message
         valid = valid and 'action_device' in message
+    elif message['type'] == 'CONDITION_DELETE':
+        valid = valid and 'name' in message
     else:
         return False
     return valid and 'uuid' in message and validate_uuid(message['uuid'])
@@ -45,5 +49,11 @@ def validate_uuid(uuid):
     return re.match(uuid_pattern, uuid) or uuid == 'datastore'
 
 
-def name_hash(s):
-    return hashlib.md5(bytes(s.lower(), 'utf-8')).hexdigest()
+def get_device(uuid, device):
+    try:
+        if uuid == 'datastore':
+            return Datastore.objects.get(device)
+        else:
+            return Leaf.objects.get(uuid=uuid).get_device(device, False)
+    except ObjectDoesNotExist:
+        return

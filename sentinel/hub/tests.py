@@ -520,9 +520,11 @@ class DatastoreTests(ConsumerTests):
 
 class ConditionsTests(ConsumerTests):
     @staticmethod
-    def send_create_condition(admin_client, admin_uuid, predicates, action_type, action_target, action_device, action_value=None):
+    def send_create_condition(admin_client, admin_uuid, condition_name, predicates, action_type,
+                              action_target, action_device, action_value=None):
         message = {'type': 'CONDITION_CREATE',
                    'uuid': admin_uuid,
+                   'name': condition_name,
                    'predicates': predicates,
                    'action_type': action_type,
                    'action_target': action_target,
@@ -531,39 +533,57 @@ class ConditionsTests(ConsumerTests):
             message['action_value'] = action_value
         admin_client.send_and_consume('websocket.receive', {'text': message})
 
-    def test_basic_condition(self):
-        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+    @staticmethod
+    def send_delete_condition(admin_client, admin_uuid, condition_name):
+        message = {'type': 'CONDITION_DELETE',
+                   'uuid': admin_uuid,
+                   'name': condition_name}
+        admin_client.send_and_consume('websocket.receive', {'text': message})
 
-        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-        self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+    def test_basic_conditions(self):
+        def test_basic(operator, literal, initial, wrong, right):
+            name = 'basic_' + operator + str(literal)
+            admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
+            rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+            door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
 
-        predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781]
-        self.send_create_condition(admin_client, admin_leaf.uuid, predicates, action_type='SET',
-                                   action_target=door_leaf.uuid, action_device='door_open', action_value=True)
+            self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', initial, 'number')
+            self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
-        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
-        self.assertIsNone(door_client.receive())  # condition has not been met yet
-        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+            predicates = [operator, [rfid_leaf.uuid, 'rfid_reader'], literal]
+            self.send_create_condition(admin_client, admin_leaf.uuid, name,
+                                       predicates, action_type='SET', action_target=door_leaf.uuid,
+                                       action_device='door_open', action_value=True)
 
-        expected = {
-            'type': 'SET_OUTPUT',
-            'uuid': door_leaf.uuid,
-            'device': 'door_open',
-            'value': True,
-            'format': 'bool'
-        }
-        response = door_client.receive()
-        self.assertIsNotNone(response, "Expected a SET_OUTPUT response from condition")
-        self.assertEqual(expected['type'], response['type'])
-        self.assertEqual(expected['uuid'], response['uuid'])
-        self.assertEqual(expected['device'], response['device'])
-        self.assertEqual(expected['value'], response['value'])
-        self.assertEqual(expected['format'], response['format'])
-        self.assertIsNone(door_client.receive())  # only gets one update
+            self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', wrong, 'number')
+            self.assertIsNone(door_client.receive())  # condition has not been met yet
+            self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', right, 'number')
 
-    def test_binary_condition(self):
+            expected = {
+                'type': 'SET_OUTPUT',
+                'uuid': door_leaf.uuid,
+                'device': 'door_open',
+                'value': True,
+                'format': 'bool'
+            }
+            response = door_client.receive()
+            self.assertIsNotNone(response, "Expected a SET_OUTPUT response from condition")
+            self.assertEqual(expected['type'], response['type'])
+            self.assertEqual(expected['uuid'], response['uuid'])
+            self.assertEqual(expected['device'], response['device'])
+            self.assertEqual(expected['value'], response['value'])
+            self.assertEqual(expected['format'], response['format'])
+            self.assertIsNone(door_client.receive())  # only gets one update
+            self.send_delete_condition(admin_client, admin_leaf.uuid, name)
+
+        test_basic('=', 3032042781, 33790, 3032042780, 3032042781)
+        test_basic('!=', 3032042781, 3032042781, 3032042781, 33790)
+        test_basic('>', 0, -12, -5, 13)
+        test_basic('<', 0, 12, 5, -13)
+        test_basic('>=', 0, -12, -5, 0)
+        test_basic('<=', 0, 12, 5, 0)
+
+    def test_binary_conditions(self):
         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
@@ -575,7 +595,7 @@ class ConditionsTests(ConsumerTests):
 
         predicates = ['AND', ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
                       ['=', [other_leaf.uuid, 'other_sensor'], True]]
-        self.send_create_condition(admin_client, admin_leaf.uuid, predicates, action_type='SET',
+        self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_AND', predicates, action_type='SET',
                                    action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
