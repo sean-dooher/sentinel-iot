@@ -388,7 +388,7 @@ class SetAction(Action):
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': message})
+        Group(self.target_uuid).send({'text': json.dumps(message)})
 
 
 class ChangeAction(Action):
@@ -402,7 +402,7 @@ class ChangeAction(Action):
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': message})
+        Group(self.target_uuid).send({'text': json.dumps(message)})
 
 
 class Condition(models.Model):

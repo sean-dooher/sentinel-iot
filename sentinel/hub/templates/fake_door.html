@@ -11,13 +11,13 @@
 			var uuid = 'f7bad74c-a876-41da-ab37-6c5752e94a25';
 			var fakeLeaf = new Leaf("Door", "door01", uuid, "ws://" + window.location.host + "/hub/");
 
-			var scanner = new Device("door_open", false, "bool", DeviceMode.OUT);
-			fakeLeaf.registerDevice(scanner);
+			// var scanner = new Device("door_open", false, "bool", DeviceMode.OUT);
+			// fakeLeaf.registerDevice(scanner);
 			scanner.addListener((d) => document.querySelector("#currval").innerHTML = d.value);
 
 			function sendCond() {
-			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "open_door", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25","predicates": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042781], "action_type": "SET", "action_target": "f7bad74c-a876-41da-ab37-6c5752e94a25", "action_device": "door_open", "action_value": true}')
-			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "close_door", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicates": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042780], "action_type": "SET", "action_target": "f7bad74c-a876-41da-ab37-6c5752e94a25", "action_device": "door_open", "action_value": false}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "open_door", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25","predicates": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042781], "action_type": "SET", "action_target": "01bc9e4b-15cb-4ecc-901f-0a58906f2e1c", "action_device": "door_open", "action_value": true}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "close_door", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicates": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042780], "action_type": "SET", "action_target": "01bc9e4b-15cb-4ecc-901f-0a58906f2e1c", "action_device": "door_open", "action_value": false}')
 			}
 
 		</script>

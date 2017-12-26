@@ -122,7 +122,7 @@ class PyLeaf:
         elif type == 'GET_DEVICE':
             return self.send_status(message['device'])
 
-        elif type == 'SET_DEVICE':
+        elif type == 'SET_OUTPUT':
             device = self.get_device(message['device'])
             if device:
                 if device.mode == Device.OUT:
