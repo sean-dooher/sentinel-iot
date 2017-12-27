@@ -3,8 +3,6 @@
 ## Sentinel Hub
 
 ![Hub Mockup](https://i.imgur.com/H0Fy8BH.png)
-
-<br>
 **The Sentinel Hub** is the main dashboard which allows the user to visualize and control all of their connected devices. Users can drag and drop arrows between individual **leaves**, which are groups of devices and sensors, in order to create a connection between two or more leaves. This connection can serve different functions including a **subscription** which enables a leaf to routinely update another on its status. Another type of connection is a **conditional connection**, which specifies how one leaf responds to changes in the status of another leaf.
 
 ## Sentinel Leaves
@@ -175,8 +173,9 @@ An operator predicate can compare two values. These values can either be device 
 | Less than | < |
 | Greater than or equal to | >= |
 | Less than or equal to | <= |
-<br>
+
 Examples:
+
 Device and literal:
 ```
 ['=', ['06202ef5-bec3-46d1-b39c-b88910a0ab07', 'sensor_1'], 320212.5]
@@ -201,8 +200,9 @@ Unary connector:
 | OR | Binary |
 | XOR | Binary |
 | NOT | Unary |
-<br>
+
 Examples:
+
 Unary:
 ```
 ['NOT', ['>', ['ce505754-341c-48f8-b7f2-2626041df01c', 'sensor_1'], 0]]
@@ -226,6 +226,7 @@ An action takes the following form:
 }
 ```
 #### Examples
+This is a full example of the creation of a conditon:
 ```
 {
     'type': 'CONDITION_CREATE',
@@ -236,7 +237,6 @@ An action takes the following form:
         'target': '2a11abdc-be9e-4646-96f5-100ee55211e7',
         'device': 'output_sensor',
         'value': 33790
-
     }
 }
 ```
