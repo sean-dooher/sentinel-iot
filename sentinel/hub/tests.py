@@ -6,7 +6,7 @@ from channels import Group
 from .models import Leaf
 import logging
 
-logging.disable(logging.CRITICAL)
+logging.disable(logging.ERROR)
 
 
 @apply_routes(websocket_routing)
@@ -266,6 +266,7 @@ class LeafTests(ConsumerTests):
         self.assertEquals(led_device.value, "HERE WE", "Wrong value")
         self.assertEquals(thermometer_device.value, 90, "Wrong value")
 
+    @unittest.skip("Options not implemented yet")
     def test_options(self):
         pass
 
@@ -520,17 +521,20 @@ class DatastoreTests(ConsumerTests):
 
 class ConditionsTests(ConsumerTests):
     @staticmethod
-    def send_create_condition(admin_client, admin_uuid, condition_name, predicates, action_type,
+    def send_create_condition(admin_client, admin_uuid, condition_name, predicate, action_type,
                               action_target, action_device, action_value=None):
         message = {'type': 'CONDITION_CREATE',
                    'uuid': admin_uuid,
                    'name': condition_name,
-                   'predicates': predicates,
-                   'action_type': action_type,
-                   'action_target': action_target,
-                   'action_device': action_device}
+                   'predicate': predicate,
+                   'action': {
+                       'action_type': action_type,
+                       'target': action_target,
+                       'device': action_device
+                    }
+                   }
         if action_value is not None:
-            message['action_value'] = action_value
+            message['action']['value'] = action_value
         admin_client.send_and_consume('websocket.receive', {'text': message})
 
     @staticmethod

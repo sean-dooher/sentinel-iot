@@ -33,10 +33,12 @@ def is_valid_message(message):
         valid = valid and 'name' in message
     elif message['type'] == 'CONDITION_CREATE':
         valid = valid and 'name' in message
-        valid = valid and 'predicates' in message
-        valid = valid and 'action_type' in message
-        valid = valid and 'action_target' in message
-        valid = valid and 'action_device' in message
+        valid = valid and 'predicate' in message
+        valid = valid and 'action' in message
+        if valid:
+            valid = valid and 'target' in message['action']
+            valid = valid and 'device' in message['action']
+            valid = valid and 'value' in message['action']
     elif message['type'] == 'CONDITION_DELETE':
         valid = valid and 'name' in message
     else:

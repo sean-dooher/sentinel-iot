@@ -5,6 +5,7 @@ from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitVa
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
 from .utils import is_valid_message, get_device
+from datetime import datetime
 import json
 import logging
 
@@ -89,7 +90,7 @@ def hub_handle_status(message):
     except ObjectDoesNotExist:
         device = Device.create_from_message(mess)
     device.value = mess['value']
-    logger.info('Status updated: {}'.format(device))
+    logger.info('{} -- Status updated: {}'.format(datetime.now().timestamp(),device))
 
 
 def hub_handle_subscribe(message):
@@ -208,24 +209,24 @@ def hub_handle_condition_create(message):
                 return
             predicate.save()
             return predicate
-    predicate = eval_predicates(mess['predicates'])
-    if predicate and 'action_value' in mess:
-        target_uuid, target_device = mess['action_target'], mess['action_device']
+    predicate = eval_predicates(mess['predicate'])
+    if predicate:
+        target_uuid, target_device = mess['action']['target'], mess['action']['device']
         format = get_device(target_uuid, target_device).format
-        value = values[format](value=mess['action_value'])
+        value = values[format](value=mess['action']['value'])
         value.save()
 
-        if type(mess['action_value']) != list:
-            value = values[format](value=mess['action_value'])
+        if type(mess['action']['value']) != list:
+            value = values[format](value=mess['action']['value'])
             value.save()
         else:
-            remote_uuid, remote_device = mess['action_value']
+            remote_uuid, remote_device = mess['action']['value']
             seen_devices.add((remote_uuid, remote_device))
             value = get_device(remote_uuid, remote_device)._value
 
-        if mess['action_type'] == 'SET':
+        if mess['action']['action_type'] == 'SET':
             action = SetAction(target_uuid=target_uuid, target_device=target_device, value=value)
-        elif mess['action_type'] == 'CHANGE':
+        elif mess['action']['action_type'] == 'CHANGE':
             action = ChangeAction(target_uuid=target_uuid, target_device=target_device, value=value)
         else:
             return
