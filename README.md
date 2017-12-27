@@ -57,13 +57,20 @@ Only the type and uuid attributes are required, all other attributes are specifi
 | ---- | ---- | ---------- | ----------- | ---- |
 | Name  | NAME | name: english name of the node | The name of the device | After receiving a GET_NAME or SET_NAME message |
 | Config  | CONFIG | name: english name of leaf <br> model: model number of the leaf <br> api-version: version of api| Configuration of the device. Used to register a leaf with a hub. | After connecting to a hub or recieving a GET_CONFIG message|
-| List Devices  | DEVICE_LIST | devices: JSON list of all devices, their formats, and their mode (input/output) | This returns a list of sensors and all the necessary data to interface with them (see [Devices](#devices) for the form of each device) | After recieving a LIST_DEVICES message| 
-| Device Status | DEVICE_STATUS | device: name of device <br> status: status of device | The status for a device will either be it's sensor value (for input devices) or it's current state (for output devices) | After recieving a SET_OUTPUT or GET_DEVICE command |
-| Unknown Device | UNKNOWN_DEVICE |  device: name of unknown device | Used to respond to a request regarding a device that the leaf is not configured to accept | After recieving an invalid SET_OPTION or GET_OPTION command |
+| Device Status | DEVICE_STATUS | device: name of device <br> value: status of device <br> format: format of device <br> mode: mode of device ("IN" or "OUT") | The status for a device will either be it's sensor value (for input devices) or it's current state (for output devices) | After recieving a SET_OUTPUT or GET_DEVICE command |
+| Unknown Device | UNKNOWN_DEVICE |  device: name of unknown device | Used to respond to a request regarding a device that the leaf is not configured to accept | After recieving an invalid SET_OPTION or GET_OPTION command, send one for all devices after getting DEVICE_LIST message |
 | List Options | OPTION_LIST | device: name of device list is for <br> options: list of all options and their value types | This command lists all the options available for a particular device. For leaf-wide options, the device will simply be 'leaf' | After recieving a LIST_OPTIONS message |
 | Unknown Option | UNKNOWN_OPTION |  device: name of device <br> option: name of unknown option | Used to respond to a request regarding an option that a device does not have | After recieving an invalid SET_OUTPUT or GET_DEVICE command |
 | Option Update  | OPTION | device: name of device <br> option: name of option <br> value: current setting of option | Gives the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | After recieving a SET_OPTION or GET_OPTION message |
 | Invalid Value | INVALID_VALUE |  device: name of device <br> mode: option/device <br> value: the value that was invalid | Used to respond to a request regarding an improper value for an option or output | After recieving an invalid SET_OUTPUT or SET_OPTION command |
+| Subscribe | SUBSCRIBE | sub_uuid: uuid of leaf to subscribe to <br> sub_device: device to subscribe to (leaf for every device) | Used to register a subscription to another leaf's device for notifications whenever a value updates | None |
+| Unsubscribe | UNSUBSCRIBE | sub_uuid: uuid of leaf to unsubscribe from <br> sub_device: device to unsubscribe from (leaf for every device) | Used to remove a subscription from another leaf's device | None |
+| Datastore Create | DATASTORE_CREATE | name: name of datastore to create <br> value: initial value for datastore to have <br> format: format of datastore <br> permissions(optional): dictionary of uuid to permissions for this datastore | Create a datastore. See (#datastore) section | None |
+| Get Datastore | DATASTORE_GET | name: name of datastore to get value of | attempt to get the current value of a datastore | None |
+| Set Datastore | DATASTORE_SET | name: name of datastore to set value of <br> value: new value of datastore | attempt to set the value of a datastore | None |
+| Delete Datastore | DATASTORE_DELETE | name: name of datastore to delete | attempt to delete a datastore | None |
+| Create Condition | CONDITION_CREATE | name: name of condition to create <br> predicate: condition that must be true for action to execute <br> action: action for condition to run once the predicate is satisfied | Creates a condition with the name "name" overriding it if one already exists | None |
+| Delete Condition | CONDITION_DELETE | name: name of condition to delete | attempt to delete the condition | None |
 #### Devices
 This section deals with the various formats through which a device can report or receive data.
 ##### Device Config
@@ -127,42 +134,112 @@ These are the messages your leaf must receive and process in order to properly i
 ```
 | Name | TYPE | Additional Attributes | Description | Required Processing |
 | ---- | ---- | ---------- | ----------- | ---- |
-| Set Name  | SET_NAME | name: new english name of the node | Changes the default name of the leaf | The leaf should update its name and send a NAME message |
-| Get Name  | GET_NAME | None | Requests the name of the leaf | The leaf should send a NAME message |
-| Get Config  | GET_CONFIG | None| Requests configuration of device, usually sent on initial connection. | Send a CONFIG message|
-| List Devices  | LIST_DEVICES | None | Requests a list of sensors and all the necessary data to interface with them (see [Devices](#devices) for the form of each device) | Send a  DEVICE_LIST message |
+| Get Configuration  | GET_CONFIG | None| Requests configuration of device, usually sent on initial connection. | Send a CONFIG message|
+| Configuration Complete | CONFIG_COMPLETE | None | Sent when configuration of your leaf is completed | None, though you want to wait until you receive this before sending any messages to the hub |
+| List Devices  | LIST_DEVICES | None | Requests the current status of all sensors (see [Devices](#devices) for the form of each device) | Send a DEVICE_STATUS message for all devices |
 | Get Device | GET_DEVICE | device: name of device | The status for a device will either be it's sensor value (for input devices) or it's current state (for output devices) | Locate device and send DEVICE_STATUS or UNKNOWN_DEVICE message |
-| Set Output | SET_OUTPUT | device: name of device <br> value: new value of output| Changes the output state, if valid, of device | Change the device's output value (or send INVALID_VALUE) and send a DEVICE_STATUS message|
+| Set Output | SET_OUTPUT | device: name of device <br> value: new value of output| Changes the output state, if valid, of device | Change the device's output value (or send INVALID_VALUE) and send a DEVICE_STATUS message |
+| Change Output | CHANGE_OUTPUT | device: name of device <br> value: new value to add to device's current number | Changes an output device by a certain amount (device must be either a number device or a units device) | Change the device's output value (or send INVALID_VALUE) and send a DEVICE_STATUS message |
 | List Options | LIST_OPTIONS | device: name of device list is for | This command lists all the options available for a particular device. For leaf-wide options, the device will simply be 'leaf' | Send a OPTION_LIST message |
 | Get Option  | GET_OPTION | device: name of device <br> option: name of option  | Requests the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | Send an OPTION message or a UNKNOWN_DEVICE, UNKNOWN_OPTION |
 | Set Option  | SET_OPTION | device: name of device <br> option: name of option <br> value: new setting of option | Changes the current value of an option for a particular device. For leaf-wide options the device will be "leaf". | Change option and send OPTION message if sucessful else send UNKNOWN_DEVICE, UNKNOWN_OPTION, or INVALID_VALUE |
+| Subscription Update | SUBSCRIPTION_UPDATE | sub_uuid: uuid of leaf you subscribed to <br> sub_device: name of device you subscribed to <br> message: message from your subscription (device_status, etc) | None |
+| Permission Denied | PERMISSION_DENIED | request: request type that was denied, <br> name/uuid/device (optional): identifier of denied resource | Given when the leaf tries to access something it does not have permission to | None |
+| Datastore Created | DATASTORE_CREATED | name: name of datastore <br> format: data format of datastore | Informs the user a datastore has been successfully created | None |
+| Datastore Deleted | DATASTORE_DELETED | name: name of datastore | Informs the user a datastore has been successfully deleted | None |
 ## Sentinel Backend
 The Sentinel Backend processes all of features and interactions defined above. In the current version of Sentinel IoT, The Sentinel is implemented in Django using Django Channels and WebSockets.
 
 ### Conditions
-Conditions are logical statements that evaluate to either _true_ or _false_. There can be either one or multiple statements connected by AND, OR, NOR, NOT, XOR, XNOR, NAND, NOR, etc. Once a condition is satisfied (i.e. the whole statement is true) some code will be run. This code could set a value of another leaf, change a setting, send an alert, post a message on a social media site, or whatever else you want to program it to do. More info on this will be added later.
+Conditions are a complination of a **predicate** (logical statements that evaluate to either _true_ or _false_) and an **action** to execute when the predicate is satisfied. To create a condition, a message like this should be sent:
+```
+{
+    'type': 'CONDITION_CREATE',
+    'uuid': [Admin Leaf UUID],
+    'predicate': [predicate],
+    'action': [action]
+}
+```
+#### Predicates
+Predicates are given in [Polish Notation](https://en.wikipedia.org/wiki/Polish_notation) using lists as brackets.
+##### Operations
+An operator predicate can compare two values. These values can either be device values or literals. See below for a few examples.
+```
+['[Operator]', ['[Leaf UUID]', '[Device Name']], [Literal or another [uuid, device] pairing]]
+```
+| Name | Operator |
+| --------- | ---- |
+| Equals | = |
+| Does not equals | != |
+| Greater than | > |
+| Less than | < |
+| Greater than or equal to | >= |
+| Less than or equal to | <= |
+<br>
+Examples:
+Device and literal:
+```
+['=', ['06202ef5-bec3-46d1-b39c-b88910a0ab07', 'sensor_1'], 320212.5]
+```
+Two devices:
+```
+['>', ['06202ef5-bec3-46d1-b39c-b88910a0ab07', 'sensor_1'], ['230025f0-9350-4578-9b95-44cb188e70a3', 'sensor_2']]
+```
+##### Connectors
+You can connect two or more predicates together using the boolean connectors in the table below. These can be nested to an arbitrary depth. The format is as follows: <br>
+Binary connector:
+```
+['[Connector]', [Predicate1], [Predicate 2]]
+```
+Unary connector:
+```
+['[Connector]', [Predicate]]
+```
+| Connector | Type |
+| --------- | ---- |
+| AND | Binary |
+| OR | Binary |
+| XOR | Binary |
+| NOT | Unary |
+<br>
+Examples:
+Unary:
+```
+['NOT', ['>', ['ce505754-341c-48f8-b7f2-2626041df01c', 'sensor_1'], 0]]
+```
+Binary:
+```
+['AND', ['>', ['ce505754-341c-48f8-b7f2-2626041df01c', 'sensor_1'], 0], ['<', ['datastore', '313123'], -123]]
+```
+Nested:
+```
+['NOT', ['XOR', ['>', ['ce505754-341c-48f8-b7f2-2626041df01c', 'sensor_1'], 0], ['<', ['datastore', '313123'], -123]]]
+```
+#### Actions
+An action takes the following form:
+```
+{
+    'action_type': ['SET' or 'CHANGE'],
+    'target': [uuid of leaf to perform action on],
+    'device': [device of leaf to perform action on],
+    'value': [value to set/change device by]
+}
+```
+#### Examples
+```
+{
+    'type': 'CONDITION_CREATE',
+    'uuid': '230025f0-9350-4578-9b95-44cb188e70a3',
+    'predicate':['AND', ['NOT', ['=', ['ce505754-341c-48f8-b7f2-2626041df01c', 'sensor_1'], 1323112], ['=', ['2a11abdc-be9e-4646-96f5-100ee55211e7', 'sensor_2'], 312312]]],
+    'action': {
+        'action_type': 'SET',
+        'target': '2a11abdc-be9e-4646-96f5-100ee55211e7',
+        'device': 'output_sensor',
+        'value': 33790
 
+    }
+}
+```
 ### WebSockets and HTTP
 
 Currently, there are two channels for leaves to interface with the backend: WebSockets (for real-time updates) and HTTP for a more RESTful interface. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-TODO:
-*Add CONFIG_COMPLETE
-*Change DEVICE_STATUS attributes
-*ADD More info to config on limitations
