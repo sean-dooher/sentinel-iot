@@ -1,10 +1,10 @@
 from django.shortcuts import render
 from rest_framework import status
-from django.http import HttpResponse, JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from hub.models import Leaf, Device, Datastore, Condition
-from hub.serializers import LeafSerializer, ConditionSerializer
+from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer
+from rest_framework import generics
 
 
 # Create your views here.
@@ -24,52 +24,34 @@ def rfid_demo(request):
     return render(request, "rfid_demo.html")
 
 
-@api_view(['GET'])
-def leaf_list(request):
-    if request.method == 'GET':
-        leaves = Leaf.objects.all()
-        serializer = LeafSerializer(leaves, many=True)
-        return Response(serializer.data)
+class LeafList(generics.ListAPIView):
+    queryset = Leaf.objects.all()
+    serializer_class = LeafSerializer
 
 
-@api_view(['GET'])
-def leaf_detail(request, uuid):
-    try:
-        leaf = Leaf.objects.get(uuid=uuid)
-    except Leaf.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = LeafSerializer(leaf)
-        return Response(serializer.data)
+class LeafDetail(generics.RetrieveAPIView):
+    queryset = Leaf.objects.all()
+    serializer_class = LeafSerializer
+    lookup_field = "uuid"
 
 
-@api_view(['GET'])
-def datastore_list(request):
-    if request.method == 'GET':
-        datastores = Datastore.objects.all()
-        serializer = LeafSerializer(datastores, many=True)
-        return Response(serializer.data)
+class DatastoreList(generics.ListAPIView):
+    queryset = Datastore.objects.all()
+    serializer_class = DatastoreSerializer
 
 
-@api_view(['GET'])
-def condition_list(request):
-    if request.method == 'GET':
-        conditions = Condition.objects.all()
-        serializer = ConditionSerializer(conditions, many=True)
-        return Response(serializer.data)
+class DatastoreDetail(generics.RetrieveDestroyAPIView):
+    queryset = Datastore.objects.all()
+    serializer_class = DatastoreSerializer
+    lookup_field = "name"
 
 
-@api_view(['GET', 'DELETE'])
-def condition_detail(request, name):
-    try:
-        condition = Condition.objects.get(name=name)
-    except Condition.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class ConditionList(generics.ListAPIView):
+    queryset = Condition.objects.all()
+    serializer_class = ConditionSerializer
 
-    if request.method == 'GET':
-        serializer = ConditionSerializer(condition)
-        return Response(serializer.data)
-    elif request.method == 'DELETE':
-        condition.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ConditionDetail(generics.RetrieveDestroyAPIView):
+    queryset = Condition.objects.all()
+    serializer_class = ConditionSerializer
+    lookup_field = "name"

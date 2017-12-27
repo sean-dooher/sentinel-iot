@@ -59,3 +59,9 @@ def get_device(uuid, device):
             return Leaf.objects.get(uuid=uuid).get_device(device, False)
     except ObjectDoesNotExist:
         return
+
+
+def disconnect_all():
+    for leaf in Leaf.objects.all():
+        leaf.is_connected = False
+        leaf.save()
