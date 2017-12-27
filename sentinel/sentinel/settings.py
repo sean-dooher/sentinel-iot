@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'polymorphic',
+    'rest_framework',
     'hub',
 ]
 

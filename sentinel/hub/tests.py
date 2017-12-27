@@ -347,10 +347,6 @@ class LeafTests(ConsumerTests):
         self.assertEquals(sub_message['type'], 'SUBSCRIPTION_UPDATE', "Wrong type")
         self.assertEquals(sub_message['sub_uuid'], rfid_leaf.uuid, "Wrong uuid")
         self.assertEquals(sub_message['sub_device'], 'rfid_reader', "Wrong device")
-        sub_status = {'type': 'DEVICE_STATUS',
-                      'device': 'rfid_reader',
-                      'format': 'number',
-                      'value': 33790}
         # ensure message doesn't show up twice
         self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
 

@@ -15,11 +15,21 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from hub.views import main, fake_in, fake_out, rfid_demo
+from hub.views import fake_in, fake_out, rfid_demo
+from hub.views import leaf_list, leaf_detail, datastore_list, condition_list, condition_detail
+from rest_framework.urlpatterns import format_suffix_patterns
+
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', rfid_demo),
     url(r'^fake_in/$', fake_in),
     url(r'^fake_out/$', fake_out),
-    url(r'^rfid_demo/$', rfid_demo)
+    url(r'^rfid_demo/$', rfid_demo),
+    url(r'^leaves/(?P<uuid>[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12})$', leaf_detail),
+    url(r'^leaves', leaf_list),
+    url(r'^datastores', datastore_list),
+    url(r'^conditions/(?P<name>[0-9_a-z\-]+)', condition_detail),
+    url(r'^conditions', condition_list)
 ]
+
+urlpatterns = format_suffix_patterns(urlpatterns)

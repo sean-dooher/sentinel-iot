@@ -22,7 +22,7 @@ def ws_add(message):
 def ws_disconnect(message):
     if 'leaf' in message.channel_session:
         leaf = Leaf.objects.get(pk=message.channel_session['leaf'])
-        leaf.isConnected = False
+        leaf.is_connected = False
         leaf.save()
         Group(leaf.uuid).discard(message.reply_channel)
 
@@ -71,6 +71,7 @@ def hub_handle_config(message):
         leaf.api_version = api
     except ObjectDoesNotExist:
         leaf = Leaf.create_from_message(mess)
+    leaf.is_connected = True
     leaf.save()
     leaf.refresh_devices()
     Group(uuid).add(message.reply_channel)
@@ -157,6 +158,12 @@ def hub_handle_condition_create(message):
     operators = {'AND': AND, 'OR': OR, 'XOR': XOR}
     seen_devices = set()
 
+    try:
+        condition = Condition.objects.get(name=mess['name'])
+        condition.delete()
+    except ObjectDoesNotExist:
+        pass
+
     def eval_predicates(predicates):
         if len(predicates) == 0:
             return
@@ -225,9 +232,9 @@ def hub_handle_condition_create(message):
             value = get_device(remote_uuid, remote_device)._value
 
         if mess['action']['action_type'] == 'SET':
-            action = SetAction(target_uuid=target_uuid, target_device=target_device, value=value)
+            action = SetAction(target_uuid=target_uuid, target_device=target_device, _value=value)
         elif mess['action']['action_type'] == 'CHANGE':
-            action = ChangeAction(target_uuid=target_uuid, target_device=target_device, value=value)
+            action = ChangeAction(target_uuid=target_uuid, target_device=target_device, _value=value)
         else:
             return
         action.save()
