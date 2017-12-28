@@ -9,7 +9,7 @@
         <button onclick="sendCond()">Send Condition</button>
         <script type="text/javascript">
 			var uuid = 'f7bad74c-a876-41da-ab37-6c5752e94a25';
-			var fakeLeaf = new Leaf("Door", "door01", uuid, "ws://" + window.location.host + "/hub/");
+			var fakeLeaf = new Leaf("Door", "door01", uuid, "ws://" + window.location.host + "/hub/", password="door_leaf");
 
 			// var scanner = new Device("door_open", false, "bool", DeviceMode.OUT);
 			// fakeLeaf.registerDevice(scanner);

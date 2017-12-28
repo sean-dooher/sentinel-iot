@@ -1,11 +1,12 @@
 class Leaf {
-	constructor(name, model, uuid, socket=null) {
+	constructor(name, model, uuid, socket=null, password=null) {
 		this.devices = [];
 		this.name = name;
 		this.uuid = uuid;
 		this.model = model;
-		this.connect(socket);
+		this.password = password;
 		this._isConnected = false;
+		this.connect(socket);
 		this.subscriptions = {};
 		this.messageQueue = [];
 	}
@@ -46,6 +47,7 @@ class Leaf {
 			uuid: this.uuid,
 			model: this.model,
 			name: this.name,
+			password: this.password,
 			api_version: '0.1.0',
 		};
 		this.socket.send(JSON.stringify(leaf));

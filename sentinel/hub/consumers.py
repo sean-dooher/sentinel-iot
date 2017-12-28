@@ -1,6 +1,8 @@
 from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
@@ -20,8 +22,8 @@ def ws_add(message):
 
 @channel_session_user_from_http
 def ws_disconnect(message):
-    if 'leaf' in message.channel_session:
-        leaf = Leaf.objects.get(pk=message.channel_session['leaf'])
+    if 'user' in message.channel_session:
+        leaf = Leaf.objects.get(pk=message.channel_session['user'])
         leaf.is_connected = False
         leaf.save()
         Group(leaf.uuid).discard(message.reply_channel)
@@ -32,7 +34,8 @@ def ws_message(message):
     try:
         mess = json.loads(message.content['text'])
         message.content['dict'] = mess
-        assert is_valid_message(mess)
+        assert is_valid_message(mess), "required attributes missing from message"
+        assert mess['type'] == 'CONFIG' or 'user' in message.channel_session
         if mess['type'] == 'CONFIG':
             return hub_handle_config(message)
         elif mess['type'] == 'DEVICE_STATUS':
@@ -56,8 +59,8 @@ def ws_message(message):
     except json.decoder.JSONDecodeError:
         logger.error("Invalid Message: JSON Decoding failed")
         logger.error(mess)
-    except AssertionError:
-        logger.error("Invalid Message: required attributes missing from message")
+    except AssertionError as e:
+        logger.error("Invalid Message: {}".format(e))
         logger.error(mess)
 
 
@@ -69,23 +72,35 @@ def hub_handle_config(message):
     try:
         leaf = Leaf.objects.get(pk=uuid)
         leaf.api_version = api
-    except ObjectDoesNotExist:
+    except Leaf.DoesNotExist:
         leaf = Leaf.create_from_message(mess)
-    leaf.is_connected = True
-    leaf.save()
-    leaf.refresh_devices()
-    Group(uuid).add(message.reply_channel)
-    message.channel_session['leaf'] = uuid
-    response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub_id": 1, "uuid": uuid})}
-    message.reply_channel.send(response)
-    logger.info('Config received for {}'.format(leaf.name))
+
+    try:
+        User.objects.get(username=uuid)
+    except User.DoesNotExist:
+        user = User.objects.create_user(username=uuid, password=mess['password'])
+        user.save()
+
+    user = authenticate(username=uuid, password=mess['password'])
+    if user:
+        leaf.is_connected = True
+        leaf.save()
+        Group(uuid).add(message.reply_channel)
+        message.channel_session['user'] = user.username
+        response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub_id": 1, "uuid": uuid})}
+        message.reply_channel.send(response)
+        leaf.refresh_devices()
+        logger.info('Config received for {}'.format(leaf.name))
+    else:
+        logger.error("Authentication failed for {}".format(uuid))
+        response = {"text": json.dumps({"type": "CONFIG_FAILED", "hub_id": 1, "uuid": uuid})}
+        message.reply_channel.send(response)
 
 
 def hub_handle_status(message):
     mess = message.content['dict']
     leaf = Leaf.objects.get(pk=mess['uuid'])
     device_name = mess["device"].lower()
-    device_format = mess["format"].lower()
     try:
         device = leaf.get_device(device_name, False)
     except ObjectDoesNotExist:

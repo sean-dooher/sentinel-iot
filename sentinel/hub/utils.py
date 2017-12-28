@@ -11,6 +11,7 @@ def is_valid_message(message):
     elif message['type'] == 'CONFIG':
         valid = valid and 'name' in message
         valid = valid and 'model' in message
+        valid = valid and 'password' in message
         valid = valid and 'api_version' in message
     elif message['type'] == 'DEVICE_STATUS':
         valid = valid and 'device' in message

@@ -18,6 +18,7 @@ class ConsumerTests(ChannelTestCase):
                           'name': name,
                           'model': model,
                           'uuid': uuid,
+                          'password': "tests",
                           'api_version': api_version}
         client.send_and_consume('websocket.receive', {'text': config_message})
         if receive:
@@ -191,10 +192,10 @@ class LeafTests(ConsumerTests):
 
         response = client.receive()
         self.assertIsNotNone(response, "Expected a response")
-        self.assertEqual(response['type'], 'LIST_DEVICES')
-        self.assertIsNotNone(response, "Expected a response")
-        response = client.receive()
         self.assertEqual(response['type'], 'CONFIG_COMPLETE')
+        response = client.receive()
+        self.assertIsNotNone(response, "Expected a response")
+        self.assertEqual(response['type'], 'LIST_DEVICES')
         response = client.receive()
         self.assertIsNone(response, "Only expected two responses")
 
