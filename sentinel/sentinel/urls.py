@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from hub.views import fake_in, fake_out, rfid_demo
+from hub.views import fake_in, fake_out, rfid_demo, main
 from hub.views import LeafList, LeafDetail, DatastoreDetail, DatastoreList, ConditionList, ConditionDetail
 from rest_framework.urlpatterns import format_suffix_patterns
 from hub.utils import disconnect_all
@@ -23,7 +23,7 @@ from hub.utils import disconnect_all
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^$', rfid_demo),
+    url(r'^$', main),
     url(r'^fake_in/$', fake_in),
     url(r'^fake_out/$', fake_out),
     url(r'^rfid_demo/$', rfid_demo),
