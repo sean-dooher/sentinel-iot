@@ -628,12 +628,13 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
         self.assertIsNotNone(door_client.receive(), "Expected a response as one condition is true")
 
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
+        self.assertIsNone(door_client.receive(), "Expected no response as both conditions are false")
+
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
+        self.assertIsNotNone(door_client.receive(), "Expected SET_OUTPUT as other condition is true")
 
-        self.assertIsNotNone(door_client.receive(), "Expected SET_OUTPUT as both conditions still true")
-
-        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 12312, 'number')
-        self.assertIsNotNone(door_client.receive(), "Expected a response as one condition is true")
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 
         self.assertIsNone(door_client.receive())  # only gets one update
         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_OR")

@@ -16,8 +16,8 @@
 			scanner.addListener((d) => document.querySelector("#currval").innerHTML = d.value);
 
 			function sendCond() {
-			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "open_door", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042781], "action": {"action_type": "SET","target": "01bc9e4b-15cb-4ecc-901f-0a58906f2e1c","device": "door_open","value":true}}')
-				fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "close_door", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": ["!=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "rfid"], 3032042781], "action": {"action_type": "SET","target": "01bc9e4b-15cb-4ecc-901f-0a58906f2e1c","device": "door_open","value":false}}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "led_on", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": [">=", ["01bc9e4b-15cb-4ecc-901f-0a58906f2e1c", "humidity"], 70], "action": {"action_type": "SET","target": "a6527c60-62aa-4c0f-a76d-144f52c52927","device": "led_on","value":true}}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "led_off", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": ["<", ["01bc9e4b-15cb-4ecc-901f-0a58906f2e1c", "humidity"], 70], "action": {"action_type": "SET","target": "a6527c60-62aa-4c0f-a76d-144f52c52927","device": "led_on","value":false}}')
 			}
 		</script>
     </body>

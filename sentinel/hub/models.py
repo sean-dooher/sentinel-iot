@@ -265,6 +265,11 @@ class Datastore(models.Model):
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="datastore")
     name = models.CharField(max_length=100)
 
+    class Meta:
+        permissions = (
+            ('view_datastore', 'View Datastore'),
+            ('write_datastore', 'Write Datastore'),
+        )
     @property
     def format(self):
         return self._value.format
@@ -459,10 +464,19 @@ class Condition(models.Model):
     name = models.CharField(max_length=100, unique=True)
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
     action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
+    previously_satisfied = models.BooleanField(default=False)
+
+    class Meta:
+        permissions = (
+            ('view_condition', 'View Condition'),
+        )
 
     def execute(self):
-        if self.predicate.evaluate():
+        pred = self.predicate.evaluate()
+        if pred and not self.previously_satisfied:
             self.action.run()
+        self.previously_satisfied = pred
+        self.save()
 
 
 class ConditionalSubscription(Subscription):
