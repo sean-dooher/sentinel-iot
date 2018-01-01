@@ -32,7 +32,7 @@ class ValueSerializer(NonNullSerializer):
 class DeviceSerializer(ValueSerializer):
     class Meta:
         model = Device
-        fields = ('name', 'format', 'value', 'units')
+        fields = ('name', 'format', 'value', 'units', 'mode')
 
 
 class LeafSerializer(serializers.ModelSerializer):

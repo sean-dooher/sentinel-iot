@@ -177,10 +177,12 @@ class Leaf(models.Model):
 
 
 class Device(models.Model):
+    DeviceModes = (('IN', 'Input'),('OUT', 'Output'))
     name = models.CharField(max_length=100)
     leaf = models.ForeignKey(Leaf, related_name='devices', on_delete=models.CASCADE)
     is_input = models.BooleanField(default=True)
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="device")
+    mode = models.CharField(choices=DeviceModes, max_length=3)
 
     @property
     def value(self):
@@ -233,7 +235,7 @@ class Device(models.Model):
             value = StringValue(value=message['value'])
         value.save()
 
-        device = Device(name=message['device'], _value=value, is_input=is_input, leaf=leaf)
+        device = Device(name=message['device'], _value=value, is_input=is_input, leaf=leaf, mode=message['mode'])
         device.save()
         return device
 
