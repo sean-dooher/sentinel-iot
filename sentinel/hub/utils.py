@@ -11,6 +11,7 @@ def is_valid_message(message):
     elif message['type'] == 'CONFIG':
         valid = valid and 'name' in message
         valid = valid and 'model' in message
+        valid = valid and 'password' in message
         valid = valid and 'api_version' in message
     elif message['type'] == 'DEVICE_STATUS':
         valid = valid and 'device' in message
@@ -51,11 +52,17 @@ def validate_uuid(uuid):
     return re.match(uuid_pattern, uuid) or uuid == 'datastore'
 
 
-def get_device(uuid, device):
+def get_device(uuid, device, hub):
     try:
         if uuid == 'datastore':
-            return Datastore.objects.get(device)
+            return hub.Datastores.get(device)
         else:
-            return Leaf.objects.get(uuid=uuid).get_device(device, False)
+            return hub.leaves.get(uuid=uuid).get_device(device, False)
     except ObjectDoesNotExist:
         return
+
+
+def disconnect_all():
+    for leaf in Leaf.objects.all():
+        leaf.is_connected = False
+        leaf.save()

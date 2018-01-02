@@ -1,20 +1,370 @@
-<html>
-	<head>
-		<script defer>
-			// Note that the path doesn't matter right now; any WebSocket
-			// connection gets bumped over to WebSocket consumers
-			var socket = new WebSocket("ws://" + window.location.host + "/chat/");
-			function onButtonPressed() {
-				socket.send("on");
-			}
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Hub Demo</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-			function offButtonPressed() {
-				socket.send("off");
-			}
-		</script>
-	</head>
-	<body>
-		<button onclick="onButtonPressed()"">On</button>
-		<button onclick="offButtonPressed()">Off</button>
-	</body>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+      <a class="navbar-brand" href="#">Sentinel IoT</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="#">Home<span class="sr-only">(current)</span></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="../leaves">Leaves</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="../conditions">Conditions</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <main role="main">
+
+      <!-- Main jumbotron for a primary marketing message or call to action -->
+      <div class="jumbotron">
+        <div class="container">
+          <h1 class="display-3">Sentinel IoT Hub</h1>
+        </div>
+      </div>
+
+      <div class="container">
+        <!-- Example row of columns -->
+        <h2>Conditions</h2>
+        <hr>
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+                <th>Name</th>
+                <th>Predicate</th>
+                <th>Action</th>
+                <th>Action Target</th>
+                <th>Action Value</th>
+            </tr>
+          </thead>
+          <tbody id="condition_body">
+          </tbody>
+        </table>
+        <div class="row">
+            <div class="col-md-2">
+                <input class="form-control" id="name" placeholder="Name">
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="first_leaf" onchange="leafSelected('#first_leaf','#first_devices')">
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="first_devices">
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="operator">
+                    <option value="=">=</option>
+                    <option value="!=">!=</option>
+                    <option value=">">></option>
+                    <option value="<"><</option>
+                    <option value=">=">>=</option>
+                    <option value="<="><=</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="second_leaf" onchange="leafSelected('#second_leaf','#second_devices')">
+                    <option value="literal">Literal</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="second_devices" hidden>
+                </select>
+                <input class="form-control" id="literal">
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="col-md-2">
+                <select class="form-control" id="action_type">
+                    <option value="SET">SET</option>
+                    <option value="CHANGE">CHANGE</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="third_leaf" onchange="leafSelected('#third_leaf','#third_devices')">
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="third_devices">
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="fourth_leaf" onchange="leafSelected('#fourth_leaf','#fourth_devices')">
+                    <option value="literal">Literal</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="fourth_devices" hidden>
+                </select>
+                <input type="text" class="form-control" id="action_literal">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-block btn-secondary" onclick="generateCommand()">Add</button>
+            </div>
+        </div>
+        <br>
+        <h2>Leaves</h2>
+        <hr>
+        <div class="row" id="leaves">
+        </div>
+        <hr>
+
+      </div> <!-- /container -->
+    </main>
+
+    <footer class="container">
+      <p>&copy; Company 2017</p>
+    </footer>
+    <div class="col-md-6" id="leaf-template" style="display: none">
+        <h3>Leaf One</h3>
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+              <th>Device Name</th>
+              <th>Format</th>
+              <th>Value</th>
+              <th>Mode</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+    </div>
+    {% load static %}
+    <script src="{% static 'hub/Leaf.js' %}"></script>
+    <script>
+	  var num = 0;
+	  var devices = {};
+	  var formats = {};
+      var leaves = document.querySelector("#leaves");
+      var leaf_selectors = [document.querySelector("#first_leaf"), document.querySelector("#second_leaf"),
+                            document.querySelector("#third_leaf"), document.querySelector("#fourth_leaf")]
+      var leaf_template = document.querySelector("#leaf-template");
+      function createLeaf(leafJSON) {
+        var clean_name = leafJSON.name;
+        while(clean_name.indexOf(" ") > 0) {
+            clean_name = clean_name.replace(" ", "_");
+        }
+      	var clone = document.querySelector("#" + clean_name + "-" + num);
+      	if(!clone) {
+			clone = leaf_template.cloneNode(true);
+			clone.style.display = "initial"
+			clone.getElementsByTagName("h3")[0].innerHTML = leafJSON.name;
+			clone.id = clean_name + "-" + num;
+            var option = document.createElement("option");
+            option.value = leafJSON.uuid;
+            option.innerHTML = leafJSON.name;
+            for(var i = 0; i < leaf_selectors.length; i++) {
+                leaf_selectors[i].appendChild(option.cloneNode(true));
+            }
+            devices[leafJSON.uuid] = [];
+            formats[leafJSON.uuid] = {};
+        }
+        num++;
+
+        var table = clone.getElementsByTagName("tbody")[0];
+
+        for(var i = 0; i < leafJSON.devices.length; i++) {
+          var row = document.querySelector("#" + clean_name + "-" + num + "-" + leafJSON.devices[i].name);
+          if(!row) {
+          	row = document.createElement("tr");
+          	row.id = clean_name + "-" + num + "-" + leafJSON.devices[i].name;
+          	var device_name = document.createElement("td");
+          	var format = document.createElement("td");
+         	var value = document.createElement("td");
+		  	var mode = document.createElement("td");
+		  	row.appendChild(device_name);
+		  	row.appendChild(format);
+		 	row.appendChild(value);
+		 	row.appendChild(mode);
+		    table.appendChild(row);
+		    devices[leafJSON.uuid].push(leafJSON.devices[i].name);
+		    formats[leafJSON.uuid][leafJSON.devices[i].name] = leafJSON.devices[i].format;
+          } else {
+          	var device_name = row.childNodes[0];
+          	var format = row.childNodes[1];
+         	var value = row.childNodes[2];
+		  	var mode = row.childNodes[3];
+          }
+
+          device_name.innerHTML = leafJSON.devices[i].name;
+          format.innerHTML = leafJSON.devices[i].format;
+          value.innerHTML = leafJSON.devices[i].value;
+          mode.innerHTML = leafJSON.devices[i].mode;
+        }
+
+        leaves.appendChild(clone);
+      }
+
+      function updateLeaves() {
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function() {
+          if (this.readyState == 4 && this.status == 200) {
+            var leaves = JSON.parse(this.responseText);
+            for(var i = 0; i < leaves.length; i++) {
+              createLeaf(leaves[i]);
+            }
+          }
+        };
+        request.open("GET", "http://" + window.location.host + "/hub/{{ hub }}/leaves/", true);
+        request.send();
+      }
+
+      function createCondition(conditionJSON) {
+        var clone = document.querySelector("#" + conditionJSON.name);
+        var name;
+        var predicate;
+        var action;
+        var target;
+        var value;
+        if(!clone) {
+            clone = document.createElement("tr");
+            clone.id = conditionJSON.name;
+            document.querySelector("#condition_body").appendChild(clone);
+            var name = document.createElement("td");
+            var predicate = document.createElement("td");
+            var action = document.createElement("td");
+            var target = document.createElement("td");
+            var value = document.createElement("td");
+            clone.appendChild(name);
+            clone.appendChild(predicate);
+            clone.appendChild(action);
+            clone.appendChild(target);
+            clone.appendChild(value);
+        } else {
+            var name = clone.childNodes[0];
+            var predicate = clone.childNodes[1];
+            var action = clone.childNodes[2];
+            var target = clone.childNodes[3];
+            var value = clone.childNodes[4];
+        }
+        name.innerHTML = conditionJSON.name;
+        predicate.innerHTML = conditionJSON.predicate;
+        action.innerHTML = conditionJSON.action.action_type;
+        target.innerHTML = [conditionJSON.action.target, conditionJSON.action.device];
+        value.innerHTML = conditionJSON.action.value;
+      }
+
+      function updateConditions() {
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function() {
+          if (this.readyState == 4 && this.status == 200) {
+            var conditions = JSON.parse(this.responseText);
+            for(var i = 0; i < conditions.length; i++) {
+              createCondition(conditions[i]);
+            }
+          }
+        };
+        request.open("GET", "http://" + window.location.host + "/hub/{{ hub }}/conditions/", true);
+        request.send();
+      }
+
+      setInterval(function() {
+        num = 0;
+        updateConditions();
+      	updateLeaves();
+      }, 500);
+
+      function leafSelected(leafID, deviceID) {
+        var leafSelector = document.querySelector(leafID);
+        var deviceSelector = document.querySelector(deviceID);
+        if(leafSelector.value !== "literal"){
+            document.querySelector(deviceID).hidden = false;
+            if(leafID === "#second_leaf") {
+                document.querySelector("#literal").hidden = true;
+            }
+            if(leafID === "#fourth_leaf") {
+                document.querySelector("#action_literal").hidden = true;
+            }
+            while (deviceSelector.firstChild) {
+                deviceSelector.removeChild(deviceSelector.firstChild);
+            }
+            for(var i = 0; i < devices[leafSelector.value].length; i++) {
+                var option = document.createElement("option");
+                option.value = devices[leafSelector.value][i];
+                option.innerHTML = devices[leafSelector.value][i];
+                deviceSelector.appendChild(option);
+            }
+        }
+        else if(leafID === "#second_leaf"){
+            document.querySelector(deviceID).hidden = true;
+            document.querySelector("#literal").hidden = false;
+        } else if(leafID === "#fourth_leaf") {
+            document.querySelector(deviceID).hidden = true;
+            document.querySelector("#action_literal").hidden = false;
+        }
+      }
+
+      function generateCommand() {
+        predicate = [document.querySelector("#operator").value,
+                    [document.querySelector("#first_leaf").value, document.querySelector("#first_devices").value]];
+        var action_value;
+        if(document.querySelector("#second_leaf").value === "literal") {
+            action_value = document.querySelector("#literal").value;
+            format = formats[document.querySelector("#first_leaf").value][document.querySelector("#first_devices").value];
+            if(format == 'bool' || format == 'number' || format == 'number+units') {
+                action_value = JSON.parse(action_value);
+            }
+            console.log(format);
+            predicate.push(action_value);
+        } else {
+            predicate.push([document.querySelector("#second_leaf").value,
+                            document.querySelector("#second_devices").value]);
+        }
+        var target = document.querySelector("#third_leaf").value;
+        var device = document.querySelector("#third_devices").value;
+        if(document.querySelector("#fourth_leaf").value === "literal") {
+            action_value = document.querySelector("#action_literal").value;
+            format = formats[target][device];
+            console.log(format);
+            if(format == 'bool' || format == 'number' || format == 'number+units') {
+                action_value = JSON.parse(action_value);
+            }
+        } else {
+             action_value = [document.querySelector("#fourth_leaf").value,
+                            document.querySelector("#fourth_devices").value];
+        }
+        var command = {
+            type: 'CONDITION_CREATE',
+            name: document.querySelector("#name").value,
+            uuid: front_end.uuid,
+            predicate: predicate,
+            action: {
+                action_type: document.querySelector("#action_type").value,
+                target: target,
+                device: device,
+                value: action_value
+            }
+        }
+        console.log(command);
+        front_end.socket.send(JSON.stringify(command));
+      }
+
+      var front_end = new Leaf("FrontEnd", "hub 1.0", "52e6e808-41af-4bae-a598-cefc15b90537",
+                      "ws://" + window.location.host + "/hub/{{ hub }}", password="test");
+
+
+    </script>
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+  </body>
 </html>

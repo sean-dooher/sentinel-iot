@@ -11,6 +11,9 @@ class Value(PolymorphicModel):
     def __repr__(self):
         return str(self.value)
 
+    def __str__(self):
+        return repr(self)
+
 
 class StringValue(Value):
     value = models.CharField(max_length=250)
@@ -48,14 +51,24 @@ class BooleanValue(Value):
         return "bool"
 
 
+class Hub(models.Model):
+    id = models.CharField(max_length=36, primary_key=True)
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return f"{self.name} - {self.id}"
+
+
 class Leaf(models.Model):
-    # TODO: integrate with authentication, user
-    hub_id = 1
     name = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
-    uuid = models.CharField(primary_key=True, max_length=36, unique=True)
+    uuid = models.CharField(max_length=36)
     api_version = models.CharField(max_length=10, default="0.1.0")
-    isConnected = models.BooleanField(default=True)
+    is_connected = models.BooleanField(default=True)
+    hub = models.ForeignKey(Hub, related_name="leaves")
 
     def set_name(self, name):
         message = self.message_template
@@ -94,16 +107,6 @@ class Leaf(models.Model):
             self.refresh_device(device)
         return self.devices.get(name=device)
 
-    def get_devices(self, update=True):
-        if update:
-            self.refresh_devices()
-
-        devices = {}
-        for device in self.devices.all():
-                devices[device.name] = device
-
-        return devices
-
     def get_name(self):
         return self.name
 
@@ -137,13 +140,13 @@ class Leaf(models.Model):
 
     def send_message(self, message):
         message = {"text": json.dumps(message)}
-        Group(self.uuid).send(message)
+        Group(f"{self.hub.id}-{self.uuid}").send(message)
 
     def send_subscriber_update(self, device):
         seen_devices = set()
         message = device.status_update_dict
 
-        subscriptions = Subscription.objects.filter(target_uuid=self.uuid)
+        subscriptions = self.hub.subscriptions.filter(target_uuid=self.uuid)
         for subscription in subscriptions.filter(target_device=device.name):
             seen_devices.add(subscription.subscriber_uuid)
             subscription.handle_update(self.uuid, device.name, message)
@@ -163,21 +166,22 @@ class Leaf(models.Model):
         return repr(self)
 
     @classmethod
-    def create_from_message(cls, message):
+    def create_from_message(cls, message, hub):
         model = message['model']
         name = message['name']
         api = message['api_version']
         uuid = message['uuid']
-        leaf = cls(name=name, model=model, uuid=uuid, api_version=api)
-        leaf.save()
+        leaf = cls(name=name, model=model, uuid=uuid, api_version=api, hub=hub)
         return leaf
 
 
 class Device(models.Model):
+    DeviceModes = (('IN', 'Input'),('OUT', 'Output'))
     name = models.CharField(max_length=100)
     leaf = models.ForeignKey(Leaf, related_name='devices', on_delete=models.CASCADE)
     is_input = models.BooleanField(default=True)
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="device")
+    mode = models.CharField(choices=DeviceModes, max_length=3)
 
     @property
     def value(self):
@@ -207,11 +211,10 @@ class Device(models.Model):
         return super().refresh_from_db(using=using, fields=fields)
 
     @staticmethod
-    def create_from_message(message, uuid=None):
+    def create_from_message(message, hub):
         try:
-            if not uuid:
-                uuid = message['uuid']
-            leaf = Leaf.objects.get(pk=uuid)
+            uuid = message['uuid']
+            leaf = hub.leaves.get(uuid=uuid)
         except ObjectDoesNotExist:
             return
         except KeyError:
@@ -230,8 +233,7 @@ class Device(models.Model):
             value = StringValue(value=message['value'])
         value.save()
 
-        device = Device(name=message['device'], _value=value, is_input=is_input, leaf=leaf)
-        device.save()
+        device = Device(name=message['device'], _value=value, is_input=is_input, leaf=leaf, mode=message['mode'])
         return device
 
     @property
@@ -249,18 +251,26 @@ class Subscription(PolymorphicModel):
     subscriber_uuid = models.CharField(max_length=36, blank=True, null=True)
     target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=100)
+    hub = models.ForeignKey(Hub, related_name="subscriptions")
 
     def handle_update(self, uuid, device, message):
         sub_message = {'type': 'SUBSCRIPTION_UPDATE',
                        'sub_uuid': uuid,
                        'sub_device': device,
                        'message': message}
-        Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
+        Group(f"{self.hub.id}-{self.subscriber_uuid}").send({'text': json.dumps(sub_message)})
 
 
 class Datastore(models.Model):
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="datastore")
     name = models.CharField(max_length=100)
+    hub = models.ForeignKey(Hub, related_name="datastores")
+
+    class Meta:
+        permissions = (
+            ('view_datastore', 'View Datastore'),
+            ('write_datastore', 'Write Datastore'),
+        )
 
     @property
     def format(self):
@@ -281,7 +291,7 @@ class Datastore(models.Model):
             'uuid': 'datastore',
             'device': self.name
         }
-        subscriptions = Subscription.objects.filter(target_uuid="datastore", device=self.name)
+        subscriptions = self.hub.subscriptions.filter(target_uuid="datastore", device=self.name)
         for subscription in subscriptions:
             subscription.handle_update("datastore", self.name, message)
 
@@ -291,7 +301,11 @@ class Datastore(models.Model):
 
 
 class Predicate(PolymorphicModel):
+
     def evaluate(self):
+        return True
+
+    def to_representation(self):
         return True
 
 
@@ -305,10 +319,14 @@ class NOT(Predicate):
         self.predicate.delete()
         super().delete(*args, **kwargs)
 
+    def to_representation(self):
+        return ['NOT', self.predicate.to_representation()]
+
 
 class Bivariate(Predicate):
     first = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="first_predicate")
     second = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="second_predicate")
+    op = "NONE"
 
     def operator(self, x, y):
         return False
@@ -321,18 +339,27 @@ class Bivariate(Predicate):
         self.second.delete()
         super().delete(*args, **kwargs)
 
+    def to_representation(self):
+        return [self.op, self.first.to_representation(), self.second.to_representation()]
+
 
 class AND(Bivariate):
+    op = "AND"
+
     def operator(self, x, y):
         return x.evaluate() and y.evaluate()
 
 
 class OR(Bivariate):
+    op = "OR"
+
     def operator(self, x, y):
         return x.evaluate() or y.evaluate()
 
 
 class XOR(Bivariate):
+    op = "XOR"
+
     def operator(self, x, y):
         x = x.evaluate()
         y = y.evaluate()
@@ -342,6 +369,7 @@ class XOR(Bivariate):
 class ComparatorPredicate(Predicate):
     first_value = models.ForeignKey(Value, on_delete=models.CASCADE, related_name="first")
     second_value = models.ForeignKey(Value, on_delete=models.CASCADE, related_name="second")
+    op = "NONE"
 
     def save(self, *args, **kwargs):
         if self.first_value.format != self.second_value.format:
@@ -356,68 +384,103 @@ class ComparatorPredicate(Predicate):
             self.second_value.delete()  # delete the value if it's a literal
         super().delete(*args, **kwargs)
 
+    def to_representation(self):
+        return [self.op, self.get_value_representation(self.first_value),
+                self.get_value_representation(self.second_value)]
+
+    @staticmethod
+    def get_value_representation(value):
+        try:
+            device = value.device
+            return [device.leaf.uuid, device.name]
+        except ObjectDoesNotExist:
+            return value
+
 
 class EqualPredicate(ComparatorPredicate):
+    op = "="
+
     def evaluate(self):
         return self.first_value.value == self.second_value.value
 
 
 class LessThanPredicate(ComparatorPredicate):
+    op = "<"
+
     def evaluate(self):
         return self.first_value.value < self.second_value.value
 
 
 class GreaterThanPredicate(ComparatorPredicate):
+    op = ">"
+
     def evaluate(self):
         return self.first_value.value > self.second_value.value
 
 
 class Action(PolymorphicModel):
+    target_uuid = models.CharField(max_length=36)
+    target_device = models.CharField(max_length=36)
+    _value = models.OneToOneField(Value, on_delete=models.CASCADE)
+
     def run(self):
         pass
 
+    @property
+    def action_type(self):
+        return "None"
+
+    @property
+    def format(self):
+        return self._value.format
+
 
 class SetAction(Action):
-    target_uuid = models.CharField(max_length=36)
-    target_device = models.CharField(max_length=36)
-    value = models.OneToOneField(Value, on_delete=models.CASCADE)
-
     def run(self):
         message = {'type': 'SET_OUTPUT',
                    'uuid': self.target_uuid,
                    'device': self.target_device,
-                   'value': self.value.value,
-                   'format': self.value.format}
-        Group(self.target_uuid).send({'text': json.dumps(message)})
+                   'value': self._value.value,
+                   'format': self._value.format}
+        Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+
+    @property
+    def action_type(self):
+        return "SET"
 
 
 class ChangeAction(Action):
-    target_uuid = models.CharField(max_length=36)
-    target_device = models.CharField(max_length=36)
-    value = models.OneToOneField(Value, on_delete=models.CASCADE)
-
     def run(self):
         message = {'type': 'CHANGE_OUTPUT',
                    'uuid': self.target_uuid,
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': json.dumps(message)})
+        Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+
+    @property
+    def action_type(self):
+        return "CHANGE"
 
 
 class Condition(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
     action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
+    previously_satisfied = models.BooleanField(default=False)
+    hub = models.ForeignKey(Hub, related_name="conditions")
+
+    class Meta:
+        permissions = (
+            ('view_condition', 'View Condition'),
+        )
 
     def execute(self):
-        if self.predicate.evaluate():
+        pred = self.predicate.evaluate()
+        if pred and not self.previously_satisfied:
             self.action.run()
-
-    def delete(self, *args, **kwargs):
-        self.predicate.delete()
-        self.action.delete()
-        super().delete(*args, **kwargs)
+        self.previously_satisfied = pred
+        self.save()
 
 
 class ConditionalSubscription(Subscription):
