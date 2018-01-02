@@ -16,13 +16,13 @@
       <div class="collapse navbar-collapse" id="navbarsExampleDefault">
         <ul class="navbar-nav mr-auto">
           <li class="nav-item active">
-            <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+            <a class="nav-link" href="#">Home<span class="sr-only">(current)</span></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="./leaves">Leaves</a>
+            <a class="nav-link" href="../leaves">Leaves</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="./conditions">Conditions</a>
+            <a class="nav-link" href="../conditions">Conditions</a>
           </li>
         </ul>
       </div>
@@ -221,7 +221,7 @@
             }
           }
         };
-        request.open("GET", "http://" + window.location.host + "/leaves/", true);
+        request.open("GET", "http://" + window.location.host + "/hub/{{ hub }}/leaves/", true);
         request.send();
       }
 
@@ -270,7 +270,7 @@
             }
           }
         };
-        request.open("GET", "http://" + window.location.host + "/conditions/", true);
+        request.open("GET", "http://" + window.location.host + "/hub/{{ hub }}/conditions/", true);
         request.send();
       }
 
@@ -356,7 +356,7 @@
       }
 
       var front_end = new Leaf("FrontEnd", "hub 1.0", "52e6e808-41af-4bae-a598-cefc15b90537",
-                      "ws://" + window.location.host + "/hub/", password="test");
+                      "ws://" + window.location.host + "/hub/{{ hub }}", password="test");
 
 
     </script>

@@ -12,7 +12,7 @@
 		<h4>auto: <span id="auto">1</span></h4>
 		<script type="text/javascript">
 			var uuid = 'f7bfd74c-a876-41da-ab37-6c5752e94a25';
-			var fakeLeaf = new Leaf("RFID Scanner", "rfid01", uuid, "ws://" + window.location.host + "/hub/", password="test");
+			var fakeLeaf = new Leaf("RFID Scanner", "rfid01", uuid, "ws://" + window.location.host + "/hub/{{ hub }}", password="test");
 
 			var scanner = new Device("rfid", 312341, "number");
 			fakeLeaf.registerDevice(scanner);

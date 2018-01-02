@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from hub.views import fake_in, fake_out, rfid_demo, main
+from hub.views import fake_in, fake_out, rfid_demo, main,  HubList, HubDetail
 from hub.views import LeafList, LeafDetail, DatastoreDetail, DatastoreList, ConditionList, ConditionDetail
 from rest_framework.urlpatterns import format_suffix_patterns
 from hub.utils import disconnect_all
@@ -23,17 +23,19 @@ from hub.utils import disconnect_all
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^$', main),
-    url(r'^fake_in/$', fake_in),
-    url(r'^fake_out/$', fake_out),
-    url(r'^rfid_demo/$', rfid_demo),
-    url(r'^leaves/(?P<uuid>[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12})$', LeafDetail.as_view()),
-    url(r'^leaves', LeafList.as_view()),
-    url(r'^datastores/(?P<name>[0-9_a-z\-]+)', DatastoreDetail.as_view()),
-    url(r'^datastores', DatastoreList.as_view()),
-    url(r'^conditions/(?P<name>[0-9_a-z\-]+)', ConditionDetail.as_view()),
-    url(r'^conditions', ConditionList.as_view())
+    url(r'^hub/(?P<id>[^/]+)/main/$', main),
+    url(r'^hub/(?P<id>[^/]+)/fake_in/$', fake_in),
+    url(r'^hub/(?P<id>[^/]+)/fake_out/$', fake_out),
+    url(r'^hub/(?P<id>[^/]+)/rfid_demo/$', rfid_demo),
+    url(r'hub/$', HubList.as_view()),
+    url(r'hub/(?P<id>[^/]+)/$', HubDetail.as_view()),
+    url(r'hub/(?P<id>[^/]+)/leaves/(?P<uuid>[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12})$', LeafDetail.as_view()),
+    url(r'^hub/(?P<id>[^/]+)/leaves', LeafList.as_view()),
+    url(r'^hub/(?P<id>[^/]+)/datastores/(?P<name>[0-9_a-z\-]+)', DatastoreDetail.as_view()),
+    url(r'^hub/(?P<id>[^/]+)/datastores', DatastoreList.as_view()),
+    url(r'^hub/(?P<id>[^/]+)/conditions/(?P<name>[0-9_a-z\-]+)', ConditionDetail.as_view()),
+    url(r'^hub/(?P<id>[^/]+)/conditions', ConditionList.as_view())
 ]
 urlpatterns = format_suffix_patterns(urlpatterns)
 
-disconnect_all()
+# disconnect_all()

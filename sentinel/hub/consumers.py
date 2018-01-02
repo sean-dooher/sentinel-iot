@@ -3,7 +3,7 @@ from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore
+from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
 from .utils import is_valid_message, get_device
@@ -15,18 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 @channel_session_user_from_http
-def ws_add(message):
+def ws_add(message, id):
     # Accept the connection
+    message.channel_session['hub'] = id
     message.reply_channel.send({"accept": True})
 
 
 @channel_session_user_from_http
 def ws_disconnect(message):
     if 'user' in message.channel_session:
-        leaf = Leaf.objects.get(pk=message.channel_session['user'])
+        hub = Hub.objects.get(pk=message.channel_session['hub'])
+        leaf = hub.leaves.get(uuid=message.channel_session['user'])
         leaf.is_connected = False
         leaf.save()
-        Group(leaf.uuid).discard(message.reply_channel)
+        Group(f"{leaf.hub.id}-{leaf.uuid}").discard(message.reply_channel)
 
 
 @channel_session_user
@@ -35,7 +37,7 @@ def ws_message(message):
         mess = json.loads(message.content['text'])
         message.content['dict'] = mess
         assert is_valid_message(mess), "required attributes missing from message"
-        assert mess['type'] == 'CONFIG' or 'user' in message.channel_session
+        assert 'hub' in message.channel_session and (mess['type'] == 'CONFIG' or 'user' in message.channel_session)
         if mess['type'] == 'CONFIG':
             return hub_handle_config(message)
         elif mess['type'] == 'DEVICE_STATUS':
@@ -68,12 +70,15 @@ def hub_handle_config(message):
     mess = message.content['dict']
     api = mess['api_version']
     uuid = mess['uuid']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
 
     try:
-        leaf = Leaf.objects.get(pk=uuid)
+        leaf = hub.leaves.get(uuid=uuid)
         leaf.api_version = api
     except Leaf.DoesNotExist:
-        leaf = Leaf.create_from_message(mess)
+        leaf = Leaf.create_from_message(mess, hub)
+        leaf.hub = hub
+        leaf.save()
 
     try:
         User.objects.get(username=uuid)
@@ -85,26 +90,29 @@ def hub_handle_config(message):
     if user:
         leaf.is_connected = True
         leaf.save()
-        Group(uuid).add(message.reply_channel)
+        Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
         message.channel_session['user'] = user.username
-        response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub_id": 1, "uuid": uuid})}
+        response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub": hub.id, "uuid": uuid})}
         message.reply_channel.send(response)
         leaf.refresh_devices()
         logger.info('Config received for {}'.format(leaf.name))
     else:
         logger.error("Authentication failed for {}".format(uuid))
-        response = {"text": json.dumps({"type": "CONFIG_FAILED", "hub_id": 1, "uuid": uuid})}
+        response = {"text": json.dumps({"type": "CONFIG_FAILED", "hub": hub.id, "uuid": uuid})}
         message.reply_channel.send(response)
 
 
 def hub_handle_status(message):
     mess = message.content['dict']
-    leaf = Leaf.objects.get(pk=mess['uuid'])
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+    leaf = hub.leaves.get(uuid=mess['uuid'])
     device_name = mess["device"].lower()
+
     try:
         device = leaf.get_device(device_name, False)
     except ObjectDoesNotExist:
-        device = Device.create_from_message(mess)
+        device = Device.create_from_message(mess, hub)
+        device.save()
     device.value = mess['value']
     logger.info('{} -- Status updated: {}'.format(datetime.now().timestamp(),device))
 
@@ -115,17 +123,18 @@ def hub_handle_subscribe(message):
     subscriber_uuid = mess['uuid'].lower()
     device = mess['sub_device'].lower()
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
     try:
-        Leaf.objects.get(pk=subscriber_uuid)
-        if not target_uuid == 'datastore':
-            Leaf.objects.get(pk=target_uuid)
+        hub.leaves.get(uuid=subscriber_uuid)
+        get_device(target_uuid, device, hub)
     except ObjectDoesNotExist:
         return
 
     try:
-        Subscription.objects.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
+        hub.subscriptions.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
     except ObjectDoesNotExist:
-        subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
+        subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device, hub=hub)
         subscription.save()
 
 
@@ -135,16 +144,18 @@ def hub_handle_unsubscribe(message):
     subscriber_uuid = mess['uuid'].lower()
     device = mess['sub_device'].lower()
     logger.info("<{}> subscribed to <{}-{}>".format(subscriber_uuid, target_uuid, device))
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
     try:
-        Leaf.objects.get(pk=subscriber_uuid)
-        if not target_uuid == 'datastore':
-            Leaf.objects.get(pk=target_uuid)
+        hub.leaves.get(uuid=subscriber_uuid)
+        get_device(target_uuid, device, hub)
     except ObjectDoesNotExist:
         return
 
+
     try:
-        subscription = Subscription.objects.get(subscriber_uuid=subscriber_uuid,
-                                                target_uuid=target_uuid, target_device=device)
+        subscription = hub.subscriptions.get(subscriber_uuid=subscriber_uuid,
+                                             target_uuid=target_uuid, target_device=device)
         subscription.delete()
     except ObjectDoesNotExist:
         return
@@ -173,11 +184,7 @@ def hub_handle_condition_create(message):
     operators = {'AND': AND, 'OR': OR, 'XOR': XOR}
     seen_devices = set()
 
-    try:
-        condition = Condition.objects.get(name=mess['name'])
-        condition.delete()
-    except ObjectDoesNotExist:
-        pass
+    hub = Hub.objects.get(id=message.channel_session['hub'])
 
     def eval_predicates(predicates):
         if len(predicates) == 0:
@@ -197,7 +204,7 @@ def hub_handle_condition_create(message):
         else:
             target_uuid, target_device = predicates[1]
             seen_devices.add((target_uuid, target_device))
-            first_value = get_device(target_uuid, target_device)._value
+            first_value = get_device(target_uuid, target_device, hub)._value
 
             if type(predicates[2]) != list:
                 second_value = values[first_value.format](value=predicates[2])
@@ -205,7 +212,7 @@ def hub_handle_condition_create(message):
             else:
                 remote_uuid, remote_device = predicates[2]
                 seen_devices.add((remote_uuid, remote_device))
-                second_value = get_device(remote_uuid, remote_device)._value
+                second_value = get_device(remote_uuid, remote_device, hub)._value
 
             comparator = first
             if comparator == '=':
@@ -232,41 +239,51 @@ def hub_handle_condition_create(message):
             predicate.save()
             return predicate
     predicate = eval_predicates(mess['predicate'])
+    action = None
     if predicate:
         target_uuid, target_device = mess['action']['target'], mess['action']['device']
-        format = get_device(target_uuid, target_device).format
-        value = values[format](value=mess['action']['value'])
-        value.save()
-
-        if type(mess['action']['value']) != list:
-            value = values[format](value=mess['action']['value'])
+        output_device = get_device(target_uuid, target_device, hub)
+        output_format = output_device.format
+        if output_device.mode == 'OUT':
+            value = values[output_format](value=mess['action']['value'])
             value.save()
-        else:
-            remote_uuid, remote_device = mess['action']['value']
-            seen_devices.add((remote_uuid, remote_device))
-            value = get_device(remote_uuid, remote_device)._value
 
-        if mess['action']['action_type'] == 'SET':
-            action = SetAction(target_uuid=target_uuid, target_device=target_device, _value=value)
-        elif mess['action']['action_type'] == 'CHANGE':
-            action = ChangeAction(target_uuid=target_uuid, target_device=target_device, _value=value)
-        else:
-            return
-        action.save()
+            if type(mess['action']['value']) != list:
+                value = values[output_format](value=mess['action']['value'])
+                value.save()
+            else:
+                remote_uuid, remote_device = mess['action']['value']
+                seen_devices.add((remote_uuid, remote_device))
+                value = get_device(remote_uuid, remote_device, hub)._value
+
+            if mess['action']['action_type'] == 'SET':
+                action = SetAction(target_uuid=target_uuid, target_device=target_device, _value=value)
+                action.save()
+            elif mess['action']['action_type'] == 'CHANGE':
+                action = ChangeAction(target_uuid=target_uuid, target_device=target_device, _value=value)
+                action.save()
     else:
         return
-    condition = Condition(name=mess['name'], predicate=predicate, action=action)
-    condition.save()
-    for target, device in seen_devices:
-        cond_sub = ConditionalSubscription(target_uuid=target, target_device=device, condition=condition)
-        cond_sub.save()
-    logger.info("Condition set up")
+    if predicate and action:
+        condition = Condition(name=mess['name'], predicate=predicate, action=action, hub=hub)
+        try:
+            old_condition = hub.conditions.get(name=mess['name'])
+            old_condition.delete()
+        except ObjectDoesNotExist:
+            pass
+        condition.save()
+        for target, device in seen_devices:
+            cond_sub = ConditionalSubscription(target_uuid=target, target_device=device, condition=condition, hub=hub)
+            cond_sub.save()
+        logger.info("{} condition set up".format(condition.name))
 
 
 def hub_handle_condition_delete(message):
     mess = message.content['dict']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
     try:
-        condition = Condition.objects.get(name=mess['name'])
+        condition = hub.conditions.get(name=mess['name'])
         condition.delete()
     except ObjectDoesNotExist:
         logger.error("Tried to delete condition that does not exist")

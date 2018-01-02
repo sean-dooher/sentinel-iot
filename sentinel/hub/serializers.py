@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Leaf, Device, Condition, Datastore, Action, SetAction, ChangeAction
+from .models import Leaf, Device, Condition, Datastore, Action, Hub
 from collections import OrderedDict
 
 
@@ -82,3 +82,25 @@ class DatastoreSerializer(ValueSerializer):
         model = Datastore
         fields = ('name', 'format', 'value', 'units')
 
+
+class HubSerializer(serializers.ModelSerializer):
+    num_leaves = serializers.SerializerMethodField()
+    num_datastores = serializers.SerializerMethodField()
+    num_conditions = serializers.SerializerMethodField()
+    num_subscriptions = serializers.SerializerMethodField()
+
+    class Meta:
+        model=Hub
+        fields = ('id', 'name', 'num_leaves', 'num_datastores', 'num_conditions', 'num_subscriptions')
+
+    def get_num_leaves(self, obj):
+        return obj.leaves.count()
+
+    def get_num_datastores(self, obj):
+        return obj.datastores.count()
+
+    def get_num_conditions(self, obj):
+        return obj.conditions.count()
+
+    def get_num_subscriptions(self, obj):
+        return obj.subscriptions.count()

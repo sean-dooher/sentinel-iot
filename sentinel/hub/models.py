@@ -51,14 +51,24 @@ class BooleanValue(Value):
         return "bool"
 
 
+class Hub(models.Model):
+    id = models.CharField(max_length=36, primary_key=True)
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return f"{self.name} - {self.id}"
+
+
 class Leaf(models.Model):
-    # TODO: integrate with authentication, user
-    hub_id = 1
     name = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
-    uuid = models.CharField(primary_key=True, max_length=36, unique=True)
+    uuid = models.CharField(max_length=36)
     api_version = models.CharField(max_length=10, default="0.1.0")
     is_connected = models.BooleanField(default=True)
+    hub = models.ForeignKey(Hub, related_name="leaves")
 
     def set_name(self, name):
         message = self.message_template
@@ -97,16 +107,6 @@ class Leaf(models.Model):
             self.refresh_device(device)
         return self.devices.get(name=device)
 
-    def get_devices(self, update=True):
-        if update:
-            self.refresh_devices()
-
-        devices = {}
-        for device in self.devices.all():
-                devices[device.name] = device
-
-        return devices
-
     def get_name(self):
         return self.name
 
@@ -140,13 +140,13 @@ class Leaf(models.Model):
 
     def send_message(self, message):
         message = {"text": json.dumps(message)}
-        Group(self.uuid).send(message)
+        Group(f"{self.hub.id}-{self.uuid}").send(message)
 
     def send_subscriber_update(self, device):
         seen_devices = set()
         message = device.status_update_dict
 
-        subscriptions = Subscription.objects.filter(target_uuid=self.uuid)
+        subscriptions = self.hub.subscriptions.filter(target_uuid=self.uuid)
         for subscription in subscriptions.filter(target_device=device.name):
             seen_devices.add(subscription.subscriber_uuid)
             subscription.handle_update(self.uuid, device.name, message)
@@ -166,13 +166,12 @@ class Leaf(models.Model):
         return repr(self)
 
     @classmethod
-    def create_from_message(cls, message):
+    def create_from_message(cls, message, hub):
         model = message['model']
         name = message['name']
         api = message['api_version']
         uuid = message['uuid']
-        leaf = cls(name=name, model=model, uuid=uuid, api_version=api)
-        leaf.save()
+        leaf = cls(name=name, model=model, uuid=uuid, api_version=api, hub=hub)
         return leaf
 
 
@@ -212,11 +211,10 @@ class Device(models.Model):
         return super().refresh_from_db(using=using, fields=fields)
 
     @staticmethod
-    def create_from_message(message, uuid=None):
+    def create_from_message(message, hub):
         try:
-            if not uuid:
-                uuid = message['uuid']
-            leaf = Leaf.objects.get(pk=uuid)
+            uuid = message['uuid']
+            leaf = hub.leaves.get(uuid=uuid)
         except ObjectDoesNotExist:
             return
         except KeyError:
@@ -236,7 +234,6 @@ class Device(models.Model):
         value.save()
 
         device = Device(name=message['device'], _value=value, is_input=is_input, leaf=leaf, mode=message['mode'])
-        device.save()
         return device
 
     @property
@@ -254,24 +251,27 @@ class Subscription(PolymorphicModel):
     subscriber_uuid = models.CharField(max_length=36, blank=True, null=True)
     target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=100)
+    hub = models.ForeignKey(Hub, related_name="subscriptions")
 
     def handle_update(self, uuid, device, message):
         sub_message = {'type': 'SUBSCRIPTION_UPDATE',
                        'sub_uuid': uuid,
                        'sub_device': device,
                        'message': message}
-        Group(self.subscriber_uuid).send({'text': json.dumps(sub_message)})
+        Group(f"{self.hub.id}-{self.subscriber_uuid}").send({'text': json.dumps(sub_message)})
 
 
 class Datastore(models.Model):
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="datastore")
     name = models.CharField(max_length=100)
+    hub = models.ForeignKey(Hub, related_name="datastores")
 
     class Meta:
         permissions = (
             ('view_datastore', 'View Datastore'),
             ('write_datastore', 'Write Datastore'),
         )
+
     @property
     def format(self):
         return self._value.format
@@ -291,7 +291,7 @@ class Datastore(models.Model):
             'uuid': 'datastore',
             'device': self.name
         }
-        subscriptions = Subscription.objects.filter(target_uuid="datastore", device=self.name)
+        subscriptions = self.hub.subscriptions.filter(target_uuid="datastore", device=self.name)
         for subscription in subscriptions:
             subscription.handle_update("datastore", self.name, message)
 
@@ -301,6 +301,7 @@ class Datastore(models.Model):
 
 
 class Predicate(PolymorphicModel):
+
     def evaluate(self):
         return True
 
@@ -441,7 +442,7 @@ class SetAction(Action):
                    'device': self.target_device,
                    'value': self._value.value,
                    'format': self._value.format}
-        Group(self.target_uuid).send({'text': json.dumps(message)})
+        Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
 
     @property
     def action_type(self):
@@ -455,7 +456,7 @@ class ChangeAction(Action):
                    'device': self.target_device,
                    'value': self.value.value,
                    'format': self.value.format}
-        Group(self.target_uuid).send({'text': json.dumps(message)})
+        Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
 
     @property
     def action_type(self):
@@ -463,10 +464,11 @@ class ChangeAction(Action):
 
 
 class Condition(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
     action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
     previously_satisfied = models.BooleanField(default=False)
+    hub = models.ForeignKey(Hub, related_name="conditions")
 
     class Meta:
         permissions = (

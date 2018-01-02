@@ -52,12 +52,12 @@ def validate_uuid(uuid):
     return re.match(uuid_pattern, uuid) or uuid == 'datastore'
 
 
-def get_device(uuid, device):
+def get_device(uuid, device, hub):
     try:
         if uuid == 'datastore':
-            return Datastore.objects.get(device)
+            return hub.Datastores.get(device)
         else:
-            return Leaf.objects.get(uuid=uuid).get_device(device, False)
+            return hub.leaves.get(uuid=uuid).get_device(device, False)
     except ObjectDoesNotExist:
         return
 

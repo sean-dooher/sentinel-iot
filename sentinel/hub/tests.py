@@ -3,7 +3,7 @@ from .routing import websocket_routing
 from channels.test import ChannelTestCase, WSClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
 from channels import Group
-from .models import Leaf
+from .models import Leaf, Hub
 import logging
 
 logging.disable(logging.ERROR)
@@ -11,9 +11,14 @@ logging.disable(logging.ERROR)
 
 @apply_routes(websocket_routing)
 class ConsumerTests(ChannelTestCase):
-    def send_create_leaf(self, name, model, uuid, api_version="0.1.0", receive=True):
+    def create_hub(self, name, id="0e5ef7ab-b6b8-4563-8a47-816f0eb72be4"):
+        hub = Hub(name=name, id=id)
+        hub.save()
+        return hub
+
+    def send_create_leaf(self, name, model, uuid, hub, api_version="0.1.0", receive=True):
         client = WSClient()
-        client.send_and_consume('websocket.connect')
+        client.send_and_consume('websocket.connect', path=hub.id)
         config_message = {'type': 'CONFIG',
                           'name': name,
                           'model': model,
@@ -22,11 +27,11 @@ class ConsumerTests(ChannelTestCase):
                           'api_version': api_version}
         client.send_and_consume('websocket.receive', {'text': config_message})
         if receive:
-            self.assertIsNotNone(client.receive(), "LIST_DEVICES not received")
             self.assertIsNotNone(client.receive(), "CONFIG_COMPLETE not received")
+            self.assertIsNotNone(client.receive(), "LIST_DEVICES not received")
 
         try:
-            db_leaf = Leaf.objects.get(pk=uuid)
+            db_leaf = Leaf.objects.get(uuid=uuid, hub=hub)
         except ObjectDoesNotExist:
             self.fail("Failed to find leaf in db after creation")
 
@@ -173,17 +178,42 @@ class ConsumerTests(ChannelTestCase):
         }
         client.send_and_consume('websocket.receive', {'text': data_message})
 
+    @staticmethod
+    def send_create_condition(admin_client, admin_uuid, condition_name, predicate, action_type,
+                              action_target, action_device, action_value=None):
+        message = {'type': 'CONDITION_CREATE',
+                   'uuid': admin_uuid,
+                   'name': condition_name,
+                   'predicate': predicate,
+                   'action': {
+                       'action_type': action_type,
+                       'target': action_target,
+                       'device': action_device
+                    }
+                   }
+        if action_value is not None:
+            message['action']['value'] = action_value
+        admin_client.send_and_consume('websocket.receive', {'text': message})
+
+    @staticmethod
+    def send_delete_condition(admin_client, admin_uuid, condition_name):
+        message = {'type': 'CONDITION_DELETE',
+                   'uuid': admin_uuid,
+                   'name': condition_name}
+        admin_client.send_and_consume('websocket.receive', {'text': message})
+
 
 class LeafTests(ConsumerTests):
     def test_create(self):
         """
         Tests creating a leaf
         """
+        hub = self.create_hub("test_hub")
         name = "py_create_test"
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         api_version = "3.2.3"
-        client, db_leaf = self.send_create_leaf(name, model, uuid, api_version, False)
+        client, db_leaf = self.send_create_leaf(name, model, uuid, hub, api_version, False)
 
         self.assertEqual(db_leaf.name, name, "Wrong name")
         self.assertEqual(db_leaf.model, model, "Wrong model")
@@ -200,14 +230,15 @@ class LeafTests(ConsumerTests):
         self.assertIsNone(response, "Only expected two responses")
 
         # ensure that using group to talk to client works
-        Group(db_leaf.uuid).send({'text': {}})
+        Group(f"{db_leaf.hub.id}-{db_leaf.uuid}").send({'text': {}})
         self.assertIsNotNone(client.receive(), "Expected a response")
 
     def test_devices(self):
+        hub = self.create_hub("test_hub")
         name = "py_device_test"
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-        client, db_leaf = self.send_create_leaf(name, model, uuid)
+        client, db_leaf = self.send_create_leaf(name, model, uuid, hub)
 
         # send initial values, create devices in database
         self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
@@ -216,10 +247,8 @@ class LeafTests(ConsumerTests):
         self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
         self.assertIsNone(client.receive(), "Didn't  expect a response")
 
-        db_leaf.refresh_from_db()  # refresh leaf
-        devices = db_leaf.get_devices(False)
-        self.assertEqual(len(devices), 4, "Expected four devices")
-
+        self.assertEqual(db_leaf.devices.count(), 4, "Expected four devices")
+        devices = {device.name:device for device in db_leaf.devices.all()}
         # TODO: uncomment options
         # test all devices
         self.assertTrue('rfid_reader' in devices)  # tests name implicitly
@@ -252,9 +281,7 @@ class LeafTests(ConsumerTests):
         self.send_device_update(client, db_leaf.uuid, 'led_display', "HERE WE", 'string', "OUT", {'auto': 1})
         self.assertIsNone(client.receive(), "Didn't  expect a response")
 
-        db_leaf.refresh_from_db()
-        devices = db_leaf.get_devices(False)
-        self.assertEqual(len(devices), 4, "Expected four devices")
+        self.assertEqual(db_leaf.devices.count(), 4, "Expected four devices")
 
         # refresh all devices to check for changes
         rfid_device.refresh_from_db()
@@ -272,9 +299,11 @@ class LeafTests(ConsumerTests):
         pass
 
     def test_subscriptions(self):
+        hub = self.create_hub("test_hub")
+
         # setup leaves
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         # setup devices
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
@@ -309,9 +338,11 @@ class LeafTests(ConsumerTests):
         self.assertIsNone(rfid_client.receive(), "Didn't  expect a response")
 
     def test_full_leaf_subscribe(self):
+        hub = self.create_hub("test_hub")
+
         # setup leaves
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         # setup devices
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
@@ -352,9 +383,11 @@ class LeafTests(ConsumerTests):
         self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
 
     def test_unsubscribe(self):
+        hub = self.create_hub("test_hub")
+
         # setup leaves
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         # setup devices
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
@@ -379,9 +412,11 @@ class LeafTests(ConsumerTests):
         self.assertIsNone(observer_client.receive())  # should not receive subscription updates any more
 
     def test_full_leaf_unsubscribe(self):
+        hub = self.create_hub("test_hub")
+
         # setup leaves
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         # setup devices
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
@@ -418,7 +453,8 @@ class LeafTests(ConsumerTests):
 @unittest.skip("Datastores not implemented yet")
 class DatastoreTests(ConsumerTests):
     def test_datastore_create_delete(self):
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
 
         # make sure the datastore didn't exist beforehand
         self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
@@ -456,7 +492,8 @@ class DatastoreTests(ConsumerTests):
         self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
 
     def test_datastore_update(self):
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
         self.assertIsNotNone(rfid_client.receive(), "Expected creation message")
         # set new value and check for success with a read
@@ -466,11 +503,12 @@ class DatastoreTests(ConsumerTests):
         self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
 
     def test_datastore_permissions(self):
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
-        light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690')
-        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
-        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
         permissions = {
             'default': 'deny',  # deny reads and writes by default
@@ -517,36 +555,14 @@ class DatastoreTests(ConsumerTests):
 
 
 class ConditionsTests(ConsumerTests):
-    @staticmethod
-    def send_create_condition(admin_client, admin_uuid, condition_name, predicate, action_type,
-                              action_target, action_device, action_value=None):
-        message = {'type': 'CONDITION_CREATE',
-                   'uuid': admin_uuid,
-                   'name': condition_name,
-                   'predicate': predicate,
-                   'action': {
-                       'action_type': action_type,
-                       'target': action_target,
-                       'device': action_device
-                    }
-                   }
-        if action_value is not None:
-            message['action']['value'] = action_value
-        admin_client.send_and_consume('websocket.receive', {'text': message})
-
-    @staticmethod
-    def send_delete_condition(admin_client, admin_uuid, condition_name):
-        message = {'type': 'CONDITION_DELETE',
-                   'uuid': admin_uuid,
-                   'name': condition_name}
-        admin_client.send_and_consume('websocket.receive', {'text': message})
-
     def test_basic_conditions(self):
+        hub = self.create_hub("test_hub")
+
         def test_basic(operator, literal, initial, wrong, right):
             name = 'basic_' + operator + str(literal)
-            admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
-            rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-            door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+            admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+            rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+            door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
             self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', initial, 'number')
             self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
@@ -585,10 +601,11 @@ class ConditionsTests(ConsumerTests):
         test_basic('<=', 0, 12, 5, 0)
 
     def test_binary_and(self):
-        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
-        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        hub = self.create_hub("test_hub")
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
@@ -611,10 +628,11 @@ class ConditionsTests(ConsumerTests):
         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_AND")
 
     def test_binary_or(self):
-        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
-        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        hub = self.create_hub("test_hub")
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
@@ -640,10 +658,11 @@ class ConditionsTests(ConsumerTests):
         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_OR")
 
     def test_binary_xor(self):
-        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
-        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        hub = self.create_hub("test_hub")
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
@@ -670,11 +689,12 @@ class ConditionsTests(ConsumerTests):
         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_OR")
 
     def test_nested(self):
-        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499')
-        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e')
-        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b')
-        third_client, third_leaf = self.send_create_leaf('third_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7426f4b')
-        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49')
+        hub = self.create_hub("test_hub")
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        third_client, third_leaf = self.send_create_leaf('third_leaf', '0', '0e86b123-42db-46a5-a816-4c194f6d33b5', hub)
+        door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
@@ -702,3 +722,102 @@ class ConditionsTests(ConsumerTests):
 
         self.assertIsNone(door_client.receive())  # only gets one update
         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_nested")
+
+    @unittest.skip("Invalid device not implemented yet")
+    def test_invalid_output_device(self):
+        hub = self.create_hub("test_hub")
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
+
+        predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781]
+        self.send_create_condition(admin_client, admin_leaf.uuid, name,
+                                   predicates, action_type='SET', action_target=other_leaf.uuid,
+                                   action_device='other_sensor', action_value=True)
+
+        response = admin_client.receive()
+        self.assertIsNotNone(response, "Expected invalid device message as other_sensor is not an output")
+        self.assertEquals(response['type'], 'INVALID_DEVICE')
+
+
+class HubTests(ConsumerTests):
+    def test_multiple_hubs_leaves(self):
+        hub1 = self.create_hub("first_hub", "1")
+        hub2 = self.create_hub("second_hub", "2")
+        hub1_client, hub1_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub1)
+        hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)
+
+        self.assertEquals(hub2.leaves.count(), 1)
+        self.assertEquals(hub1.leaves.count(), 1)
+
+        self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid', 323, 'number')
+        self.assertIsNone(hub1_client.receive(), "Expected no response from both on device creation")
+        self.assertIsNone(hub2_client.receive(), "Expected no response from both on device creation")
+
+        self.assertEquals(hub2_leaf.devices.count(), 0)
+        self.assertEquals(hub1_leaf.devices.count(), 1)
+
+    def test_multiple_hubs_subscriptions(self):
+        hub1 = self.create_hub("first_hub", "1")
+        hub2 = self.create_hub("second_hub", "2")
+        hub1_client, hub1_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub1)
+        hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)
+        observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0',
+                                                               'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub1)
+        # set initial values
+        self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 33790, 'number')
+
+        # subscribe
+        self.send_subscribe(observer_client, observer_leaf.uuid, hub1_leaf.uuid, 'rfid_reader')
+
+        # update rfid device
+        self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+        self.assertIsNone(hub1_client.receive(), "Didn't  expect a response")
+        self.assertIsNone(hub2_client.receive(), "Didn't  expect a response")
+
+        # test that subscription message was received and check parameters
+        sub_message = observer_client.receive()
+        self.assertIsNotNone(sub_message, "Expected to receive a subscription update")
+        self.assertEquals(sub_message['type'], 'SUBSCRIPTION_UPDATE', "Expected message to be a subscription update")
+
+        # make sure other device doesn't trigger subscription event
+        self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 3230, 'number')
+        self.assertIsNone(observer_client.receive(), "Didn't  expect a response")
+        self.assertIsNone(hub1_client.receive(), "Didn't  expect a response")
+        self.assertIsNone(hub2_client.receive(), "Didn't  expect a response")
+
+    def test_multiple_hubs_conditions(self):
+        hub1 = self.create_hub("first_hub", "1")
+        hub2 = self.create_hub("second_hub", "2")
+        hub1_client, hub1_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub1)
+        out_client1, out_leaf1 = self.send_create_leaf('rfid_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub1)
+        hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)
+        out_client2, out_leaf2 = self.send_create_leaf('rfid_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub2)
+
+        self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(out_client1, out_leaf1.uuid, 'output', False, 'bool', mode="OUT")
+        self.send_device_update(out_client2, out_leaf2.uuid, 'output', False, 'bool', mode="OUT")
+
+        predicate = ['=', [hub1_leaf.uuid, 'rfid_reader'], 3032042781]
+        self.send_create_condition(hub1_client, hub1_leaf.uuid, "multi_condition",
+                                   predicate, action_type='SET', action_target=out_leaf1.uuid,
+                                   action_device='output', action_value=True)
+
+        # send value that would satisfy predicate from wrong hub
+        self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+
+        # ensure no response was received by either output device
+        self.assertIsNone(out_client1.receive(), "Leaf from wrong hub satisfied predicate")
+        self.assertIsNone(out_client2.receive(), "Condition created on wrong hub")
+
+        # satisfy predicate from correct hub
+        self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+
+        # ensure that only one hub receives output
+        self.assertIsNotNone(out_client1.receive(), "Expected an out on hub1")
+        self.assertIsNone(out_client2.receive(), "Did not expect second hub to receive output")
