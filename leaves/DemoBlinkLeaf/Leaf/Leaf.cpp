@@ -1,23 +1,26 @@
 #include "Device.h"
 #include "Leaf.h"
-#define USE_SERIAL Serial1
+#define USE_SERIAL Serial
 #define API_VERSION "0.1.0"
 
-Leaf::Leaf(char* name, char* model, char* uuid) {
+Leaf::Leaf(char* name, char* model, char* uuid, char* password) {
 	strcpy(this->name, name);
 	strcpy(this->model, model);
 	strcpy(this->uuid, uuid);
+	strcpy(this->password, password);
 	num_devices = 0;
 	is_connected = true;
 }
 
 void Leaf::connect(char* _host, unsigned int _port, char* _url) {
+	Serial.begin(9600);
 	strcpy(host, _host);
 	port = _port;
 	strcpy(url, _url);
 	webSocket.begin(host, port, url);
 	webSocket.onEvent(std::bind(&Leaf::handle_web_socket, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	webSocket.setReconnectInterval(5000);
+	Serial.println("Connected!");
 }
 
 void Leaf::disconnect() {
@@ -83,6 +86,7 @@ void Leaf::send_config() {
 	root["uuid"] = uuid;
 	root["name"] = name;
 	root["model"] = model;
+	root["password"] = password;
 	root["api_version"] = API_VERSION;
 	char buffer[512];
 	root.printTo(buffer, sizeof(buffer));
@@ -132,6 +136,13 @@ void Leaf::parse_message(JsonObject& root) {
 				device->on_change(*device);
 		}
 	}
+	else if (strcmp(type, "LIST_DEVICES") == 0) {
+		send_device_list();
+	} else if (strcmp(type, "CONFIG_COMPLETE")) {
+		send_device_list();
+	}
+	Serial.print("Message Received: ");
+	Serial.println(type);
 }
 
 void Leaf::register_device(Device& device) {
@@ -145,14 +156,15 @@ void Leaf::handle_web_socket(WStype_t type, uint8_t* payload, size_t length){
 		case WStype_DISCONNECTED:
 		  USE_SERIAL.printf("[WSc] Disconnected!\n");
 		  is_connected = false;
+		  Serial.println("Disconnected");
 		  break;
 		case WStype_CONNECTED: {
 		  send_config();
+		  Serial.println("Config sent");
 		  is_connected = true;
 		}
 	 	break;
 		case WStype_TEXT: {
-		  // Case: GET_DEVICE websocket event
 		  String payloadString = String((char*) payload);
 		  const size_t bufferSize = JSON_OBJECT_SIZE(4) + 210;
 		  DynamicJsonBuffer jsonBuffer(bufferSize);      
