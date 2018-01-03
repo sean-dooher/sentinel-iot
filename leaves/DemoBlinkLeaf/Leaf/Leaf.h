@@ -9,12 +9,13 @@ class Leaf {
 		char name[50];
 		char model[30];
 		char uuid[40];
+		char password[50];
 		char host[50];
 		char url[30];
 		unsigned int port;
 		boolean is_connected;
 
-		Leaf(char* name, char* model, char* uuid);
+		Leaf(char* name, char* model, char* uuid, char* password);
 
 		void connect(char* _host, unsigned int _port, char* _url);  //done
 		void update(); // done
