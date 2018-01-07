@@ -2,6 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from polymorphic.models import PolymorphicModel
 from channels import Group
+from types import SimpleNamespace
 import json
 
 
@@ -60,6 +61,27 @@ class Hub(models.Model):
 
     def __repr__(self):
         return f"{self.name} - {self.id}"
+
+    def get_device(self, uuid, device):
+        from .utils import InvalidLeaf, InvalidDevice
+        try:
+            if uuid == 'datastore':
+                return self.datastores.get(name=device)
+            else:
+                return self.leaves.get(uuid=uuid).get_device(device, False)
+        except Leaf.DoesNotExist:
+            raise InvalidLeaf(uuid)
+        except Datastore.DoesNotExist:
+            raise InvalidDevice(SimpleNamespace(uuid='datastore'), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
+        except Device.DoesNotExist:
+            raise InvalidDevice(hub.leaves.get(uuid=uuid), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
+
+    def get_leaf(self, uuid):
+        from .utils import InvalidLeaf
+        try:
+            return self.leaves.get(uuid=uuid)
+        except Leaf.DoesNotExist:
+            raise InvalidLeaf(uuid)
 
 
 class Leaf(models.Model):
@@ -176,7 +198,7 @@ class Leaf(models.Model):
 
 
 class Device(models.Model):
-    DeviceModes = (('IN', 'Input'),('OUT', 'Output'))
+    DeviceModes = (('IN', 'Input'), ('OUT', 'Output'))
     name = models.CharField(max_length=100)
     leaf = models.ForeignKey(Leaf, related_name='devices', on_delete=models.CASCADE)
     is_input = models.BooleanField(default=True)

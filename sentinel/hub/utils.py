@@ -1,5 +1,5 @@
-from django.core.exceptions import ObjectDoesNotExist
-from .models import Datastore, Leaf
+from types import SimpleNamespace
+from .models import Datastore, Leaf, NumberValue, UnitValue, BooleanValue, StringValue, Device
 import re
 uuid_pattern = re.compile('[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\Z', re.I)
 
@@ -52,17 +52,69 @@ def validate_uuid(uuid):
     return re.match(uuid_pattern, uuid) or uuid == 'datastore'
 
 
-def get_device(uuid, device, hub):
-    try:
-        if uuid == 'datastore':
-            return hub.Datastores.get(device)
-        else:
-            return hub.leaves.get(uuid=uuid).get_device(device, False)
-    except ObjectDoesNotExist:
-        return
-
-
 def disconnect_all():
     for leaf in Leaf.objects.all():
         leaf.is_connected = False
         leaf.save()
+
+
+def create_value(format, value, units=None):
+    if format == 'number':
+        return NumberValue(value=value)
+    elif format == 'number+units':
+        return UnitValue(value=value, units=units)
+    elif format == 'bool':
+        return BooleanValue(value=value)
+    else:
+        return StringValue(value=value)
+
+
+class SentinelError(Exception):
+    pass
+
+
+class InvalidDevice(SentinelError):
+    UNKNOWN = 'Unknown Device'
+    FORMAT = 'Invalid Format'
+    MODE = 'Invalid Mode'
+
+    def __init__(self, leaf, device, reason):
+        super().__init__(f'{reason}: {leaf.uuid}:{device.name}')
+        self.leaf = leaf
+        self.device = device
+        self.reason = reason
+
+    def get_error_message(self):
+        return {
+            'type': 'INVALID_DEVICE',
+            'leaf': self.leaf.uuid,
+            'device': self.device.name,
+            'reason': self.reason
+        }
+
+
+class InvalidPredicate(SentinelError):
+    def __init__(self, predicate, condition):
+        super().__init__(f"Invalid predicate for {condition}: {predicate}")
+        self.predicate = predicate
+        self.condition = condition
+
+    def get_error_message(self):
+        return {
+            'type': 'INVALID_PREDICATE',
+            'predicate': self.predicate,
+            'condition': self.condition
+        }
+
+
+class InvalidLeaf(SentinelError):
+    def __init__(self, uuid):
+        super().__init__(f"Unknown Leaf: {uuid}")
+        self.uuid = uuid
+
+    def get_error_message(self):
+        return {
+            'type': 'INVALID_LEAF',
+            'uuid': self.uuid,
+            'reason': 'Unknown Leaf'
+        }
