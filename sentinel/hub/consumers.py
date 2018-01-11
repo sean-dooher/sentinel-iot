@@ -3,7 +3,7 @@ from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import Leaf, Subscription, Device, StringValue, NumberValue, UnitValue, BooleanValue, Datastore, Hub
+from .models import Leaf, Subscription, Device, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
 from .utils import is_valid_message, create_value, InvalidDevice, InvalidPredicate, InvalidLeaf
@@ -39,6 +39,9 @@ def ws_message(message):
         assert 'hub' in message.channel_session and (mess['type'] == 'CONFIG' or 'user' in message.channel_session)
         if mess['type'] == 'CONFIG':
             return hub_handle_config(message)
+        elif mess['type'] == 'NAME':
+            # TODO: add name handler
+            pass
         elif mess['type'] == 'DEVICE_STATUS':
             return hub_handle_status(message)
         elif mess['type'] == 'SUBSCRIBE':

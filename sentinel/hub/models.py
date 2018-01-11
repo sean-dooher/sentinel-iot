@@ -8,12 +8,19 @@ import json
 
 class Value(PolymorphicModel):
     value = None
+    format = None
 
     def __repr__(self):
         return str(self.value)
 
     def __str__(self):
         return repr(self)
+
+    def to_json(self):
+        if self.format in ['number', 'number+units']:
+            return float(self.value)
+        else:
+            return self.value
 
 
 class StringValue(Value):
@@ -91,6 +98,9 @@ class Leaf(models.Model):
     api_version = models.CharField(max_length=10, default="0.1.0")
     is_connected = models.BooleanField(default=True)
     hub = models.ForeignKey(Hub, related_name="leaves")
+
+    class Meta:
+        unique_together = (('name', 'hub'),)
 
     def set_name(self, name):
         message = self.message_template
@@ -205,6 +215,9 @@ class Device(models.Model):
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="device")
     mode = models.CharField(choices=DeviceModes, max_length=3)
 
+    class Meta:
+        unique_together = (('name', 'leaf'),)
+
     @property
     def value(self):
         return self._value.value
@@ -289,6 +302,7 @@ class Datastore(models.Model):
     hub = models.ForeignKey(Hub, related_name="datastores")
 
     class Meta:
+        unique_together = (('name', 'hub'),)
         permissions = (
             ('view_datastore', 'View Datastore'),
             ('write_datastore', 'Write Datastore'),
@@ -416,7 +430,7 @@ class ComparatorPredicate(Predicate):
             device = value.device
             return [device.leaf.uuid, device.name]
         except ObjectDoesNotExist:
-            return value
+            return value.to_json()
 
 
 class EqualPredicate(ComparatorPredicate):
@@ -496,6 +510,7 @@ class Condition(models.Model):
         permissions = (
             ('view_condition', 'View Condition'),
         )
+        unique_together = (('name', 'hub'),)
 
     def execute(self):
         pred = self.predicate.evaluate()
