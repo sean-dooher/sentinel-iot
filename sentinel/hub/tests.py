@@ -723,7 +723,6 @@ class ConditionsTests(ConsumerTests):
         self.assertIsNone(door_client.receive())  # only gets one update
         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_nested")
 
-    @unittest.skip("Invalid device not implemented yet")
     def test_invalid_output_device(self):
         hub = self.create_hub("test_hub")
         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
@@ -734,7 +733,7 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
 
         predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781]
-        self.send_create_condition(admin_client, admin_leaf.uuid, name,
+        self.send_create_condition(admin_client, admin_leaf.uuid, "invalid_output_condition",
                                    predicates, action_type='SET', action_target=other_leaf.uuid,
                                    action_device='other_sensor', action_value=True)
 

@@ -17,10 +17,7 @@ class ValueSerializer(NonNullSerializer):
     units = serializers.SerializerMethodField()
 
     def get_value(self, obj):
-        if obj.format in ['number', 'number+units']:
-            return float(obj._value.value)
-        else:
-            return obj._value.value
+        return obj._value.to_json()
 
     def get_units(self, obj):
         if obj.format == 'number+units':
@@ -74,7 +71,7 @@ class ConditionSerializer(serializers.ModelSerializer):
         fields = ('name', 'predicate', 'action')
 
     def get_predicate(self, obj):
-        return str(obj.predicate.to_representation())
+        return obj.predicate.to_representation()
 
 
 class DatastoreSerializer(ValueSerializer):
@@ -90,7 +87,7 @@ class HubSerializer(serializers.ModelSerializer):
     num_subscriptions = serializers.SerializerMethodField()
 
     class Meta:
-        model=Hub
+        model = Hub
         fields = ('id', 'name', 'num_leaves', 'num_datastores', 'num_conditions', 'num_subscriptions')
 
     def get_num_leaves(self, obj):
