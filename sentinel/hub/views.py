@@ -6,7 +6,7 @@ from rest_framework import generics
 
 # Create your views here.
 def main(request, id):
-    return render(request, "index.html", {'hub': id})
+    return render(request, "main.html", {'hub': id})
 
 
 def fake_in(request, id):

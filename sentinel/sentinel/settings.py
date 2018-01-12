@@ -29,6 +29,16 @@ ALLOWED_HOSTS = ['localhost', '0.0.0.0', '192.168.1.6']
 
 
 # Application definition
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, 'assets'),
+)
+
+WEBPACK_LOADER = {
+    'DEFAULT': {
+        'BUNDLE_DIR_NAME': 'bundles/',
+        'STATS_FILE': os.path.join(BASE_DIR, 'webpack-stats.json'),
+    }
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -41,6 +51,9 @@ INSTALLED_APPS = [
     'polymorphic',
     'rest_framework',
     'hub',
+    'frontend',
+    'webpack_loader',
+    'corsheaders'
 ]
 
 MIDDLEWARE = [
@@ -51,6 +64,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'sentinel.urls'

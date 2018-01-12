@@ -1,0 +1,74 @@
+body {
+    padding-top: 3.5rem;
+}
+
+.sidebar {
+  position: fixed;
+  top: 51px;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  padding: 20px 0;
+  overflow-x: hidden;
+  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+  border-right: 1px solid #eee;
+}
+
+.sidebar .nav {
+  margin-bottom: 20px;
+}
+
+.sidebar .nav-item {
+  width: 100%;
+}
+
+.sidebar .nav-item + .nav-item {
+  margin-left: 0;
+}
+
+.sidebar .nav-link {
+  border-radius: 0;
+}
+
+.pointer:hover {
+    cursor: pointer;
+}
+
+.grabber {
+    cursor:grab;
+}
+
+
+.gu-mirror .grabber {
+    cursor: grabbing;
+}
+
+.leaf .card-header {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.leaf-icon {
+    margin-top: -0.75rem;
+    margin-bottom: -0.75rem;
+    padding: 0.75rem 1.25rem;
+}
+
+.leaf {
+    margin-bottom: 15px;
+}
+
+.leaf .card-footer {
+    font-size: 12px;
+    padding: 5px;
+}
+
+.input-group-xs>.form-control,
+.input-group-xs>.input-group-addon,
+.input-group-xs>.input-group-btn>.btn,
+.input-group-xs>select.form-control:not([size]):not([multiple]) {
+    height: 22px;
+    padding: 1px 5px;
+    font-size: 12px;
+    line-height: 1.5;
+}
