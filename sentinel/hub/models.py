@@ -327,7 +327,7 @@ class Datastore(models.Model):
             'uuid': 'datastore',
             'device': self.name
         }
-        subscriptions = self.hub.subscriptions.filter(target_uuid="datastore", device=self.name)
+        subscriptions = self.hub.subscriptions.filter(target_uuid="datastore", target_device=self.name)
         for subscription in subscriptions:
             subscription.handle_update("datastore", self.name, message)
 

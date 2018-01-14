@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 from .models import Datastore, Leaf, NumberValue, UnitValue, BooleanValue, StringValue, Device
+from django.contrib.auth.models import User
 import re
 uuid_pattern = re.compile('[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\Z', re.I)
 
@@ -25,6 +25,8 @@ def is_valid_message(message):
         valid = valid and 'name' in message
         valid = valid and 'value' in message
         valid = valid and 'format' in message
+    elif message['type'] == 'DATASTORE_DELETE':
+        valid = valid and 'name' in message
     elif message['type'] == 'DATASTORE_GET':
         return valid and 'name' in message
     elif message['type'] == 'DATASTORE_SET':
@@ -67,6 +69,10 @@ def create_value(format, value, units=None):
         return BooleanValue(value=value)
     else:
         return StringValue(value=value)
+
+
+def get_user(uuid, hub):
+    return User.objects.get(username=f"{hub}-{uuid}")
 
 
 class SentinelError(Exception):
@@ -118,3 +124,17 @@ class InvalidLeaf(SentinelError):
             'uuid': self.uuid,
             'reason': 'Unknown Leaf'
         }
+
+
+class PermissionDenied(SentinelError):
+    def __init__(self, requester, request, **kwargs):
+        super().__init__(f"Permission denied: {request} to {requester}")
+        self.request = request
+        self.additional = kwargs
+
+    def get_error_message(self):
+        message = {'type': 'PERMISSION_DENIED',
+                   'request': self.request}
+        for kwarg in self.additional:
+            message[kwarg] = self.additional[kwarg]
+        return message

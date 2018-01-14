@@ -84,6 +84,7 @@ class ConsumerTests(ChannelTestCase):
         self.assertEquals(response['format'], expected_response['format'])
 
     def assertDatastoreReadFailed(self, client, requester, name):
+        self.send_get_datastore(client, requester, name)
         expected_response = {
                                 'type': 'PERMISSION_DENIED',
                                 'request': 'DATASTORE_GET',
@@ -450,7 +451,6 @@ class LeafTests(ConsumerTests):
         self.assertIsNotNone(observer_client.receive(), "Expected to still receive a subscription update")
 
 
-@unittest.skip("Datastores not implemented yet")
 class DatastoreTests(ConsumerTests):
     def test_datastore_create_delete(self):
         hub = self.create_hub("test_hub")
@@ -473,6 +473,9 @@ class DatastoreTests(ConsumerTests):
         self.assertEquals(response['name'], expected_response['name'])
         self.assertEquals(response['format'], expected_response['format'])
 
+        self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
+        self.assertIsNone(rfid_client.receive())
+
         # make sure value was saved
         self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
 
@@ -483,7 +486,7 @@ class DatastoreTests(ConsumerTests):
             'name': 'sean_home'
         }
         response = rfid_client.receive()
-        self.assertIsNotNone(response, "Expected a message for creating datastore")
+        self.assertIsNotNone(response, "Expected a message for deleting datastore")
         self.assertEquals(response['type'], expected_response['type'])
         self.assertEquals(response['name'], expected_response['name'])
 
@@ -512,9 +515,9 @@ class DatastoreTests(ConsumerTests):
 
         permissions = {
             'default': 'deny',  # deny reads and writes by default
-            'cd1b7879-d17a-47e5-bc14-26b3fc554e49': 'read',  # the door can read the value
-            '3cbb357f-3dda-4463-9055-581b82ab8690': 'write',  # the other_client can read and write
-            '2e11b9fc-5725-4843-8b9c-4caf2d69c499': 'admin'
+            door_leaf.uuid: 'read',  # the door can read the value
+            light_leaf.uuid: 'write',  # the light can read and write
+            admin_leaf.uuid: 'admin'
         }
         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
         self.assertIsNotNone(rfid_client.receive(), "Expected a response from creating datastore")
@@ -530,17 +533,17 @@ class DatastoreTests(ConsumerTests):
         self.assertDatastoreDeleteFailed(door_client, door_leaf.uuid, 'sean_home')
 
         # test write
-        # ensures write read works and last 'set' was not successful
-        self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
+        # ensures reading with write permissions works and last 'set' was not successful
+        self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', False, 'bool')
 
         self.send_set_datastore(light_client, light_leaf.uuid, 'sean_home', True)
-        self.assertIsNone(light_client.receive(), "Did not expect a message after updating")
+        self.assertIsNotNone(light_client.receive(), "Expected new value update upon writing")
 
         self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
         self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
         # test admin
         self.send_set_datastore(admin_client, admin_leaf.uuid, 'sean_home', False)
-        self.assertIsNone(admin_client.receive(), "Did not expect a message after updating")
+        self.assertIsNotNone(admin_client.receive(), "Expected new value update upon writing")
 
         self.assertDatastoreReadSuccess(admin_client, admin_leaf.uuid, 'sean_home', False, 'bool')
         self.send_delete_datastore(admin_client, admin_leaf.uuid, 'sean_home')

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'polymorphic',
+    'guardian',
     'rest_framework',
     'hub',
     'frontend',
@@ -140,6 +141,8 @@ LOGGING = {
         }
     }
 }
+
+AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend')
 
 
 # Internationalization

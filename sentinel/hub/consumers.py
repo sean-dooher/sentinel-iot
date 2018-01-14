@@ -3,10 +3,12 @@ from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from guardian.shortcuts import assign_perm, remove_perm
+from guardian.models import Group as PermGroup
 from .models import Leaf, Subscription, Device, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
-from .utils import is_valid_message, create_value, InvalidDevice, InvalidPredicate, InvalidLeaf
+from .utils import is_valid_message, create_value, get_user, InvalidDevice, InvalidPredicate, InvalidLeaf, PermissionDenied
 import json
 import logging
 
@@ -50,6 +52,8 @@ def ws_message(message):
             return hub_handle_unsubscribe(message)
         elif mess['type'] == 'DATASTORE_CREATE':
             return hub_handle_datastore_create(message)
+        elif mess['type'] == 'DATASTORE_DELETE':
+            return hub_handle_datastore_delete(message)
         elif mess['type'] == 'DATASTORE_GET':
             return hub_handle_datastore_get(message)
         elif mess['type'] == 'DATASTORE_SET':
@@ -66,10 +70,12 @@ def ws_message(message):
     except AssertionError as e:
         logger.error(f"{message.channel_session['hub']} -- Invalid Message: {e}")
         logger.error(mess)
-    except (InvalidDevice, InvalidLeaf) as e:
+    except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
         leaf = message.channel_session['user']
         logger.error(f"{message.channel_session['hub']} -- {e} in handling {mess['type']} for {leaf}")
-        message.reply_channel.send({'text': e.get_error_message()})
+        reply = e.get_error_message()
+        reply['hub'] = message.channel_session['hub']
+        message.reply_channel.send({'text': reply})
 
 
 def hub_handle_config(message):
@@ -77,6 +83,12 @@ def hub_handle_config(message):
     api = mess['api_version']
     uuid = mess['uuid']
     hub = Hub.objects.get(id=message.channel_session['hub'])
+    username = f"{message.channel_session['hub']}-{uuid}"
+
+    if not PermGroup.objects.filter(name='default').exists():
+        default_group = PermGroup.objects.create(name='default')
+    else:
+        default_group = PermGroup.objects.get(name='default')
 
     try:
         leaf = hub.get_leaf(uuid)
@@ -87,17 +99,19 @@ def hub_handle_config(message):
         leaf.save()
 
     try:
-        User.objects.get(username=uuid)
+        User.objects.get(username=username)
     except User.DoesNotExist:
-        user = User.objects.create_user(username=uuid, password=mess['password'])
+        user = User.objects.create_user(username=username, password=mess['password'])
+        user.groups.add(default_group)
         user.save()
 
-    user = authenticate(username=uuid, password=mess['password'])
+    user = authenticate(username=username, password=mess['password'])
     if user:
         leaf.is_connected = True
         leaf.save()
         Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
         message.channel_session['user'] = user.username
+        message.channel_session['uuid'] = uuid
         response = {"text": {"type": "CONFIG_COMPLETE", "hub": hub.id, "uuid": uuid}}
         message.reply_channel.send(response)
         leaf.refresh_devices()
@@ -111,7 +125,7 @@ def hub_handle_config(message):
 def hub_handle_status(message):
     mess = message.content['dict']
     hub = Hub.objects.get(id=message.channel_session['hub'])
-    leaf = hub.get_leaf(message.channel_session['user'])
+    leaf = hub.get_leaf(message.channel_session['uuid'])
     device_name = mess["device"].lower()
 
     try:
@@ -126,7 +140,7 @@ def hub_handle_status(message):
 def hub_handle_subscribe(message):
     mess = message.content['dict']
     target_uuid = mess['sub_uuid'].lower()
-    subscriber_uuid = message.channel_session['user'].lower()
+    subscriber_uuid = message.channel_session['uuid'].lower()
     device = mess['sub_device'].lower()
     hub = Hub.objects.get(id=message.channel_session['hub'])
 
@@ -147,7 +161,7 @@ def hub_handle_subscribe(message):
 def hub_handle_unsubscribe(message):
     mess = message.content['dict']
     target_uuid = mess['sub_uuid'].lower()
-    subscriber_uuid = message.channel_session['user'].lower()
+    subscriber_uuid = message.channel_session['uuid'].lower()
     device = mess['sub_device'].lower()
     hub = Hub.objects.get(id=message.channel_session['hub'])
 
@@ -168,17 +182,138 @@ def hub_handle_unsubscribe(message):
 
 def hub_handle_datastore_create(message):
     mess = message.content['dict']
-    pass
+    uuid = message.channel_session['uuid']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
+    def give_permissions(user, level):
+        if user != 'default':
+            try:
+                user = get_user(user, hub.id)
+            except User.DoesNotExist:
+                return
+        else:
+            user = PermGroup.objects.get(name='default')
+
+        if level == 'read':
+            assign_perm('view_datastore', user, datastore)
+            remove_perm('write_datastore', user, datastore)
+            remove_perm('delete_datastore', user, datastore)
+        elif level == 'write':
+            assign_perm('view_datastore', user, datastore)
+            assign_perm('write_datastore', user, datastore)
+            remove_perm('delete_datastore', user, datastore)
+        elif level == 'admin':
+            assign_perm('view_datastore', user, datastore)
+            assign_perm('write_datastore', user, datastore)
+            assign_perm('delete_datastore', user, datastore)
+        elif level == 'deny':
+            remove_perm('view_datastore', user, datastore)
+            remove_perm('write_datastore', user, datastore)
+            remove_perm('delete_datastore', user, datastore)
+
+    if not hub.datastores.filter(name=mess['name']).exists():
+        units = mess['units'] if 'units' in mess else None
+        value = create_value(mess['format'], mess['value'], units)
+        value.save()
+        datastore = Datastore(name=mess['name'], _value=value, hub=hub)
+        datastore.save()
+
+        if 'permissions' in mess:  # apply permissions if provided
+            for leaf in mess['permissions']:
+                give_permissions(leaf, mess['permissions'][leaf])
+        else:
+            give_permissions('default', 'read')  # give default read otherwise
+
+        give_permissions(uuid, 'admin')
+        reply = {
+            'type': 'DATASTORE_CREATED',
+            'hub': hub.id,
+            'name': datastore.name,
+            'format': datastore.format
+        }
+        message.reply_channel.send({'text': reply})
 
 
 def hub_handle_datastore_get(message):
     mess = message.content['dict']
-    pass
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
+    try:
+        datastore = hub.datastores.get(name=mess['name'])
+        user = User.objects.get(username=message.channel_session['user'])
+        if user.has_perm('view_datastore', datastore):
+            reply = {
+                'type': 'DATASTORE_VALUE',
+                'hub': hub.id,
+                'name': datastore.name,
+                'value': datastore.value,
+                'format': datastore.format
+            }
+            message.reply_channel.send({'text': reply})
+        else:
+            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_GET', name=mess['name'])
+    except Datastore.DoesNotExist:
+        reply = {
+            'type': 'UNKNOWN_DATASTORE',
+            'hub': hub.id,
+            'request': 'DATASTORE_GET',
+            'name': mess['name']
+        }
+        message.reply_channel.send({'text': reply})
 
 
 def hub_handle_datastore_set(message):
     mess = message.content['dict']
-    pass
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
+    try:
+        datastore = hub.datastores.get(name=mess['name'])
+        user = User.objects.get(username=message.channel_session['user'])
+        if user.has_perm('write_datastore', datastore):
+            datastore.value = mess['value']
+            reply = {
+                'type': 'DATASTORE_VALUE',
+                'hub': hub.id,
+                'name': datastore.name,
+                'value': datastore.value,
+                'format': datastore.format
+            }
+            message.reply_channel.send({'text': reply})
+        else:
+            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_SET', name=mess['name'])
+    except Datastore.DoesNotExist:
+        reply = {
+            'type': 'UNKNOWN_DATASTORE',
+            'hub': hub.id,
+            'request': 'DATASTORE_SET',
+            'name': mess['name']
+        }
+        message.reply_channel.send({'text': reply})
+
+
+def hub_handle_datastore_delete(message):
+    mess = message.content['dict']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
+    try:
+        datastore = hub.datastores.get(name=mess['name'])
+        user = User.objects.get(username=message.channel_session['user'])
+        if user.has_perm('delete_datastore', datastore):
+            datastore.delete()
+            reply = {'type': 'DATASTORE_DELETED',
+                     'hub': hub.id,
+                     'name': mess['name']}
+            message.reply_channel.send({'text': reply})
+        else:
+            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_DELETE', name=mess['name'])
+    except Datastore.DoesNotExist:
+        reply = {
+            'type': 'UNKNOWN_DATASTORE',
+            'hub': hub.id,
+            'request': 'DATASTORE_DELETE',
+            'name': mess['name']
+        }
+        message.reply_channel.send({'text': reply})
 
 
 def hub_handle_condition_create(message):
