@@ -4,14 +4,15 @@
   <head>
     <meta charset="UTF-8">
     <title>Sentinel IoT - Overview</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+    {% load static %}
+    <link href="{% static "vendor/bootstrap/css/bootstrap.css" %}" rel="stylesheet">
     <link href="https://use.fontawesome.com/releases/v5.0.3/css/all.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.6.6/dragula.min.css" rel="stylesheet">
-    {% load static %}
     <link href="{%  static 'styles/main.css' %}" rel="stylesheet">
   </head>
 
   <body>
+
     <div id="react-app"></div>
     {% render_bundle 'main' %}
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>

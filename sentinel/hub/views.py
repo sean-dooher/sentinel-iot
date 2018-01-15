@@ -2,7 +2,9 @@ from django.shortcuts import render
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
 from rest_framework import generics
-
+from django.contrib.auth.models import User
+from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
+from guardian.models import Group as PermGroup
 
 # Create your views here.
 def main(request, id):
@@ -22,14 +24,20 @@ def rfid_demo(request, id):
 
 
 class HubList(generics.ListAPIView):
-    queryset = Hub.objects.all()
     serializer_class = HubSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return get_objects_for_user(user, 'view_hub', Hub.objects.all())
 
 
 class HubDetail(generics.RetrieveAPIView):
-    queryset = Hub.objects.all()
     serializer_class = HubSerializer
     lookup_field = "id"
+
+    def get_queryset(self):
+        user = self.request.user
+        return get_objects_for_user(user, 'view_hub', Hub.objects.all())
 
 
 class LeafList(generics.ListAPIView):

@@ -1,178 +1,328 @@
 <!DOCTYPE html>
 <html lang="en">
 
-  <head>
+<head>
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
+    <meta name="description" content="Sentinel IoT control hub">
+    <meta name="author" content="Sean Dooher">
 
-    <title>Creative - Start Bootstrap Theme</title>
+    <title>Sentinel IoT</title>
     {% load static %}
     <!-- Bootstrap core CSS -->
     <link href="{% static "vendor/bootstrap/css/bootstrap.css" %}" rel="stylesheet">
 
     <!-- Custom fonts for this template -->
     <link href="{% static "vendor/font-awesome/css/font-awesome.min.css" %}" rel="stylesheet" type="text/css">
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
-    <link href='https://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700,700italic,900,900italic' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
+          rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Merriweather:400,300,300italic,400italic,700,700italic,900,900italic'
+          rel='stylesheet' type='text/css'>
 
     <!-- Plugin CSS -->
     <link href="{% static "vendor/magnific-popup/magnific-popup.css" %}" rel="stylesheet">
 
     <!-- Custom styles for this template -->
-    <link href="{% static "styles/creative.min.css" %}" rel="stylesheet">
+    <link href="{% static "styles/index.css" %}" rel="stylesheet">
 
-  </head>
+</head>
 
-  <body id="page-top">
+<body id="page-top">
 
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
-      <div class="container">
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+    <div class="container">
         <a class="navbar-brand js-scroll-trigger" href="#page-top">Sentinel IoT</a>
-        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
+        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
+                data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
+                aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarResponsive">
-          <ul class="navbar-nav ml-auto">
-            <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#about">About</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="#contact">Source</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'login' %}">Login / Sign Up</a>
-            </li>
-          </ul>
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link js-scroll-trigger" href="#about">About</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link js-scroll-trigger" href="#features">Features</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link js-scroll-trigger" href="#demo">Demo</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link js-scroll-trigger" href="#source">Source</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-toggle="modal" data-target="#loginModal">Login / Sign Up</a>
+                </li>
+            </ul>
         </div>
-      </div>
-    </nav>
+    </div>
+</nav>
 
-    <header class="masthead text-center text-white d-flex">
-      <div class="container my-auto">
-        <div class="row">
-          <div class="col-lg-10 mx-auto">
-            <h1 class="text-uppercase">
-              <strong>Sentinel IoT</strong>
-            </h1>
-            <hr>
-          </div>
-          <div class="col-lg-8 mx-auto">
-            <p class="text-faded mb-5">Sentinel is a new and easy way to make and control IoT devices for home automation</p>
-            <a class="btn btn-primary btn-xl js-scroll-trigger" href="#about">Find Out More</a>
-          </div>
+<div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModalTitle"
+     aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-body">
+                <ul class="nav nav-tabs">
+                    <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#login">Login</a></li>
+                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#signup">Sign Up</a></li>
+                </ul>
+                <div class="tab-content" style="padding: 10px">
+                    <div id="login" class="tab-pane fade in active show">
+                        <div id="login-alerts">
+                        </div>
+                        <form method="POST" enctype="multipart/form-data" id="loginForm">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" class="form-control" name="username" placeholder="Enter username"
+                                       pattern="[a-zA-Z0-9_.]{1,32}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPassword">Password</label>
+                                <input type="password" class="form-control" name="password" placeholder="Password"
+                                       required>
+                            </div>
+                            <div class="text-right">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Login</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div id="signup" class="tab-pane fade">
+                        <div id="signup-alerts">
+                        </div>
+                        <form method="POST" enctype="multipart/form-data" id="signupForm">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" class="form-control" name="username" placeholder="Enter username"
+                                       pattern="[a-zA-Z0-9_.]{1,32}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email address</label>
+                                <input type="email" class="form-control" name="email"
+                                       aria-describedby="emailHelp" placeholder="Enter email" required>
+                                <small id="emailHelp" class="form-text text-muted">We'll never share your email with
+                                    anyone else.
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Password</label>
+                                <input type="password" class="form-control" name="password" placeholder="Password"
+                                       required>
+                            </div>
+                            <div class="form-group">
+                                <label for="checkPassword">Enter your password again</label>
+                                <input type="password" class="form-control" name="checkPassword" placeholder="Password"
+                                       required>
+                            </div>
+                            <div class="text-right">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Sign Up</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </header>
+    </div>
+</div>
 
-    <section class="bg-primary" id="about">
-      <div class="container">
+<header class="masthead text-center text-white d-flex">
+    <div class="container my-auto">
         <div class="row">
-          <div class="col-lg-8 mx-auto text-center">
-            <h2 class="section-heading text-white">We've got what you need!</h2>
-            <hr class="light my-4">
-            <p class="text-faded mb-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus nec felis a odio lacinia dapibus. Duis viverra mauris quis ex elementum, eget porta quam ullamcorper. Proin commodo accumsan mauris. Etiam a ultricies mauris, eu hendrerit ipsum. In iaculis a justo nec malesuada. Etiam ut magna et velit bibendum tincidunt. Pellentesque efficitur pulvinar porttitor. Vivamus venenatis erat at purus viverra, sit amet tristique tortor semper. Praesent in elit lectus. Etiam sit amet lorem aliquam, accumsan nibh eu, ultrices turpis. In eleifend, velit in mattis tristique, lectus leo sagittis nisi, vitae varius est nisl ut elit. </p>
-            <a class="btn btn-light btn-xl js-scroll-trigger" href="#services">Get Started!</a>
-          </div>
+            <div class="col-lg-10 mx-auto">
+                <h1 class="text-uppercase">
+                    <strong>Sentinel IoT</strong>
+                </h1>
+                <hr>
+            </div>
+            <div class="col-lg-8 mx-auto">
+                <p class="text-faded mb-5">Sentinel is a new and easy way to make and control IoT devices for home
+                    automation</p>
+                <a class="btn btn-primary btn-xl js-scroll-trigger" href="#about">Find Out More</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<section class="bg-primary" id="about">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="section-heading text-white">What is Sentinel?</h2>
+                <hr class="light my-4">
+                <p class="text-faded mb-4">Sentinel is an API that connects your home automation products with a robust
+                    and powerful backend, allowing you to just focus on making your product as good without having to
+                    worry about messy integration and servers. Sentinel provides an easy to use and extend Websockets
+                    API for devices to communicate with each other and for client apps to request and process all the
+                    data necessary to make a great product. </p>
+                <a class="btn btn-light btn-xl js-scroll-trigger" href="#services">Get Started!</a>
+            </div>
         </div
-      </div>
-    </section>
+    </div>
+</section>
 
-   <section id="services">
-      <div class="container">
+<section id="features">
+    <div class="container">
         <div class="row">
-          <div class="col-lg-12 text-center">
-            <h2 class="section-heading">Features</h2>
-            <hr class="my-4">
-          </div>
-        </div>
-      </div>
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-3 col-md-6 text-center">
-            <div class="service-box mt-5 mx-auto">
-              <i class="fa fa-4x fa-diamond text-primary mb-3 sr-icons"></i>
-              <h3 class="mb-3">Sturdy Templates</h3>
-              <p class="text-muted mb-0">Our templates are updated regularly so they don't break.</p>
+            <div class="col-lg-12 text-center">
+                <h2 class="section-heading">Features</h2>
+                <hr class="my-4">
             </div>
-          </div>
-          <div class="col-lg-3 col-md-6 text-center">
-            <div class="service-box mt-5 mx-auto">
-              <i class="fa fa-4x fa-paper-plane text-primary mb-3 sr-icons"></i>
-              <h3 class="mb-3">Ready to Ship</h3>
-              <p class="text-muted mb-0">You can use this theme as is, or you can make changes!</p>
-            </div>
-          </div>
-          <div class="col-lg-3 col-md-6 text-center">
-            <div class="service-box mt-5 mx-auto">
-              <i class="fa fa-4x fa-newspaper-o text-primary mb-3 sr-icons"></i>
-              <h3 class="mb-3">Up to Date</h3>
-              <p class="text-muted mb-0">We update dependencies to keep things fresh.</p>
-            </div>
-          </div>
-          <div class="col-lg-3 col-md-6 text-center">
-            <div class="service-box mt-5 mx-auto">
-              <i class="fa fa-4x fa-heart text-primary mb-3 sr-icons"></i>
-              <h3 class="mb-3">Made with Love</h3>
-              <p class="text-muted mb-0">You have to make your websites with love these days!</p>
-            </div>
-          </div>
         </div>
-      </div>
-    </section>
-
-    <section class="bg-dark text-white" id="about">
-      <div class="container">
+    </div>
+    <div class="container">
         <div class="row">
-          <div class="col-lg-8 mx-auto text-center">
-            <h2 class="section-heading text-white">We've got what you need!</h2>
-            <hr class="light my-4">
-            <p class="text-faded mb-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus nec felis a odio lacinia dapibus. Duis viverra mauris quis ex elementum, eget porta quam ullamcorper. Proin commodo accumsan mauris. Etiam a ultricies mauris, eu hendrerit ipsum. In iaculis a justo nec malesuada. Etiam ut magna et velit bibendum tincidunt. Pellentesque efficitur pulvinar porttitor. Vivamus venenatis erat at purus viverra, sit amet tristique tortor semper. Praesent in elit lectus. Etiam sit amet lorem aliquam, accumsan nibh eu, ultrices turpis. In eleifend, velit in mattis tristique, lectus leo sagittis nisi, vitae varius est nisl ut elit. </p>
-            <a class="btn btn-light btn-xl js-scroll-trigger" href="#services">Get Started!</a>
-          </div>
+            <div class="col-lg-4 col-md-12 text-center">
+                <div class="service-box mt-5 mx-auto">
+                    <i class="fa fa-4x fa-lock text-primary mb-3 sr-icons"></i>
+                    <h3 class="mb-3">Secure</h3>
+                    <p class="text-muted mb-0">Sentinel handles the security so you can be sure your devices aren't
+                        being spied on.</p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-12 text-center">
+                <div class="service-box mt-5 mx-auto">
+                    <i class="fa fa-4x fa-microchip text-primary mb-3 sr-icons"></i>
+                    <h3 class="mb-3">Embedded</h3>
+                    <p class="text-muted mb-0">Sentinel provides an easy to implement API for embeded systems as well as
+                        an example library for Arduino</p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-12 text-center">
+                <div class="service-box mt-5 mx-auto">
+                    <i class="fa fa-4x fa-wifi text-primary mb-3 sr-icons"></i>
+                    <h3 class="mb-3">Connected</h3>
+                    <p class="text-muted mb-0">Any Internet connected device can be a Sentinel Leaf</p>
+                </div>
+            </div>
         </div>
-      </div>
-    </section>
+    </div>
+</section>
 
-    <section id="contact">
-      <div class="container">
+<section class="bg-dark text-white" id="demo">
+    <div class="container">
         <div class="row">
-          <div class="col-lg-8 mx-auto text-center">
-            <h2 class="section-heading">Let's Get In Touch!</h2>
-            <hr class="my-4">
-            <p class="mb-5">Ready to start your next project with us? That's great! Give us a call or send us an email and we will get back to you as soon as possible!</p>
-          </div>
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="section-heading text-white">Sentinel IoT Demo</h2>
+                <hr class="light my-4">
+                <p class="text-faded mb-4">Want to see what a Sentinel Dashboard looks like? Feel free to click the link
+                    below to find out!</p>
+                <a class="btn btn-light btn-xl" href="{% url 'login' %}">Get Started!</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="source">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="section-heading">Sentinel is Open Source</h2>
+                <hr class="my-4">
+                <p class="mb-5">Sentinel is completely free and open source and it always will be.</p>
+            </div>
         </div>
         <div class="row">
-          <div class="col-lg-4 ml-auto text-center">
-            <i class="fa fa-phone fa-3x mb-3 sr-contact"></i>
-            <p>123-456-6789</p>
-          </div>
-          <div class="col-lg-4 mr-auto text-center">
-            <i class="fa fa-envelope-o fa-3x mb-3 sr-contact"></i>
-            <p>
-              <a href="mailto:your-email@your-domain.com">feedback@startbootstrap.com</a>
-            </p>
-          </div>
+            <div class="col-lg-12 ml-auto text-center">
+                <a class="black-link" href="http://github.com/sean-dooher/sentinel-iot">
+                    <i class="fa fa-github fa-5x mb-3 sr-contact"></i>
+                    <p>View on Github</p>
+                </a>
+            </div>
         </div>
-      </div>
-    </section>
+    </div>
+</section>
 
-    <!-- Bootstrap core JavaScript -->
-    <script src={% static "vendor/jquery/jquery.min.js" %}></script>
-    <script src={% static "vendor/bootstrap/js/bootstrap.bundle.min.js" %}></script>
+<!-- Bootstrap core JavaScript -->
+<script src={% static "vendor/jquery/jquery.min.js" %}></script>
+<script src={% static "vendor/bootstrap/js/bootstrap.bundle.min.js" %}></script>
 
-    <!-- Plugin JavaScript -->
-    <script src={% static "vendor/jquery-easing/jquery.easing.min.js" %}></script>
-    <script src={% static "vendor/scrollreveal/scrollreveal.min.js" %}></script>
-    <script src={% static "vendor/magnific-popup/jquery.magnific-popup.min.js" %}></script>
+<!-- Plugin JavaScript -->
+<script src={% static "vendor/jquery-easing/jquery.easing.min.js" %}></script>
+<script src={% static "vendor/scrollreveal/scrollreveal.min.js" %}></script>
+<script src={% static "vendor/magnific-popup/jquery.magnific-popup.min.js" %}></script>
 
-    <!-- Custom scripts for this template -->
-    <script src={% static "scripts/creative.min.js" %}></script>
+<!-- Custom scripts for this template -->
+<script src={% static "scripts/creative.min.js" %}></script>
+<script>
+    $(document).ready(function () {
+        $('#loginForm').on('submit', function (event) {
+            let loginForm = document.querySelector("#loginForm");
+            let loginData = new FormData(loginForm);
+            event.preventDefault();
 
-  </body>
+            $.ajax({
+                url: "login/", // the endpoint
+                type: "POST", // http method
+                data: loginData, // data sent with the post request
+                contentType: false,
+                processData: false,
+                // handle a successful response
+                success: function (json) {
+                    if (json.accepted) {
+                        window.location.replace("hub/dashboard");
+                    } else {
+                        document.querySelector("#login-alerts").innerHTML = '<div id="login-failed" class="alert alert-danger alert-dismissable fade in">\n' +
+                            '                            <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>\n' +
+                            '                            <strong>Login failed: </strong><span id="login-failed-text"></span>\n' +
+                            '                        </div>';
+                        document.querySelector('#login-failed-text').innerHTML = json.reason;
+                        document.querySelector('#login-failed').classList.add('show')
+                    }
+                },
+                    // handle a non-successful response
+                    error: function (xhr, errmsg, err) {
+                        console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+                    }
+                });
+        });
+
+        $('#signupForm').on('submit', function (event) {
+            let signupForm = document.querySelector("#signupForm");
+            let signupData = new FormData(signupForm);
+            event.preventDefault();
+            if(signupData.get('password') !== signupData.get('checkPassword')) {
+                document.querySelector("#signup-alerts").innerHTML = '<div id="signup-failed" class="alert alert-danger alert-dismissable fade in">\n' +
+                            '                            <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>\n' +
+                            '                            <strong>Sign up failed: </strong><span id="signup-failed-text"></span>\n' +
+                            '                        </div>';
+                document.querySelector('#signup-failed-text').innerHTML = "Passwords must match";
+                document.querySelector('#signup-failed').classList.add('show')
+                return false;
+            }
+            $.ajax({
+                url: "register/", // the endpoint
+                type: "POST", // http method
+                data: signupData, // data sent with the post request
+                contentType: false,
+                processData: false,
+                // handle a successful response
+                success: function (json) {
+                    if (json.accepted) {
+                        window.location.replace("hub/dashboard");
+                    } else {
+                        document.querySelector("#signup-alerts").innerHTML = '<div id="signup-failed" class="alert alert-danger alert-dismissable fade in">\n' +
+                            '                            <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>\n' +
+                            '                            <strong>Sign up failed: </strong><span id="signup-failed-text"></span>\n' +
+                            '                        </div>';
+                        document.querySelector('#signup-failed-text').innerHTML = json.reason;
+                        document.querySelector('#signup-failed').classList.add('show');
+                    }
+                },
+                    // handle a non-successful response
+                    error: function (xhr, errmsg, err) {
+                        console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+                    }
+                });
+        });
+    });
+</script>
+</body>
 
 </html>

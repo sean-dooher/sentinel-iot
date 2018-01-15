@@ -27,6 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '0.0.0.0', '192.168.1.6']
 
+CSRF_USE_SESSIONS = True
 
 # Application definition
 STATICFILES_DIRS = (
