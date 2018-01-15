@@ -2,8 +2,10 @@ import unittest
 from .routing import websocket_routing
 from channels.test import ChannelTestCase, WSClient, apply_routes
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.models import User
 from channels import Group
 from .models import Leaf, Hub
+import uuid
 import logging
 
 logging.disable(logging.ERROR)
@@ -11,8 +13,13 @@ logging.disable(logging.ERROR)
 
 @apply_routes(websocket_routing)
 class ConsumerTests(ChannelTestCase):
-    def create_hub(self, name, id="0e5ef7ab-b6b8-4563-8a47-816f0eb72be4"):
-        hub = Hub(name=name, id=id)
+    def create_hub(self, name):
+        if not User.objects.filter(username="admin").exists():
+            user = User.objects.create_user("admin", password="admin")
+        else:
+            user = User.objects.get(username="admin")
+
+        hub = Hub(name=name, id=str(uuid.uuid4()), owner=user)
         hub.save()
         return hub
 
@@ -747,8 +754,8 @@ class ConditionsTests(ConsumerTests):
 
 class HubTests(ConsumerTests):
     def test_multiple_hubs_leaves(self):
-        hub1 = self.create_hub("first_hub", "1")
-        hub2 = self.create_hub("second_hub", "2")
+        hub1 = self.create_hub("first_hub")
+        hub2 = self.create_hub("second_hub")
         hub1_client, hub1_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub1)
         hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)
 
@@ -763,8 +770,8 @@ class HubTests(ConsumerTests):
         self.assertEquals(hub1_leaf.devices.count(), 1)
 
     def test_multiple_hubs_subscriptions(self):
-        hub1 = self.create_hub("first_hub", "1")
-        hub2 = self.create_hub("second_hub", "2")
+        hub1 = self.create_hub("first_hub")
+        hub2 = self.create_hub("second_hub")
         hub1_client, hub1_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub1)
         hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)
         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0',
@@ -793,8 +800,8 @@ class HubTests(ConsumerTests):
         self.assertIsNone(hub2_client.receive(), "Didn't  expect a response")
 
     def test_multiple_hubs_conditions(self):
-        hub1 = self.create_hub("first_hub", "1")
-        hub2 = self.create_hub("second_hub", "2")
+        hub1 = self.create_hub("first_hub")
+        hub2 = self.create_hub("second_hub")
         hub1_client, hub1_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub1)
         out_client1, out_leaf1 = self.send_create_leaf('rfid_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub1)
         hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)

@@ -1,5 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.contrib.auth.models import User
 from polymorphic.models import PolymorphicModel
 from channels import Group
 from types import SimpleNamespace
@@ -62,6 +63,7 @@ class BooleanValue(Value):
 class Hub(models.Model):
     id = models.CharField(max_length=36, primary_key=True)
     name = models.CharField(max_length=100)
+    owner = models.ForeignKey(User, related_name="hubs")
 
     def __str__(self):
         return repr(self)
@@ -85,9 +87,10 @@ class Hub(models.Model):
 
     def get_leaf(self, uuid):
         from .utils import InvalidLeaf
-        try:
-            return self.leaves.get(uuid=uuid)
-        except Leaf.DoesNotExist:
+        leaf = self.leaves.filter(uuid=uuid)
+        if leaf.exists():
+            return leaf.first()
+        else:
             raise InvalidLeaf(uuid)
 
 
@@ -100,7 +103,7 @@ class Leaf(models.Model):
     hub = models.ForeignKey(Hub, related_name="leaves")
 
     class Meta:
-        unique_together = (('name', 'hub'),)
+        unique_together = (('uuid', 'hub'),)
 
     def set_name(self, name):
         message = self.message_template
