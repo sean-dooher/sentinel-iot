@@ -61,9 +61,12 @@ class BooleanValue(Value):
 
 
 class Hub(models.Model):
-    id = models.CharField(max_length=36, primary_key=True)
     name = models.CharField(max_length=100)
-    owner = models.ForeignKey(User, related_name="hubs")
+
+    class Meta:
+        permissions = (
+            ('view_hub', 'View Hub'),
+        )
 
     def __str__(self):
         return repr(self)

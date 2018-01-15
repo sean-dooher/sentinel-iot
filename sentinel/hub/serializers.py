@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Leaf, Device, Condition, Datastore, Action, Hub
 from collections import OrderedDict
+from oauth2_provider.contrib.rest_framework import TokenHasReadWriteScope, TokenHasScope
 
 
 class NonNullSerializer(serializers.ModelSerializer):

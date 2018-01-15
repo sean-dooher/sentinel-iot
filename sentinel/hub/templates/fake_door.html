@@ -11,13 +11,13 @@
 			var uuid = 'f7bad74c-a876-41da-ab37-6c5752e94a25';
 			var fakeLeaf = new Leaf("Door", "door01", uuid, "ws://" + window.location.host + "/hub/{{ hub }}", password="door_leaf");
 
-			// var scanner = new Device("door_open", false, "bool", DeviceMode.OUT);
-			// fakeLeaf.registerDevice(scanner);
+			var scanner = new Device("door_open", false, "bool", DeviceMode.OUT);
+			fakeLeaf.registerDevice(scanner);
 			scanner.addListener((d) => document.querySelector("#currval").innerHTML = d.value);
 
 			function sendCond() {
-			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "led_on", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": [">=", ["01bc9e4b-15cb-4ecc-901f-0a58906f2e1c", "humidity"], 70], "action": {"action_type": "SET","target": "a6527c60-62aa-4c0f-a76d-144f52c52927","device": "led_on","value":true}}')
-			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "led_off", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": ["<", ["01bc9e4b-15cb-4ecc-901f-0a58906f2e1c", "humidity"], 70], "action": {"action_type": "SET","target": "a6527c60-62aa-4c0f-a76d-144f52c52927","device": "led_on","value":false}}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "led_on", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": ["=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "sensor"], 3032042781], "action": {"action_type": "SET","target": "f7bad74c-a876-41da-ab37-6c5752e94a25","device": "door_open","value":true}}')
+			    fakeLeaf.socket.send('{"type": "CONDITION_CREATE", "name": "led_off", "uuid":"f7bad74c-a876-41da-ab37-6c5752e94a25", "predicate": ["!=", ["f7bfd74c-a876-41da-ab37-6c5752e94a25", "sensor"], 3032042781], "action": {"action_type": "SET","target": "f7bad74c-a876-41da-ab37-6c5752e94a25","device": "door_open","value":false}}')
 			}
 		</script>
     </body>

@@ -27,8 +27,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '0.0.0.0', '192.168.1.6']
 
-CSRF_USE_SESSIONS = True
-
 # Application definition
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'assets'),
@@ -55,7 +53,8 @@ INSTALLED_APPS = [
     'hub',
     'frontend',
     'webpack_loader',
-    'corsheaders'
+    'corsheaders',
+    'oauth2_provider'
 ]
 
 MIDDLEWARE = [
@@ -145,6 +144,17 @@ LOGGING = {
 
 AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend', 'guardian.backends.ObjectPermissionBackend')
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.DjangoObjectPermissions',
+    )
+
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/

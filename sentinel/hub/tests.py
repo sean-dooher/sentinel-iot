@@ -5,7 +5,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from channels import Group
 from .models import Leaf, Hub
-import uuid
 import logging
 
 logging.disable(logging.ERROR)
@@ -14,18 +13,13 @@ logging.disable(logging.ERROR)
 @apply_routes(websocket_routing)
 class ConsumerTests(ChannelTestCase):
     def create_hub(self, name):
-        if not User.objects.filter(username="admin").exists():
-            user = User.objects.create_user("admin", password="admin")
-        else:
-            user = User.objects.get(username="admin")
-
-        hub = Hub(name=name, id=str(uuid.uuid4()), owner=user)
+        hub = Hub(name=name)
         hub.save()
         return hub
 
     def send_create_leaf(self, name, model, uuid, hub, api_version="0.1.0", receive=True):
         client = WSClient()
-        client.send_and_consume('websocket.connect', path=hub.id)
+        client.send_and_consume('websocket.connect', path=str(hub.id))
         config_message = {'type': 'CONFIG',
                           'name': name,
                           'model': model,

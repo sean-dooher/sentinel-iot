@@ -2,9 +2,11 @@ from django.shortcuts import render
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
 from rest_framework import generics
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.models import User
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
+
 
 # Create your views here.
 def main(request, id):
@@ -30,8 +32,26 @@ class HubList(generics.ListAPIView):
         user = self.request.user
         return get_objects_for_user(user, 'view_hub', Hub.objects.all())
 
+    def post(self, request, format=None):
+        try:
+            name = request.data['name']
+        except KeyError:
+            return JsonResponse({'accepted': False, 'reason': 'Missing name'})
 
-class HubDetail(generics.RetrieveAPIView):
+        hub = Hub.objects.create(name=name)
+        hub.save()
+        hub_group = PermGroup.objects.create(name=hub.id)
+        default_group = PermGroup.objects.get(name="default")
+        request.user.groups.add(hub_group)
+
+        assign_perm('view_hub', hub_group, hub)
+        assign_perm('delete_hub', hub_group, hub)
+        remove_perm('delete_hub', default_group, hub)
+        remove_perm('view_hub', default_group, hub)
+        return JsonResponse({'accepted': True})
+
+
+class HubDetail(generics.RetrieveDestroyAPIView):
     serializer_class = HubSerializer
     lookup_field = "id"
 

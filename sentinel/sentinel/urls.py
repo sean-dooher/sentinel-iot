@@ -1,25 +1,9 @@
-"""sentinel URL Configuration
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/1.11/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  url(r'^$', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  url(r'^$', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.conf.urls import url, include
-    2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
-"""
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.contrib import admin
 from frontend.views import index, login_view, logout_view, dashboard, register
 from hub.views import fake_in, fake_out, rfid_demo, main,  HubList, HubDetail
 from hub.views import LeafList, LeafDetail, DatastoreDetail, DatastoreList, ConditionList, ConditionDetail
 from rest_framework.urlpatterns import format_suffix_patterns
-from hub.utils import disconnect_all
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -35,8 +19,10 @@ urlpatterns = [
     url(r'^register/$', register,  name='register'),
     url(r'^login/$', login_view,  name='login'),
     url(r'^logout/$', logout_view, name='logout'),
-    url(r'^hub/dashboard/$', dashboard)
+    url(r'^hub/dashboard/$', dashboard, name='dashboard'),
+    url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+    url(r'hub/(?P<id>[^/]+)/fake_in$', fake_in),
+    url(r'hub/(?P<id>[^/]+)/fake_out$', fake_out),
 ]
-urlpatterns = format_suffix_patterns(urlpatterns)
 
-# disconnect_all()
+urlpatterns = format_suffix_patterns(urlpatterns)

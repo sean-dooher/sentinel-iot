@@ -54,7 +54,11 @@
                     <a class="nav-link js-scroll-trigger" href="#source">Source</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" data-toggle="modal" data-target="#loginModal">Login / Sign Up</a>
+                    {% if request.user.is_authenticated %}
+                        <a class="nav-link" href="{% url 'dashboard' %}">Proceed to Dashboard</a>
+                    {% else %}
+                        <a class="nav-link" href="#" data-toggle="modal" data-target="#loginModal">Login / Sign Up</a>
+                    {% endif %}
                 </li>
             </ul>
         </div>

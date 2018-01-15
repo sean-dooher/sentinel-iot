@@ -39,6 +39,7 @@ def ws_message(message):
         message.content['dict'] = mess
         assert is_valid_message(mess), "required attributes missing from message"
         assert 'hub' in message.channel_session and (mess['type'] == 'CONFIG' or 'user' in message.channel_session)
+        # TODO: add set output and get device handlers
         if mess['type'] == 'CONFIG':
             return hub_handle_config(message)
         elif mess['type'] == 'NAME':

@@ -25,7 +25,11 @@
     "webpack-dev-server": "^2.9.7"
   },
   "dependencies": {
+    "client-oauth2": "^4.1.0",
     "dragula": "^3.7.2",
-    "react-dragula": "^1.1.17"
+    "js-cookie": "^2.2.0",
+    "prop-types": "^15.6.0",
+    "react-dragula": "^1.1.17",
+    "reactstrap": "^5.0.0-alpha.4"
   }
 }
