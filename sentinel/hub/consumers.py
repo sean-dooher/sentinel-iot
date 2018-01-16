@@ -67,7 +67,6 @@ def ws_message(message):
             logger.error(f"{message.channel_session['hub']} -- Invalid Message: Unknown type in message")
     except json.decoder.JSONDecodeError:
         logger.error(f"{message.channel_session['hub']} -- Invalid Message: JSON Decoding failed")
-        logger.error(mess)
     except AssertionError as e:
         logger.error(f"{message.channel_session['hub']} -- Invalid Message: {e}")
         logger.error(mess)
@@ -76,7 +75,7 @@ def ws_message(message):
         logger.error(f"{message.channel_session['hub']} -- {e} in handling {mess['type']} for {leaf}")
         reply = e.get_error_message()
         reply['hub'] = message.channel_session['hub']
-        message.reply_channel.send({'text': reply})
+        message.reply_channel.send({'text': json.dumps(reply)})
 
 
 def hub_handle_config(message):
@@ -113,13 +112,13 @@ def hub_handle_config(message):
         Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
         message.channel_session['user'] = user.username
         message.channel_session['uuid'] = uuid
-        response = {"text": {"type": "CONFIG_COMPLETE", "hub": hub.id, "uuid": uuid}}
+        response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub": hub.id, "uuid": uuid})}
         message.reply_channel.send(response)
         leaf.refresh_devices()
         logger.info(f'{hub.id} -- Config received for {leaf.name}')
     else:
         logger.error(f"{hub.id} -- Authentication failed for {uuid}")
-        response = {"text": {"type": "CONFIG_FAILED", "hub": hub.id, "uuid": uuid}}
+        response = {"text": json.dumps({"type": "CONFIG_FAILED", "hub": hub.id, "uuid": uuid})}
         message.reply_channel.send(response)
 
 
@@ -232,7 +231,8 @@ def hub_handle_datastore_create(message):
             'name': datastore.name,
             'format': datastore.format
         }
-        message.reply_channel.send({'text': reply})
+        message.reply_channel.send({'text': json.dumps(reply)})
+        logger.info(f"{hub.id} -- Datastore created: {mess['name']}")
 
 
 def hub_handle_datastore_get(message):
@@ -250,7 +250,7 @@ def hub_handle_datastore_get(message):
                 'value': datastore.value,
                 'format': datastore.format
             }
-            message.reply_channel.send({'text': reply})
+            message.reply_channel.send({'text': json.dumps(reply)})
         else:
             raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_GET', name=mess['name'])
     except Datastore.DoesNotExist:
@@ -260,7 +260,7 @@ def hub_handle_datastore_get(message):
             'request': 'DATASTORE_GET',
             'name': mess['name']
         }
-        message.reply_channel.send({'text': reply})
+        message.reply_channel.send({'text': json.dumps(reply)})
 
 
 def hub_handle_datastore_set(message):
@@ -279,7 +279,8 @@ def hub_handle_datastore_set(message):
                 'value': datastore.value,
                 'format': datastore.format
             }
-            message.reply_channel.send({'text': reply})
+            message.reply_channel.send({'text': json.dumps(reply)})
+            logger.info(f"{hub.id} -- Datastore updated: {datastore}")
         else:
             raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_SET', name=mess['name'])
     except Datastore.DoesNotExist:
@@ -289,7 +290,7 @@ def hub_handle_datastore_set(message):
             'request': 'DATASTORE_SET',
             'name': mess['name']
         }
-        message.reply_channel.send({'text': reply})
+        message.reply_channel.send({'text': json.dumps(reply)})
 
 
 def hub_handle_datastore_delete(message):
@@ -304,7 +305,7 @@ def hub_handle_datastore_delete(message):
             reply = {'type': 'DATASTORE_DELETED',
                      'hub': hub.id,
                      'name': mess['name']}
-            message.reply_channel.send({'text': reply})
+            message.reply_channel.send({'text': json.dumps(reply)})
         else:
             raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_DELETE', name=mess['name'])
     except Datastore.DoesNotExist:
@@ -314,7 +315,7 @@ def hub_handle_datastore_delete(message):
             'request': 'DATASTORE_DELETE',
             'name': mess['name']
         }
-        message.reply_channel.send({'text': reply})
+        message.reply_channel.send({'text': json.dumps(reply)})
 
 
 def hub_handle_condition_create(message):
