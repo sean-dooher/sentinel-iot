@@ -1,9 +1,9 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
 from rest_framework import generics
 from django.http import JsonResponse, HttpResponse
-from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
 
@@ -40,14 +40,10 @@ class HubList(generics.ListAPIView):
 
         hub = Hub.objects.create(name=name)
         hub.save()
-        hub_group = PermGroup.objects.create(name=hub.id)
-        default_group = PermGroup.objects.get(name="default")
+
+        hub_group = PermGroup.objects.get(name="hub-" + str(hub.id))
         request.user.groups.add(hub_group)
 
-        assign_perm('view_hub', hub_group, hub)
-        assign_perm('delete_hub', hub_group, hub)
-        remove_perm('delete_hub', default_group, hub)
-        remove_perm('view_hub', default_group, hub)
         return JsonResponse({'accepted': True})
 
 
@@ -59,13 +55,23 @@ class HubDetail(generics.RetrieveDestroyAPIView):
         user = self.request.user
         return get_objects_for_user(user, 'view_hub', Hub.objects.all())
 
+    def get_object(self):
+        obj = super().get_object()
+        if self.request.user.has_perm('view_hub', obj):
+            return obj
+        else:
+            raise PermissionDenied
+
 
 class LeafList(generics.ListAPIView):
     serializer_class = LeafSerializer
 
     def get_queryset(self):
-        hub = Hub.objects.get(id=self.kwargs['id'])
-        return hub.leaves
+        hub = get_object_or_404(Hub, id=self.kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            return hub.leaves
+        else:
+            raise PermissionDenied
 
 
 class LeafDetail(generics.RetrieveAPIView):
@@ -73,16 +79,22 @@ class LeafDetail(generics.RetrieveAPIView):
     lookup_field = "uuid"
 
     def get_queryset(self):
-        hub = Hub.objects.get(id=self.kwargs['id'])
-        return hub.leaves
+        hub = get_object_or_404(Hub, id=self.kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            return hub.leaves
+        else:
+            raise PermissionDenied
 
 
 class DatastoreList(generics.ListAPIView):
     serializer_class = DatastoreSerializer
 
     def get_queryset(self):
-        hub = Hub.objects.get(id=self.kwargs['id'])
-        return hub.datastores
+        hub = get_object_or_404(Hub, id=self.kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            return hub.datastores
+        else:
+            raise PermissionDenied
 
 
 class DatastoreDetail(generics.RetrieveDestroyAPIView):
@@ -90,16 +102,22 @@ class DatastoreDetail(generics.RetrieveDestroyAPIView):
     lookup_field = "name"
 
     def get_queryset(self):
-        hub = Hub.objects.get(id=self.kwargs['id'])
-        return hub.datastores
+        hub = get_object_or_404(Hub, id=self.kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            return hub.datastores
+        else:
+            raise PermissionDenied
 
 
 class ConditionList(generics.ListAPIView):
     serializer_class = ConditionSerializer
 
     def get_queryset(self):
-        hub = Hub.objects.get(id=self.kwargs['id'])
-        return hub.conditions
+        hub = get_object_or_404(Hub, id=self.kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            return hub.conditions
+        else:
+            raise PermissionDenied
 
 
 class ConditionDetail(generics.RetrieveDestroyAPIView):
@@ -107,5 +125,8 @@ class ConditionDetail(generics.RetrieveDestroyAPIView):
     lookup_field = "name"
 
     def get_queryset(self):
-        hub = Hub.objects.get(id=self.kwargs['id'])
-        return hub.conditions
+        hub = get_object_or_404(Hub, id=self.kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            return hub.conditions
+        else:
+            raise PermissionDenied

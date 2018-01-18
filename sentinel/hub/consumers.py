@@ -63,6 +63,12 @@ def ws_message(message):
             return hub_handle_condition_create(message)
         elif mess['type'] == 'CONDITION_DELETE':
             return hub_handle_condition_delete(message)
+        elif mess['type'] == 'GET_DEVICE':
+            return hub_handle_get_device(message)
+        elif mess['type'] == 'CHANGE_OUTPUT':
+            return hub_handle_change_output(message)
+        elif mess['type'] == 'SET_OUTPUT':
+            return hub_handle_set_output(message)
         else:
             logger.error(f"{message.channel_session['hub']} -- Invalid Message: Unknown type in message")
     except json.decoder.JSONDecodeError:
@@ -102,7 +108,6 @@ def hub_handle_config(message):
         User.objects.get(username=username)
     except User.DoesNotExist:
         user = User.objects.create_user(username=username, password=mess['password'])
-        user.groups.add(default_group)
         user.save()
 
     user = authenticate(username=username, password=mess['password'])
@@ -178,6 +183,23 @@ def hub_handle_unsubscribe(message):
         logger.info(f"{hub.id} -- <{subscriber_uuid}> unsubscribed from <{target_uuid}-{device}>")
     except ObjectDoesNotExist:
         return
+
+
+def hub_handle_get_device(message):
+    mess = message.content['dict']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
+
+
+
+def hub_handle_set_output(message):
+    mess = message.content['dict']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+
+
+def hub_handle_change_output(message):
+    mess = message.content['dict']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
 
 
 def hub_handle_datastore_create(message):

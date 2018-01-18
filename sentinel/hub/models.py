@@ -86,7 +86,7 @@ class Hub(models.Model):
         except Datastore.DoesNotExist:
             raise InvalidDevice(SimpleNamespace(uuid='datastore'), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
         except Device.DoesNotExist:
-            raise InvalidDevice(hub.leaves.get(uuid=uuid), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
+            raise InvalidDevice(self.leaves.get(uuid=uuid), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
 
     def get_leaf(self, uuid):
         from .utils import InvalidLeaf
@@ -107,6 +107,7 @@ class Leaf(models.Model):
 
     class Meta:
         unique_together = (('uuid', 'hub'),)
+        permissions = (('view_leaf', 'View Leaf'),)
 
     def set_name(self, name):
         message = self.message_template
