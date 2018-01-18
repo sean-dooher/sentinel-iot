@@ -8,21 +8,10 @@ from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
 
 
-# Create your views here.
-def main(request, id):
-    return render(request, "main.html", {'hub': id})
-
-
-def fake_in(request, id):
-    return render(request, "fake_rfid.html", {'hub': id})
-
-
-def fake_out(request, id):
-    return render(request, "fake_door.html", {'hub': id})
-
-
-def rfid_demo(request, id):
-    return render(request, "rfid_demo.html", {'hub': id})
+def register_leaf(request, id):
+    hub = get_object_or_404(Hub, id=id)
+    if request.user.has_perm('delete_hub', hub):
+        print("True")
 
 
 class HubList(generics.ListAPIView):
@@ -48,12 +37,9 @@ class HubList(generics.ListAPIView):
 
 
 class HubDetail(generics.RetrieveDestroyAPIView):
+    queryset = Hub.objects.all()
     serializer_class = HubSerializer
     lookup_field = "id"
-
-    def get_queryset(self):
-        user = self.request.user
-        return get_objects_for_user(user, 'view_hub', Hub.objects.all())
 
     def get_object(self):
         obj = super().get_object()

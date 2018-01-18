@@ -8,31 +8,33 @@ export class Sidebar extends React.Component {
         super(props);
         this.state = {
             show: false,
+            createErrors: [],
         };
         this.toggleCreateModal = this.toggleCreateModal.bind(this);
         this.sendHubCreate = this.sendHubCreate.bind(this);
+        this.addCreateError = this.addCreateError.bind(this);
     }
 
     toggleCreateModal() {
         this.setState({show: !this.state.show});
     }
 
+    addCreateError(text) {
+        this.setState((prev, props) => {
+            let errors = prev.createErrors.concat([text]).slice(-3); // limit number of errors to 3
+            return {createErrors: errors};
+        });
+    }
+
     sendHubCreate() {
         let content = JSON.stringify({
             name: document.querySelector("#hubName").value,
         });
-        fetch("http://localhost:8000/api/hub/",
-                {
-                method:'POST',
-                credentials: "same-origin",
-                headers: {
-                "X-CSRFToken": Cookies.get("csrftoken"),
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-                },
-                body: content
-            }).then(response => {
-                if(response.ok) { /* TODO: Some sort of refreshing of sidebar hub list */
+        let headers = Object.assign({}, window.postHeader);
+        headers.body = content;
+        fetch(window.host + "/api/hub/", headers)
+            .then(response => {
+                if(response.ok) {
                     response.json().then(json => {
                         if(json.accepted) {
                             this.props.refreshHubs();
@@ -40,15 +42,15 @@ export class Sidebar extends React.Component {
                                 this.toggleCreateModal();
                             }
                         } else {
-                            console.log("Error adding hub: " + json.reason);
-                            if(this.state.show) {
-                                this.toggleCreateModal();
-                            }
+                            this.addCreateError("Error adding hub: " + json.reason);
                         }
+                    })
+                    .catch(reason => {
+                        this.addCreateError("Error adding hub: " + reason);
                     });
                 }
                 else {
-                    response.text().then(text => console.log("Error adding hub: " + text));
+                    response.text().then(text => this.addCreateError("Error adding hub: " + text));
                 }});
     }
 
@@ -60,9 +62,9 @@ export class Sidebar extends React.Component {
               <ul className="nav nav-pills flex-column">
                   {
                       this.props.hubs.map((hub, key) =>
-                      <li className="nav-item" key={key}>
+                      <li className="nav-item" data-toggle="tooltip" data-placement="right" key={key}>
                         <a className={"nav-link" + (this.props.activeHub === hub.id ? " active" : "")}
-                           href="#" onClick={() => this.props.changeHub(hub.id)}>{hub.name}</a>
+                           href="#" onClick={() => this.props.changeHub(hub.id)}>{hub.id + " - " + hub.name}</a>
                       </li> )
                   }
                   <li>
@@ -74,6 +76,7 @@ export class Sidebar extends React.Component {
           <Modal isOpen={this.state.show} toggle={this.toggleCreateModal}>
               <ModalHeader toggle={this.toggleCreateModal}>Create a Hub</ModalHeader>
               <ModalBody>
+                {this.state.createErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
                 <Form>
                     <FormGroup>
                         <Label for="hubName">Hub Name</Label>

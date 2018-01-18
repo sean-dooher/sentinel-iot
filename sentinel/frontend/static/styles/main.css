@@ -72,3 +72,13 @@ body {
     font-size: 12px;
     line-height: 1.5;
 }
+
+.nav-logout {
+    color: rgba(255, 255, 255, 0.5);
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.nav-logout:hover {
+    color: rgba(255, 255, 255, 0.75);
+}

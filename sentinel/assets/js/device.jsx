@@ -5,7 +5,9 @@ export class Device extends React.Component {
         super(props);
         this.state = {
             value: this.props.value
-        }
+        };
+        this.handleChange = this.handleChange.bind(this);
+        this.sendSet = this.sendSet.bind(this);
     }
 
     getPattern() {
@@ -19,7 +21,11 @@ export class Device extends React.Component {
     }
 
     handleChange(event) {
-        this.setState((prevProps) => {value: event.target.value})
+        this.setState({value: event.target.value});
+    }
+
+    sendSet() {
+
     }
 
     getValue() {
@@ -35,16 +41,16 @@ export class Device extends React.Component {
                         <option value="false">false</option>
                       </select>
                       <div className="input-group-append input-group-btn">
-                        <button className="btn btn-outline-secondary" type="button"><i className="fas fa-angle-right"></i></button>
+                        <button onClick={this.sendSet} className="btn btn-outline-secondary" type="button"><i className="fas fa-angle-right"></i></button>
                       </div>
                     </div>
                 );
             } else {
                 return (
                     <div className="input-group input-group-xs">
-                      <input type="text" pattern={this.getPattern()} onChange={this.handleChange} value={ this.props.value } className="form-control" placeholder="New Value" aria-label="new_value" aria-describedby="basic-addon2" />
+                      <input type="text" pattern={this.getPattern()} onChange={this.handleChange} value={ this.state.value } className="form-control" placeholder="New Value" aria-label="new_value" aria-describedby="basic-addon2" />
                       <div className="input-group-append input-group-btn">
-                        <button className="btn btn-outline-secondary" type="button"><i className="fas fa-angle-right"></i></button>
+                        <button onClick={this.sendSet} className="btn btn-outline-secondary" type="button"><i className="fas fa-angle-right"></i></button>
                       </div>
                     </div>);
             }

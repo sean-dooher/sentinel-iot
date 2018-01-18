@@ -1,8 +1,7 @@
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.contrib.auth.models import User
-from django.contrib.auth.models import Permission, AnonymousUser
-from corsheaders.signals import check_request_enabled
+from django.contrib.auth.models import AnonymousUser
 from guardian.models import Group as PermGroup
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from .models import Hub, Leaf, Condition, Datastore
@@ -13,7 +12,7 @@ import re
 def create_hub_permission_group(sender, **kwargs):
     if kwargs.get('created', False):
         if not PermGroup.objects.filter(name="default").exists():
-            PermGroup.objects.create(name="default")
+            default_group = PermGroup.objects.create(name="default")
         default_group = PermGroup.objects.get(name="default")
         hub = kwargs['instance']
         hub_group = PermGroup.objects.create(name="hub-" + str(hub.id))
@@ -36,7 +35,7 @@ def create_leaf_permissions(sender, **kwargs):
 @receiver(post_save, sender=User)
 def create_user_default_permissions(sender, **kwargs):
     user = kwargs['instance']
-    if kwargs.get('created', False) and user.username != 'AnonymousUser':
+    if kwargs.get('created', False) and user.username != 'AnonymousUser' and user.username != AnonymousUser.username:
         if not PermGroup.objects.filter(name="default").exists():
             default_group = PermGroup.objects.create(name="default")
         default_group = PermGroup.objects.get(name="default")
@@ -45,6 +44,7 @@ def create_user_default_permissions(sender, **kwargs):
         leaf_pattern = r"[0-9]+-[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12}"
         if not re.match(leaf_pattern, user.username):
             assign_perm('hub.add_hub', user)
+            assign_perm('hub.delete_hub', user)
 
 
 @receiver(post_save, sender=Datastore)
@@ -52,7 +52,6 @@ def create_datastore_permissions(sender, **kwargs):
     if kwargs.get('created', False):
         datastore = kwargs['instance']
         hub_group = PermGroup.objects.get(name="hub-" + str(datastore.hub.id))
-        default_group = PermGroup.objects.get(name="default")
         assign_perm('view_datastore', hub_group, datastore)
         assign_perm('delete_datastore', hub_group, datastore)
 
