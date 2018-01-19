@@ -17,7 +17,7 @@ export class Device extends React.Component {
             return this.props.value.toString() + (this.props.format === "number+units" ? this.props.units : "");
         }
         else {
-            return <OutValue value={this.props.value} format={this.props.format} small={"true"} connected={this.props.connected}/>
+            return <OutValue value={this.props.value} format={this.props.format} small connected={this.props.connected}/>
         }
     }
 

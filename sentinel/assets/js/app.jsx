@@ -3,6 +3,7 @@ import { Sidebar } from "./sidebar";
 import { AdminPage } from "./adminpage";
 import { Leaf } from "./leaf";
 import { Conditions } from "./conditions";
+import { Datastore } from "./datastore";
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Alert} from 'reactstrap';
 import { FormGroup, Input, Form, Label} from 'reactstrap';
 
@@ -60,7 +61,9 @@ export class App extends React.Component {
             showLeafModal: false,
             token: '',
             showDatastoreModal: false,
-            showConditionsModal: false
+            showConditionsModal: false,
+            newDatastoreFormat: 'bool',
+            newDatastoreValue: true,
         };
         this.refreshHubs = this.refreshHubs.bind(this);
         this.changeActiveHub = this.changeActiveHub.bind(this);
@@ -71,6 +74,11 @@ export class App extends React.Component {
         this.toggleConditionModal = this.toggleConditionModal.bind(this);
         this.toggleDatastoreModal = this.toggleDatastoreModal.bind(this);
         this.registerLeaf = this.registerLeaf.bind(this);
+        this.getDatastoreInput = this.getDatastoreInput.bind(this);
+        this.handleDatastoreFormat = this.handleDatastoreFormat.bind(this);
+        this.handleDatastoreValue = this.handleDatastoreValue.bind(this);
+        this.createDatastore = this.createDatastore.bind(this);
+        this.sendDeleteDatastore = this.sendDeleteDatastore.bind(this);
     }
 
     toggleDeleteModal() {
@@ -82,7 +90,7 @@ export class App extends React.Component {
     }
 
     toggleDatastoreModal() {
-        this.setState((prev, props) => {return {showDatastoreModal: !prev.showDatastoreModal};});
+        this.setState((prev, props) => {return {showDatastoreModal: !prev.showDatastoreModal, newDatastoreFormat: "bool", newDatastoreValue: true};});
     }
 
     toggleConditionModal() {
@@ -123,10 +131,24 @@ export class App extends React.Component {
                 this.toggleDeleteModal();
                 this.changeActiveHub(-1);
             } else {
-                r.json().then(json => this.addDeleteError("Error: " + json.detail)).catch(e => "Error: an unknown error has occured");
+                r.json().then(json => this.addDeleteError("Error: " + json.detail)).catch(e => "Error: an unknown error has occurred");
             }
         })
         .catch(r => this.addDeleteError(r))
+    }
+
+    sendDeleteDatastore(datastore) {
+        fetch(window.host + "/api/hub/" + this.state.activeHub + "/datastores/" + datastore.props.name , deleteHeader)
+            .then(r => {
+                if(r.ok) {
+                    datastore.toggleDeleteModal();
+                    this.refresh();
+                } else {
+                    r.json().then(json => datastore.addDeleteError("Error: " + json.detail)).catch(e => "Error: an unknown error has occurred");
+                }
+            })
+            .catch(r => this.addDeleteError(r))
+            .finally(() => datastore.toggleDeleteModal());
     }
 
     registerLeaf(event) {
@@ -146,7 +168,7 @@ export class App extends React.Component {
                         }
                     ).catch(e => this.addLeafError("Error: error occured parsing response"))
                 } else {
-                    r.text().then(text => window.document.body.innerHTML = text);
+                    r.text().then(text => console.log(text));
                     this.addLeafError("Error: " + r.statusText + " (" + r.status + ")");
                 }
             })
@@ -166,6 +188,7 @@ export class App extends React.Component {
             let hub_url = window.host + "/api/hub/" + hub + "/";
             fetch(hub_url + "leaves", getHeader).then(t => t.json().then(res => this.setState({leaves: res})));
             fetch(hub_url + "conditions", getHeader).then(t => t.json().then(res => this.setState({conditions: res})));
+            fetch(hub_url + "datastores", getHeader).then(t => t.json().then(res => this.setState({datastores: res})));
         }
     }
 
@@ -189,6 +212,8 @@ export class App extends React.Component {
                 leafErrors: [],
                 datastoreErrors: [],
                 conditionErrors: [],
+                newDatastoreFormat: "bool",
+                newDatastoreValue: true,
                 token: '',
             });
         this.refresh(hub);
@@ -224,11 +249,94 @@ export class App extends React.Component {
 
     showConditions() {
         return <section className="conditions">
-            <h2>Conditions</h2>
-            {this.state.conditions.length === 0 ? <Alert color="info">You currently have no conditions. Click the button above to add one</Alert> : null}
+            <h2>Conditions <Button color='primary' onClick={this.toggleConditionModal}>Create</Button></h2>
+            <Modal isOpen={this.state.showConditionsModal} toggle={this.toggleConditionModal}>
+              <ModalHeader toggle={this.toggleConditionModal}>Create a condition</ModalHeader>
+              <Form>
+                  <ModalBody>
+                    {this.state.leafErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
+                        <FormGroup>
+                          <Label for="newUUID">Leaf UUID</Label>
+                          <Input type="text" name="uuid" id="newUUID" placeholder="UUID" title="Must be a valid UUID" required pattern="[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12}" />
+                        </FormGroup>
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button color="primary">Send</Button>{' '}
+                    <Button color="secondary" onClick={this.toggleConditionModal}>Cancel</Button>
+                  </ModalFooter>
+              </Form>
+            </Modal>
+            {this.state.conditions.length === 0 ? <Alert color="info">You currently have no conditions. Click the button above to create one</Alert> : null}
             <Conditions conditions={this.state.conditions}/>
             <hr/>
         </section>;
+    }
+
+    handleDatastoreFormat(e) {
+        let newFormat = e.target.value;
+        let defaultValue;
+        if(newFormat === 'string' || newFormat === 'number' || newFormat === 'number+units') {
+            defaultValue = "";
+        } else {
+            defaultValue = true;
+        }
+        this.setState({newDatastoreFormat: newFormat, newDatastoreValue: defaultValue});
+    }
+
+    handleDatastoreValue(e) {
+        this.setState({newDatastoreValue: e.target.value});
+    }
+
+    getDatastoreInput() {
+        if(this.state.newDatastoreFormat == 'bool') {
+           return <select name="value" className="form-control custom-select"
+                          value={this.state.newDatastoreValue.toString()} onChange={this.handleDatastoreValue}>
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+        } else {
+            return <div>
+                    <Input name="value" type="text" pattern={this.state.newDatastoreFormat === 'string' ? "" : "[0-9]+"} />
+                        {this.state.newDatastoreFormat === 'number+units' ? <FormGroup>
+                            <Label for="units">Units</Label>
+                            <Input name="units" type='text' />
+                        </FormGroup>: null}
+                   </div>;
+        }
+    }
+
+    createDatastore(event) {
+        event.preventDefault();
+        let formData = new FormData(event.target);
+        let data = {};
+        for (let key of formData.keys()) {
+            if(key !== 'value' || this.state.newDatastoreFormat === 'string') {
+                data[key] = formData.get(key);
+            } else {
+                data[key] = JSON.parse(formData.get(key));
+            }
+        }
+        let headers = Object.assign({}, window.postHeader);
+        headers.body = JSON.stringify(data);
+        console.log(headers.body);
+        fetch(window.host + "/api/hub/" + this.state.activeHub + "/datastores/", headers)
+            .then(r => {
+                if(r.ok) {
+                    r.json().then(json => {
+                            if (json.accepted) {
+                                this.toggleDatastoreModal();
+                                this.refresh();
+                            } else {
+                                this.addDatastoreError("Error: " + json.reason);
+                            }
+                        }
+                    ).catch(e => this.addDatastoreError("Error: error occured parsing response"))
+                } else {
+                    r.text().then(t => console.log(t));
+                    this.addDatastoreError("Error: " + r.statusText + " (" + r.status + ")");
+                }
+            })
+            .catch(e => this.addDatastoreError("Error: an unknown error has occurred"));
     }
 
     showDatastores() {
@@ -236,13 +344,23 @@ export class App extends React.Component {
             <h2>Datastores <Button color='primary' onClick={this.toggleDatastoreModal}>Create</Button></h2>
             <Modal isOpen={this.state.showDatastoreModal} toggle={this.toggleDatastoreModal}>
               <ModalHeader toggle={this.toggleDatastoreModal}>Create Datastore</ModalHeader>
-              <Form>
+              <Form onSubmit={this.createDatastore}>
                   <ModalBody>
                     {this.state.datastoreErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
-                        <FormGroup>
-                          <Label for="newUUID">Leaf UUID</Label>
-                          <Input type="text" name="uuid" id="newUUID" placeholder="UUID" title="Must be a valid UUID" required pattern="[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12}" />
-                        </FormGroup>
+                    <FormGroup>
+                        <Label for="name">Name</Label>
+                        <Input type="text" name="name" id="name" placeholder="Name" title="Must be a valid Name" required/>
+                        <Label for="format">Format</Label>
+                        <select name="format" className="form-control custom-select" value={this.state.newDatastoreFormat}
+                                    onChange={this.handleDatastoreFormat}>
+                            <option value="bool">bool</option>
+                            <option value="number">number</option>
+                            <option value="number+units">number+units</option>
+                            <option value="string">string</option>
+                        </select>
+                        <Label for="value">Value</Label>
+                        { this.getDatastoreInput() }
+                    </FormGroup>
                   </ModalBody>
                   <ModalFooter>
                     <Button color="primary">Send</Button>{' '}
@@ -251,6 +369,9 @@ export class App extends React.Component {
               </Form>
             </Modal>
             {this.state.datastores.length === 0 ? <Alert color="info">You currently have no datastores. Click the button above to create a new one</Alert> : null}
+            <div className="row" id="leaves">
+                {this.state.datastores.map((datastore, key) => <Datastore delete={this.sendDeleteDatastore} key={key} {...datastore} />)}
+            </div>
             <hr/>
         </section>;
     }

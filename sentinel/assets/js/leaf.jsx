@@ -41,7 +41,7 @@ export class Leaf extends React.Component {
                             { this.props.devices.map((device, key) =>
                                 <Device key={key} leaf={this.props.uuid} sendMessage={this.props.sendMessage} {... device} connected={this.props.is_connected} />)}
                         </CardBody>
-                      <CardFooter className="text-muted">
+                      <CardFooter className="text-muted text-center">
                         Last Updated: { this.state.update_date.toLocaleTimeString() }
                       </CardFooter>
                     </Card>

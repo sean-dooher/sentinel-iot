@@ -4,19 +4,11 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
-from .utils import validate_uuid
+from .utils import validate_uuid, create_value
 from rest_framework import generics
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
 import secrets, json
-
-
-def fake_in(request, id):
-    return render(request, "fake_rfid.html", {"hub": id})
-
-
-def fake_out(request, id):
-    return render(request, "fake_door.html", {"hub": id})
 
 
 def register_leaf(request, id):
@@ -113,6 +105,34 @@ class DatastoreList(generics.ListAPIView):
         hub = get_object_or_404(Hub, id=self.kwargs['id'])
         if self.request.user.has_perm('view_hub', hub):
             return hub.datastores
+        else:
+            raise PermissionDenied
+
+    def post(self, request, format=None, **kwargs):
+        try:
+            name = request.data.get('name', '')
+            value = request.data.get('value', '')
+            format = request.data.get('format', '')
+            units = request.data.get('units', '')
+            assert name and value and format
+        except (KeyError, AssertionError):
+            return JsonResponse({'accepted': False, 'reason': 'Missing one of [name, value, format]'})
+        hub = get_object_or_404(Hub, id=kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            if Datastore.objects.filter(name=name).exists():
+                return JsonResponse({'accepted': False, 'reason': 'Datastore with name already exists'})
+            value = create_value(format, value, units)
+            value.save()
+            datastore = Datastore(name=name, _value=value, hub=hub)
+            datastore.save()
+
+            hub_group = PermGroup.objects.get(name="hub-" + str(hub.id))
+
+            assign_perm('view_datastore', hub_group, datastore)
+            assign_perm('write_datastore', hub_group, datastore)
+            assign_perm('delete_datastore', self.request.user, datastore)
+
+            return JsonResponse({'accepted': True})
         else:
             raise PermissionDenied
 

@@ -19,9 +19,9 @@ urlpatterns = [
     url(r'^register/$', register,  name='register'),
     url(r'^accounts/login/$', login_view,  name='login'),
     url(r'^accounts/logout/$', logout_view, name='logout'),
-    url(r'^hub/dashboard/$', dashboard, name='dashboard'),
+    url(r'^dashboard/$', dashboard, name='dashboard'),
     url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-    url(r'hub/(?P<id>[^/]+)/register', register_leaf),
+    url(r'hub/(?P<id>[^/]+)/register', register_leaf)
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
