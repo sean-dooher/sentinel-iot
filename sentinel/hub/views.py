@@ -1,17 +1,51 @@
+from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponse
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
+from .utils import validate_uuid
 from rest_framework import generics
-from django.http import JsonResponse, HttpResponse
-from django.core.exceptions import PermissionDenied
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
+import secrets, json
+
+
+def fake_in(request, id):
+    return render(request, "fake_rfid.html", {"hub": id})
+
+
+def fake_out(request, id):
+    return render(request, "fake_door.html", {"hub": id})
 
 
 def register_leaf(request, id):
-    hub = get_object_or_404(Hub, id=id)
-    if request.user.has_perm('delete_hub', hub):
-        print("True")
+    if request.method == 'POST':
+        hub = get_object_or_404(Hub, id=id)
+        if request.user.has_perm('delete_hub', hub):
+            try:
+                assert request.content_type in ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded']
+                if request.content_type == 'application/json':
+                    uuid = json.loads(request.body).get('uuid', None)
+                else:
+                    uuid = request.POST.get('uuid', None)
+                assert uuid is not None
+            except (KeyError, json.decoder.JSONDecodeError, AssertionError):
+                return JsonResponse({'accepted': False, 'reason': 'Need uuid in message'})
+
+            if not validate_uuid(uuid):
+                return JsonResponse({'accepted': False, 'reason': 'Invalid uuid'})
+
+            if User.objects.filter(username=f"{hub.id}-{uuid}").exists():
+                User.objects.get(username=f"{hub.id}-{uuid}").delete()
+
+            token = secrets.token_hex(16)
+            user = User.objects.create_user(username=f"{hub.id}-{uuid}", password=token)
+            return JsonResponse({'accepted': True, 'token': token})
+        else:
+            raise PermissionDenied
+    else:
+        return JsonResponse({"accepted": False, "reason": "Only available via POST"})
 
 
 class HubList(generics.ListAPIView):

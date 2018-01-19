@@ -39,7 +39,7 @@ export class Leaf extends React.Component {
                             <div className="col-md-4"><strong>Value</strong></div>
                         </div> : <p>This Leaf has no devices attached</p> }
                             { this.props.devices.map((device, key) =>
-                                <Device key={key} leaf={this.props.uuid} sendMessage={this.props.sendMessage} {... device} />)}
+                                <Device key={key} leaf={this.props.uuid} sendMessage={this.props.sendMessage} {... device} connected={this.props.is_connected} />)}
                         </CardBody>
                       <CardFooter className="text-muted">
                         Last Updated: { this.state.update_date.toLocaleTimeString() }
@@ -61,4 +61,5 @@ Leaf.propTypes = {
     name: PropTypes.string,
     sendMessage: PropTypes.func,
     devices: PropTypes.array,
+    is_connected: PropTypes.bool
 };

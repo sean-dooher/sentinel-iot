@@ -26,7 +26,7 @@ export class Header extends React.Component {
                         </li>
                       </ul>
                       <div className="text-white">
-                          {window.info.username}<a className="nav-logout" href="/logout"><i className="fa fa-sign-out-alt"></i></a>
+                          {window.info.username}<a className="nav-logout" href="/accounts/logout"><i className="fa fa-sign-out-alt"></i></a>
                       </div>
                     </div>
                   </nav>

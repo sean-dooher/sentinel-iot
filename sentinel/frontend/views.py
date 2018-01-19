@@ -38,8 +38,10 @@ def login_view(request):
                 return JsonResponse({'accepted': False, 'reason': "Invalid characters in username."})
         else:
             return JsonResponse({'accepted': False, 'reason': 'Invalid username or password.'})
-    elif request.user.is_authenticated():
+    elif request.method == 'POST' and request.user.is_authenticated():
         return JsonResponse({'accepted': True})
+    elif request.method == 'GET':
+        return render(request, 'login.html')
     else:
         return HttpResponseRedirect(reverse('index'))
 

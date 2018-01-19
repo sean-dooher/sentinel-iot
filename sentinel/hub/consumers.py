@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 @channel_session_user_from_http
 def ws_add(message, id):
     # Accept the connection
-    message.channel_session['hub'] = id
+    if Hub.objects.filter(id=id).exists():
+        message.channel_session['hub'] = id
     message.reply_channel.send({"accept": True})
 
 
@@ -26,7 +27,7 @@ def ws_add(message, id):
 def ws_disconnect(message):
     if 'user' in message.channel_session:
         hub = Hub.objects.get(pk=message.channel_session['hub'])
-        leaf = hub.get_leaf(message.channel_session['user'])
+        leaf = hub.get_leaf(message.channel_session['uuid'])
         leaf.is_connected = False
         leaf.save()
         Group(f"{leaf.hub.id}-{leaf.uuid}").discard(message.reply_channel)
@@ -39,12 +40,8 @@ def ws_message(message):
         message.content['dict'] = mess
         assert is_valid_message(mess), "required attributes missing from message"
         assert 'hub' in message.channel_session and (mess['type'] == 'CONFIG' or 'user' in message.channel_session)
-        # TODO: add set output and get device handlers
         if mess['type'] == 'CONFIG':
             return hub_handle_config(message)
-        elif mess['type'] == 'NAME':
-            # TODO: add name handler
-            pass
         elif mess['type'] == 'DEVICE_STATUS':
             return hub_handle_status(message)
         elif mess['type'] == 'SUBSCRIBE':
@@ -65,10 +62,6 @@ def ws_message(message):
             return hub_handle_condition_delete(message)
         elif mess['type'] == 'GET_DEVICE':
             return hub_handle_get_device(message)
-        elif mess['type'] == 'CHANGE_OUTPUT':
-            return hub_handle_change_output(message)
-        elif mess['type'] == 'SET_OUTPUT':
-            return hub_handle_set_output(message)
         else:
             logger.error(f"{message.channel_session['hub']} -- Invalid Message: Unknown type in message")
     except json.decoder.JSONDecodeError:
@@ -86,32 +79,21 @@ def ws_message(message):
 
 def hub_handle_config(message):
     mess = message.content['dict']
-    api = mess['api_version']
     uuid = mess['uuid']
     hub = Hub.objects.get(id=message.channel_session['hub'])
     username = f"{message.channel_session['hub']}-{uuid}"
 
-    if not PermGroup.objects.filter(name='default').exists():
-        default_group = PermGroup.objects.create(name='default')
-    else:
-        default_group = PermGroup.objects.get(name='default')
-
-    try:
-        leaf = hub.get_leaf(uuid)
-        leaf.api_version = api
-    except InvalidLeaf:
-        leaf = Leaf.create_from_message(mess, hub)
-        leaf.hub = hub
-        leaf.save()
-
-    try:
-        User.objects.get(username=username)
-    except User.DoesNotExist:
-        user = User.objects.create_user(username=username, password=mess['password'])
-        user.save()
-
-    user = authenticate(username=username, password=mess['password'])
+    user = authenticate(username=username, password=mess['token'])
     if user:
+        try:
+            leaf = hub.get_leaf(uuid)
+            leaf.api_version = mess['api_version']
+            leaf.name = mess['name']
+            leaf.model = mess['model']
+        except InvalidLeaf:
+            leaf = Leaf.create_from_message(mess, hub)
+            leaf.hub = hub
+            leaf.save()
         leaf.is_connected = True
         leaf.save()
         Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
@@ -188,18 +170,7 @@ def hub_handle_unsubscribe(message):
 def hub_handle_get_device(message):
     mess = message.content['dict']
     hub = Hub.objects.get(id=message.channel_session['hub'])
-
-
-
-
-def hub_handle_set_output(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-
-
-def hub_handle_change_output(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
+    # TODO: finish
 
 
 def hub_handle_datastore_create(message):

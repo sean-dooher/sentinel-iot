@@ -262,7 +262,7 @@
             event.preventDefault();
 
             $.ajax({
-                url: "login/", // the endpoint
+                url: "{% url 'login' %}", // the endpoint
                 type: "POST", // http method
                 data: loginData, // data sent with the post request
                 contentType: false,

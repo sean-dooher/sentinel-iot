@@ -1,10 +1,10 @@
 class Leaf {
-    constructor(name, model, uuid, socket = null, password = null) {
+    constructor(name, model, uuid, socket = null, token = null) {
         this.devices = [];
         this.name = name;
         this.uuid = uuid;
         this.model = model;
-        this.password = password;
+        this.token = token;
         this._isConnected = false;
         this.connect(socket);
         this.subscriptions = {};
@@ -36,7 +36,7 @@ class Leaf {
             uuid: this.uuid,
             model: this.model,
             name: this.name,
-            password: this.password,
+            token: this.token,
             api_version: '0.1.0',
         };
         this.socket.send(JSON.stringify(leaf));

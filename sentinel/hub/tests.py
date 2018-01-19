@@ -1,30 +1,41 @@
 import unittest
 from .routing import websocket_routing
 from channels.test import ChannelTestCase, WSClient, apply_routes
+from guardian.models import Group as PermGroup
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from channels import Group
 from .models import Leaf, Hub
 import logging
+import json
 
 logging.disable(logging.ERROR)
 
 
 @apply_routes(websocket_routing)
 class ConsumerTests(ChannelTestCase):
+    def setUp(self):
+        user = User.objects.create_superuser(username='admin', password='test', email="admin@admin.net")
+        self.user = user
+        self.client.login(username='admin', password='test')
+
     def create_hub(self, name):
         hub = Hub(name=name)
         hub.save()
+        hub_group = PermGroup.objects.get(name="hub-" + str(hub.id))
+        self.user.groups.add(hub_group)
         return hub
 
     def send_create_leaf(self, name, model, uuid, hub, api_version="0.1.0", receive=True):
+        token_response = self.client.post(f"/hub/{hub.id}/register", {'uuid': uuid})
+        token = json.loads(token_response.content)['token']
         client = WSClient()
         client.send_and_consume('websocket.connect', path=str(hub.id))
         config_message = {'type': 'CONFIG',
                           'name': name,
                           'model': model,
                           'uuid': uuid,
-                          'password': "tests",
+                          'token': token,
                           'api_version': api_version}
         client.send_and_consume('websocket.receive', {'text': config_message})
         if receive:
