@@ -31,17 +31,25 @@ def login_view(request):
         if user:
             if user.is_active and '-' not in username:
                 login(request, user)
+                if 'next' in request.POST:
+                    return HttpResponseRedirect(request.POST['next'])
                 return JsonResponse({'accepted': True})
             elif not user.is_active:
                 return JsonResponse({'accepted': False, 'reason': 'Your account is disabled.'})
             else:
                 return JsonResponse({'accepted': False, 'reason': "Invalid characters in username."})
         else:
+            if 'next' in request.POST:
+                return HttpResponseRedirect(reverse('login'))
             return JsonResponse({'accepted': False, 'reason': 'Invalid username or password.'})
     elif request.method == 'POST' and request.user.is_authenticated():
         return JsonResponse({'accepted': True})
     elif request.method == 'GET':
-        return render(request, 'login.html')
+        info = request.GET.dict()
+        info['next'] = info.get('next', reverse('dashboard'))
+        if request.user.is_authenticated():
+            return HttpResponseRedirect(info['next'])
+        return render(request, 'login.html', info)
     else:
         return HttpResponseRedirect(reverse('index'))
 
