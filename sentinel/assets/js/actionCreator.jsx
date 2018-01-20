@@ -3,11 +3,11 @@ import {LeafSelector} from "./leafSelector";
 import PropTypes from "prop-types";
 import {Value} from "./value";
 
-export class ComparatorPredicate extends React.Component {
+export class ActionCreator extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            operator: '=',
+            operator: 'SET',
             first_format: 'bool',
         };
         this.formatChanged = this.formatChanged.bind(this);
@@ -15,53 +15,57 @@ export class ComparatorPredicate extends React.Component {
     }
 
     getOperators() {
-        let operators = this.state.first_format === 'number' || this.state.first_format === 'number+units' ?
-            ['=', '!=', '>', '<', '>=', '<='] : ['=', '!='];
         return (<div className="row">
-            Comparator:
+            Action:
             <select name="operator" className="form-control custom-select form-control-sm"
                     value={this.state.operator} onChange={this.handleComparatorChange}>
-                {operators.map((op, key) => <option value={op} key={key}>{op}</option>)}
+                <option value="SET">set to</option>
+                <option value="CHANGE">change to</option>
             </select>
         </div>);
     }
 
+
     formatChanged(newFormat) {
-        this.setState({first_format: newFormat, operator: '='});
+        this.setState({first_format: newFormat, operator: 'SET'});
     }
 
     handleComparatorChange(event) {
         this.setState({operator: event.target.value});
     }
 
-    getPredicate() {
+    getAction() {
         let first = [this._first.state.selected_leaf, this._first.state.selected_device];
         let second;
         if(this._second.state.selected_leaf === 'literal') {
-            console.dir(this._second.state.selected_device)
             second = this.state.first_format !== 'string' ? JSON.parse(this._second.state.selected_device) : this._second.state.selected_device;
         } else {
             second = [this._second.state.selected_leaf, this._second.state.selected_device];
         }
-        return [this.state.operator, first, second];
+        return {
+            action_type: this.state.operator,
+            target: first[0],
+            device: first[1],
+            value: second
+        }
     }
 
     render(){
        return <div className="row">
            <div className="col-md-5">
-            <LeafSelector datastores={this.props.datastores} leaves={this.props.leaves} ref={(c) => this._first = c} formatChanged={this.formatChanged}/>
+            <LeafSelector leaves={this.props.leaves} datastores={this.props.datastores} ref={(c) => this._first = c} formatChanged={this.formatChanged} output/>
            </div>
            <div className="col-md-2">
             {this.getOperators()}
            </div>
            <div className="col-md-5">
-            <LeafSelector datastores={this.props.datastores} leaves={this.props.leaves} literal format={this.state.first_format} ref={(c) => this._second = c}/>
+            <LeafSelector leaves={this.props.leaves} datastores={this.props.datastores} format={this.state.first_format} ref={(c) => this._second = c} literal/>
            </div>
        </div>;
     }
 }
 
-ComparatorPredicate.propTypes = {
+ActionCreator.propTypes = {
     leaves: PropTypes.array,
     datastores: PropTypes.array
 };

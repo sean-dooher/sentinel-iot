@@ -16,6 +16,14 @@ export class LeafSelector extends React.Component {
     }
 
     getDevice(uuid, device) {
+        if(uuid === 'datastore') {
+            for (let d of this.props.datastores) {
+                if (d.name === device) {
+                    return d;
+                }
+            }
+        }
+
         let leaf = this.getLeaf(uuid);
         for(let d of leaf.devices) {
             if(d.name === device) {
@@ -33,19 +41,26 @@ export class LeafSelector extends React.Component {
     }
 
     getLeaves() {
+        let isOut = device => (!this.props.output || device.mode === 'OUT');
+        let formatMatches = device => device.format === this.props.format;
         if(this.props.format) {
-            return this.props.leaves.filter(leaf => leaf.devices.filter(device => device.format === this.props.format).length > 0);
+            return this.props.leaves.filter(leaf => leaf.devices.filter(device => formatMatches(device) && isOut(device)).length > 0);
         } else {
-            return this.props.leaves.filter(leaf => leaf.devices.length > 0);
+            return this.props.leaves.filter(leaf => leaf.devices.filter(isOut).length > 0);
         }
     }
 
     getDevices() {
+        if(this.state.selected_leaf === 'datastore') {
+            return this.props.datastores.filter(device => !this.props.format || device.format === this.props.format)
+        }
+
         let leaf = this.getLeaf(this.state.selected_leaf);
         if(leaf) {
-            return leaf.devices.filter(d => !this.props.format || d.format === this.props.format)
-                .map((device, key) => <option key={key} value={device.name}>{device.name}</option>);
+            return leaf.devices.filter(d =>
+                (!this.props.format || d.format === this.props.format) && (!this.props.output || d.mode === 'OUT'));
         }
+        return [];
     }
 
     handleLeafChange(event) {
@@ -59,7 +74,10 @@ export class LeafSelector extends React.Component {
     componentDidMount() {
         if(this.props.literal) {
             this.setState({selected_leaf: 'literal'});
-        } else if (this.props.leaves.length > 0) {
+        } else if(this.props.datastores && this.props.datastores.length > 0) {
+            return this.setState({selected_leaf: 'datastore'})
+        }
+        else if (this.props.leaves.length > 0) {
             this.setState({selected_leaf: this.props.leaves[0].uuid})
         }
     }
@@ -71,8 +89,14 @@ export class LeafSelector extends React.Component {
                 this.props.formatChanged(device.format);
             }
             if (this.state.selected_leaf !== prevState.selected_leaf) {
-                this.setState({selected_device: this.getLeaf(this.state.selected_leaf).devices[0].name})
+                if(this.state.selected_leaf === 'datastore') {
+                    this.setState({selected_device: this.props.datastores[0].name})
+                } else {
+                    this.setState({selected_device: this.getLeaf(this.state.selected_leaf).devices[0].name})
+                }
             }
+        } else if (this.state.selected_leaf !== prevState.selected_leaf) {
+            this.setState({selected_device: "true"})
         }
     }
 
@@ -83,6 +107,7 @@ export class LeafSelector extends React.Component {
                <select name="leaf" className="form-control custom-select form-control-sm"
                               value={this.state.selected_leaf} onChange={this.handleLeafChange}>
                    { this.props.literal ? <option value="literal">Literal</option> : null}
+                   { this.props.datastores && this.props.datastores.length > 0 ? <option value="datastore">Datastore</option> : null}
                    {this.getLeaves().map((leaf, key) => <option key={key} value={leaf.uuid}>{leaf.name}</option>)}
                </select>
            </div>
@@ -90,8 +115,8 @@ export class LeafSelector extends React.Component {
                {this.state.selected_leaf === 'literal' ? "Literal: " : "Device: "}
                {this.state.selected_leaf !== 'literal' ?
                <select name="device" className="form-control custom-select form-control-sm" onClick={this.handleDeviceChange}>
-                   {this.getDevices()}
-               </select> : <Value small format={this.props.format} />}
+                   {this.getDevices().map((device, key) => <option key={key} value={device.name}>{device.name}</option>)}
+               </select> : <Value small format={this.props.format} onChange={this.handleDeviceChange}/>}
            </div>
        </div>);
     }
@@ -101,5 +126,7 @@ LeafSelector.propTypes = {
     leaves: PropTypes.array,
     format: PropTypes.string,
     literal: PropTypes.bool,
-    formatChanged: PropTypes.func
+    formatChanged: PropTypes.func,
+    output: PropTypes.bool,
+    datastores: PropTypes.array
 };

@@ -22,6 +22,7 @@ export class Value extends React.Component {
 
     handleChange(event) {
         this.setState({value: event.target.value});
+        this.props.onChange(event);
     }
 
     render(){
@@ -42,4 +43,5 @@ Value.propTypes = {
     value: PropTypes.any,
     format: PropTypes.string,
     small: PropTypes.bool,
+    onChange: PropTypes.func,
 };

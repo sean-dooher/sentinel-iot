@@ -18,10 +18,10 @@ export class Conditions extends React.Component {
                     {this.props.conditions.map((condition, key) =>
                         <tr key={key}>
                             <td>{condition.name}</td>
-                            <td>{condition.predicate}</td>
+                            <td>{JSON.stringify(condition.predicate)}</td>
                             <td>{condition.action.action_type}</td>
-                            <td>{condition.action.target}</td>
-                            <td>{condition.action.device}</td>
+                            <td>{JSON.stringify([condition.action.target, condition.action.device])}</td>
+                            <td>{condition.action.value.toString()}</td>
                         </tr>
                     )}
                     </tbody>

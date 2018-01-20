@@ -1,7 +1,7 @@
 from django.conf.urls import url, include
 from django.contrib import admin
 from frontend.views import index, login_view, logout_view, dashboard, register
-from hub.views import register_leaf, HubList, HubDetail, fake_in, fake_out
+from hub.views import register_leaf, HubList, HubDetail
 from hub.views import LeafList, LeafDetail, DatastoreDetail, DatastoreList, ConditionList, ConditionDetail
 from rest_framework.urlpatterns import format_suffix_patterns
 
@@ -21,7 +21,7 @@ urlpatterns = [
     url(r'^accounts/logout/$', logout_view, name='logout'),
     url(r'^dashboard/$', dashboard, name='dashboard'),
     url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-    url(r'hub/(?P<id>[^/]+)/register', register_leaf)
+    url(r'hub/(?P<id>[^/]+)/register', register_leaf),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

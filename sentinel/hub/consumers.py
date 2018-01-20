@@ -313,11 +313,13 @@ def hub_handle_datastore_delete(message):
 
 def hub_handle_condition_create(message):
     mess = message.content['dict']
+    hub = Hub.objects.get(id=message.channel_session['hub'])
+    create_condition(mess['name'], mess['predicate'], mess['action'], hub)
 
+
+def create_condition(name, pred, action, hub):
     operators = {'AND': AND, 'OR': OR, 'XOR': XOR}
     seen_devices = set()
-
-    hub = Hub.objects.get(id=message.channel_session['hub'])
 
     def eval_predicates(predicates):
         first = predicates[0]
@@ -366,41 +368,41 @@ def hub_handle_condition_create(message):
                 predicate = NOT(predicate=less_than)
             else:
                 logger.error(f"{hub.id} -- Invalid predicate comparator: {comparator}")
-                raise InvalidPredicate(message['predicates'], mess['name'])
+                raise InvalidPredicate(pred, name)
             predicate.save()
             return predicate
 
-    predicate = eval_predicates(mess['predicate'])
+    predicate = eval_predicates(pred)
 
     # create action
-    target_uuid, target_device = mess['action']['target'], mess['action']['device']
+    target_uuid, target_device = action['target'], action['device']
     output_device = hub.get_device(target_uuid, target_device)
     output_format = output_device.format
     if isinstance(output_device, Datastore) or output_device.mode == 'OUT':
-        value = create_value(output_format, mess['action']['value'])
+        value = create_value(output_format, action['value'])
         value.save()
 
-        if type(mess['action']['value']) != list:
-            value = create_value(output_format, value=mess['action']['value'])
+        if type(action['value']) != list:
+            value = create_value(output_format, value=action['value'])
             value.save()
         else:
-            remote_uuid, remote_device = mess['action']['value']
+            remote_uuid, remote_device = action['value']
             seen_devices.add((remote_uuid, remote_device))
             value = hub.get_device(remote_uuid, remote_device)._value
 
-        if mess['action']['action_type'] == 'SET':
+        if action['action_type'] == 'SET':
             action = SetAction(target_uuid=target_uuid, target_device=target_device, _value=value)
             action.save()
-        elif mess['action']['action_type'] == 'CHANGE':
+        elif action['action_type'] == 'CHANGE':
             action = ChangeAction(target_uuid=target_uuid, target_device=target_device, _value=value)
             action.save()
     else:
         raise InvalidDevice(hub.get_leaf(target_uuid), output_device, InvalidDevice.MODE)
 
     # save condition, deleting old one if exists
-    condition = Condition(name=mess['name'], predicate=predicate, action=action, hub=hub)
+    condition = Condition(name=name, predicate=predicate, action=action, hub=hub)
     try:
-        old_condition = hub.conditions.get(name=mess['name'])
+        old_condition = hub.conditions.get(name=name)
         old_condition.delete()
     except ObjectDoesNotExist:
         pass

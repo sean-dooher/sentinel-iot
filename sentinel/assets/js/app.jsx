@@ -68,6 +68,7 @@ export class App extends React.Component {
             newDatastoreValue: true,
         };
         this.refreshHubs = this.refreshHubs.bind(this);
+        this.refresh = this.refresh.bind(this);
         this.changeActiveHub = this.changeActiveHub.bind(this);
         this.toggleDeleteModal = this.toggleDeleteModal.bind(this);
         this.sendDeleteHub = this.sendDeleteHub.bind(this);
@@ -81,6 +82,7 @@ export class App extends React.Component {
         this.handleDatastoreValue = this.handleDatastoreValue.bind(this);
         this.createDatastore = this.createDatastore.bind(this);
         this.sendDeleteDatastore = this.sendDeleteDatastore.bind(this);
+        this.sendCreateCondition = this.sendCreateCondition.bind(this);
     }
 
     toggleDeleteModal() {
@@ -249,15 +251,40 @@ export class App extends React.Component {
         </section>);
     }
 
+    sendCreateCondition(event) {
+        event.preventDefault();
+        let condition = this._condition.getCondition();
+        let headers = Object.assign({}, window.postHeader);
+        headers.body = JSON.stringify(condition);
+        fetch(window.host + "/api/hub/" + this.state.activeHub + "/conditions/", headers)
+            .then(r => {
+                if(r.ok) {
+                    r.json().then(json => {
+                            if (json.accepted) {
+                                this.toggleConditionModal();
+                                this.refresh();
+                            } else {
+                                this.addConditionError("Error: " + json.reason);
+                            }
+                        }
+                    ).catch(e => this.addConditionError("Error: error occured parsing response"))
+                } else {
+                    r.text().then(t => console.log(t));
+                    this.addConditionError("Error: " + r.statusText + " (" + r.status + ")");
+                }
+            })
+            .catch(e => this.addConditionError("Error: an unknown error has occurred"));
+    }
+
     showConditions() {
         return <section className="conditions">
             <h2>Conditions <Button color='primary' onClick={this.toggleConditionModal}>Create</Button></h2>
             <Modal size="lg" isOpen={this.state.showConditionsModal} toggle={this.toggleConditionModal}>
               <ModalHeader toggle={this.toggleConditionModal}>Create a condition</ModalHeader>
-              <Form>
+              <Form onSubmit={this.sendCreateCondition}>
                   <ModalBody>
                     {this.state.conditionErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
-                    <ConditionCreator leaves={this.state.leaves}/>
+                    <ConditionCreator leaves={this.state.leaves} datastores={this.state.datastores} ref={c => this._condition = c}/>
                   </ModalBody>
                   <ModalFooter>
                     <Button color="primary">Send</Button>{' '}
@@ -404,6 +431,7 @@ export class App extends React.Component {
 
     componentDidMount(){
         this.refresh();
+        setInterval(this.refresh, 500);
         Dragula([document.querySelector('#leaves')], {
           moves: function (el, container, handle) {
             return handle.classList.contains('drag-handle') || handle.parentNode.classList.contains('drag-handle');

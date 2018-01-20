@@ -4,7 +4,8 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
-from .utils import validate_uuid, create_value
+from .utils import validate_uuid, create_value, SentinelError
+from .consumers import create_condition
 from rest_framework import generics
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
@@ -156,6 +157,27 @@ class ConditionList(generics.ListAPIView):
         hub = get_object_or_404(Hub, id=self.kwargs['id'])
         if self.request.user.has_perm('view_hub', hub):
             return hub.conditions
+        else:
+            raise PermissionDenied
+
+    def post(self, request, format=None, **kwargs):
+        try:
+            name = request.data.get('name', '')
+            predicate = request.data.get('predicate', '')
+            action = request.data.get('action', '')
+            assert name and predicate and action
+        except (KeyError, AssertionError):
+            return JsonResponse({'accepted': False, 'reason': 'Missing one of [name, predicate, action]'})
+
+        hub = get_object_or_404(Hub, id=kwargs['id'])
+
+        if self.request.user.has_perm('view_hub', hub):
+            try:
+                create_condition(name, predicate, action, hub)
+            except SentinelError as e:
+                return JsonResponse({'accepted': True, 'reason': str(e)})
+
+            return JsonResponse({'accepted': True})
         else:
             raise PermissionDenied
 
