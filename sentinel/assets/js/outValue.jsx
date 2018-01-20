@@ -33,6 +33,13 @@ export class OutValue extends React.Component {
 
     }
 
+    componentDidUpdate(prevProps, prevState) {
+        if(prevProps.value !== this.props.value) {
+            if(this.props.format === 'bool') {
+                this.setState({value: this.props.value});
+            }
+        }
+    }
 
     render(){
         if (this.props.format === "bool") {
@@ -52,7 +59,7 @@ export class OutValue extends React.Component {
         } else {
             return (
                 <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
-                    <input type="text" pattern={this.getPattern()} onChange={this.handleChange} value={this.state.value}
+                    <input type="text" pattern={this.getPattern()} onChange={this.handleChange}
                            className="form-control" placeholder={this.props.value + "(current)"} aria-label="new_value"
                            aria-describedby="basic-addon2" disabled={!this.props.connected}/>
                     <div className="input-group-append input-group-btn">

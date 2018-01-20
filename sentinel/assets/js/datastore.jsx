@@ -11,6 +11,7 @@ export class Datastore extends React.Component {
             date: new Date(Date.now()).toLocaleTimeString()
         };
         this.toggleDeleteModal = this.toggleDeleteModal.bind(this);
+        this.updateTime = this.updateTime.bind(this);
     }
 
     toggleDeleteModal() {
@@ -18,7 +19,7 @@ export class Datastore extends React.Component {
     }
 
     updateTime() {
-        this.setState({date: new Date(Date.now())});
+        this.setState({date: new Date(Date.now()).toLocaleTimeString()});
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -62,7 +63,7 @@ export class Datastore extends React.Component {
                         </div>
                       </CardBody>
                       <CardFooter className="text-muted text-center">
-                        Last Updated: { this.state.date }
+                          Last Updated: { this.state.date }
                       </CardFooter>
                     </Card>
                 </div>);

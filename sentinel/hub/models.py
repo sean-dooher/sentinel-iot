@@ -480,12 +480,18 @@ class Action(PolymorphicModel):
 
 class SetAction(Action):
     def run(self):
-        message = {'type': 'SET_OUTPUT',
-                   'uuid': self.target_uuid,
-                   'device': self.target_device,
-                   'value': self._value.value,
-                   'format': self._value.format}
-        Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+        # TODO: consider approaches to avoiding bypassing write guards on changing datastore value here
+        if self.target_uuid != 'datastore':
+            message = {'type': 'SET_OUTPUT',
+                       'uuid': self.target_uuid,
+                       'device': self.target_device,
+                       'value': self._value.value,
+                       'format': self._value.format}
+            Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+        else:
+            datastore = self.condition.hub.datastores.get(name=self.target_device)
+            datastore.value = self._value.value
+            print("here")
 
     @property
     def action_type(self):
@@ -494,12 +500,17 @@ class SetAction(Action):
 
 class ChangeAction(Action):
     def run(self):
-        message = {'type': 'CHANGE_OUTPUT',
-                   'uuid': self.target_uuid,
-                   'device': self.target_device,
-                   'value': self.value.value,
-                   'format': self.value.format}
-        Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+        if self.target_uuid != 'datastore':
+            message = {'type': 'CHANGE_OUTPUT',
+                       'uuid': self.target_uuid,
+                       'device': self.target_device,
+                       'value': self.value.value,
+                       'format': self.value.format}
+            Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+        else:
+            datastore = self.condition.hub.datastores.get(name=self.target_device)
+            datastore.value = datastore.value + self._value.value
+            print("here")
 
     @property
     def action_type(self):
