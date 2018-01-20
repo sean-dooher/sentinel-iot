@@ -21,6 +21,13 @@ export class Device extends React.Component {
         }
     }
 
+    componentDidUpdate(prevProps, prevState) {
+        if(prevProps.value !== this.props.value) {
+            this.props.update();
+        }
+
+    }
+
     render(){
        return (
            <div className="row">

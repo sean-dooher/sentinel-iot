@@ -4,12 +4,14 @@ import { AdminPage } from "./adminpage";
 import { Leaf } from "./leaf";
 import { Conditions } from "./conditions";
 import { Datastore } from "./datastore";
+import {ConditionCreator, conditionCreator} from "./conditionCreator";
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Alert} from 'reactstrap';
 import { FormGroup, Input, Form, Label} from 'reactstrap';
 
 import Cookies from "js-cookie";
 
 import Dragula from 'react-dragula';
+import {LeafSelector} from "./leafSelector";
 
 window.getHeader = {
     method:'get',
@@ -250,15 +252,12 @@ export class App extends React.Component {
     showConditions() {
         return <section className="conditions">
             <h2>Conditions <Button color='primary' onClick={this.toggleConditionModal}>Create</Button></h2>
-            <Modal isOpen={this.state.showConditionsModal} toggle={this.toggleConditionModal}>
+            <Modal size="lg" isOpen={this.state.showConditionsModal} toggle={this.toggleConditionModal}>
               <ModalHeader toggle={this.toggleConditionModal}>Create a condition</ModalHeader>
               <Form>
                   <ModalBody>
-                    {this.state.leafErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
-                        <FormGroup>
-                          <Label for="newUUID">Leaf UUID</Label>
-                          <Input type="text" name="uuid" id="newUUID" placeholder="UUID" title="Must be a valid UUID" required pattern="[0-9a-f]{8}(?:-{0,1}[0-9a-f]{4}){3}-{0,1}[0-9a-f]{12}" />
-                        </FormGroup>
+                    {this.state.conditionErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
+                    <ConditionCreator leaves={this.state.leaves}/>
                   </ModalBody>
                   <ModalFooter>
                     <Button color="primary">Send</Button>{' '}
@@ -405,7 +404,6 @@ export class App extends React.Component {
 
     componentDidMount(){
         this.refresh();
-
         Dragula([document.querySelector('#leaves')], {
           moves: function (el, container, handle) {
             return handle.classList.contains('drag-handle') || handle.parentNode.classList.contains('drag-handle');

@@ -7,12 +7,19 @@ export class Leaf extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            update_date: new Date(Date.now())
-        }
+            date: new Date(Date.now()).toLocaleTimeString()
+        };
+        this.updateTime = this.updateTime.bind(this);
     }
 
     updateTime() {
-        this.setState({update_date: new Date(Date.now())});
+        this.setState({date: new Date(Date.now()).toLocaleTimeString()});
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if(prevProps.is_connected !== this.props.is_connected) {
+            this.updateTime();
+        }
     }
 
     render(){
@@ -26,8 +33,6 @@ export class Leaf extends React.Component {
                             <div className="dropdown-toggle dropdown-toggle-split pointer leaf-icon"></div>
                           </div>
                           <div className="dropdown-menu" aria-labelledby="leafdropdown">
-                              <button className="dropdown-item">Configure Devices</button>
-                              <button className="dropdown-item">Hide Leaf</button>
                               <button className="dropdown-item">Disconnect Leaf</button>
                           </div>
                       </CardHeader>
@@ -39,10 +44,10 @@ export class Leaf extends React.Component {
                             <div className="col-md-4"><strong>Value</strong></div>
                         </div> : <p>This Leaf has no devices attached</p> }
                             { this.props.devices.map((device, key) =>
-                                <Device key={key} leaf={this.props.uuid} sendMessage={this.props.sendMessage} {... device} connected={this.props.is_connected} />)}
+                                <Device key={key} leaf={this.props.uuid} sendMessage={this.props.sendMessage} {... device} connected={this.props.is_connected} update={this.updateTime} />)}
                         </CardBody>
                       <CardFooter className="text-muted text-center">
-                        Last Updated: { this.state.update_date.toLocaleTimeString() }
+                        Last Updated: { this.state.date }
                       </CardFooter>
                     </Card>
                 </div>);

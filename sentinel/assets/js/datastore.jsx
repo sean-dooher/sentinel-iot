@@ -7,27 +7,24 @@ export class Datastore extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            update_date: new Date(Date.now()),
             showDeleteModal: false,
-            deleteErrors: []
+            date: new Date(Date.now()).toLocaleTimeString()
         };
         this.toggleDeleteModal = this.toggleDeleteModal.bind(this);
-        this.addDeleteError = this.addDeleteError.bind(this);
-    }
-
-    addDeleteError(text) {
-        this.setState((prev, props) => {
-            let errors = prev.deleteErrors.concat([text]).slice(-3); // limit number of errors to 3
-            return {deleteErrors: errors};
-        });
     }
 
     toggleDeleteModal() {
-        this.setState((prev, props) => {return {showDeleteModal: !prev.showDeleteModal, deleteErrors:[]};});
+        this.setState((prev, props) => {return {showDeleteModal: !prev.showDeleteModal};});
     }
 
     updateTime() {
-        this.setState({update_date: new Date(Date.now())});
+        this.setState({date: new Date(Date.now())});
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if(prevProps.value !== this.props.value) {
+            this.updateTime();
+        }
     }
 
     render(){
@@ -46,7 +43,6 @@ export class Datastore extends React.Component {
                           <Modal isOpen={this.state.showDeleteModal} toggle={this.toggleDeleteModal}>
                           <ModalHeader toggle={this.toggleDeleteModal}>{"Delete Datastore: " + this.props.name}</ModalHeader>
                           <ModalBody>
-                            {this.state.deleteErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
                             <p>Are you sure you want to delete this datastore?</p>
                           </ModalBody>
                           <ModalFooter>
@@ -66,7 +62,7 @@ export class Datastore extends React.Component {
                         </div>
                       </CardBody>
                       <CardFooter className="text-muted text-center">
-                        Last Updated: { this.state.update_date.toLocaleTimeString() }
+                        Last Updated: { this.state.date }
                       </CardFooter>
                     </Card>
                 </div>);
