@@ -8,8 +8,24 @@ export class Device extends React.Component {
         this.sendSet = this.sendSet.bind(this);
     }
 
-    sendSet() {
-
+    sendSet(value) {
+        let headers = Object.assign({}, window.putHeader);
+        headers.body = JSON.stringify({value: value, format: this.props.format, device:this.props.name});
+        fetch(window.host + "/api/hub/" + window.hub + "/leaves/" + this.props.leaf, headers)
+            .then(r => {
+                if(r.ok) {
+                    r.json().then(json => {
+                            if (!json.accepted) {
+                                console.log("Error: " + json.reason);
+                            }
+                        }
+                    ).catch(() => console.log("Error: error occured parsing response"))
+                } else {
+                    r.text().then(text => console.log(text));
+                    console.log("Error: " + r.statusText + " (" + r.status + ")");
+                }
+            })
+            .catch((e) => console.log("Error: an unknown error has occured\n"+e));
     }
 
     getValue() {
@@ -17,7 +33,7 @@ export class Device extends React.Component {
             return this.props.value.toString() + (this.props.format === "number+units" ? this.props.units : "");
         }
         else {
-            return <OutValue value={this.props.value} format={this.props.format} small connected={this.props.connected}/>
+            return <OutValue value={this.props.value} format={this.props.format} small connected={this.props.connected} send={this.sendSet}/>
         }
     }
 
@@ -32,11 +48,10 @@ export class Device extends React.Component {
        return (
            <div className="row">
                 <div className="col-md-4">{ this.props.name }</div>
-                <div className="col-md-3">{ this.props.format }</div>
+                <div className="col-md-4">{ this.props.format }</div>
                 <div className="col-md-4">
                     { this.getValue() }
                 </div>
-                <div className="col-md-1"><i className="fas fa-cog"></i></div>
            </div>
        );
     }
@@ -47,5 +62,6 @@ Device.propTypes = {
   format: PropTypes.string,
   value: PropTypes.any,
   units: PropTypes.string,
+  leaf: PropTypes.string,
   connected: PropTypes.bool,
 };

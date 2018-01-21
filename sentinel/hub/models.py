@@ -198,6 +198,10 @@ class Leaf(models.Model):
     def message_template(self):
         return {"uuid": self.uuid, "hub_id": self.hub_id}
 
+    @property
+    def group(self):
+        return Group(f"{self.hub.id}-{self.uuid}")
+
     def __repr__(self):
         return "Leaf <name: {}, uuid:{}>".format(self.name, self.uuid)
 
@@ -422,7 +426,10 @@ class ComparatorPredicate(Predicate):
 
     def delete(self, *args, **kwargs):
         try:
-            self.second_value.device  # see if the value is a literal or device value
+            try:  # see if the value is a literal or device value
+                self.second_value.device
+            except ObjectDoesNotExist:
+                self.second_value.datastore
         except ObjectDoesNotExist:
             self.second_value.delete()  # delete the value if it's a literal
         super().delete(*args, **kwargs)
@@ -434,8 +441,12 @@ class ComparatorPredicate(Predicate):
     @staticmethod
     def get_value_representation(value):
         try:
-            device = value.device
-            return [device.leaf.uuid, device.name]
+            try:
+                device = value.device
+                return [device.leaf.uuid, device.name]
+            except ObjectDoesNotExist:
+                datastore = value.datastore
+                return ['datastore', datastore.name]
         except ObjectDoesNotExist:
             return value.to_json()
 
@@ -491,7 +502,6 @@ class SetAction(Action):
         else:
             datastore = self.condition.hub.datastores.get(name=self.target_device)
             datastore.value = self._value.value
-            print("here")
 
     @property
     def action_type(self):

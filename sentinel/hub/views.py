@@ -87,7 +87,7 @@ class LeafList(generics.ListAPIView):
             raise PermissionDenied
 
 
-class LeafDetail(generics.RetrieveAPIView):
+class LeafDetail(generics.RetrieveDestroyAPIView):
     serializer_class = LeafSerializer
     lookup_field = "uuid"
 
@@ -97,6 +97,34 @@ class LeafDetail(generics.RetrieveAPIView):
             return hub.leaves
         else:
             raise PermissionDenied
+
+    def put(self, request, **kwargs):
+        print(request.data)
+        try:
+            value = request.data.get('value', '')
+            format = request.data.get('format', '')
+            device = request.data.get('device', '')
+            assert value is not None and format and device
+        except (KeyError, AssertionError):
+            return JsonResponse({'accepted': False, 'reason': 'Missing one of [device, value, format]'})
+        hub = get_object_or_404(Hub, id=kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            leaf = self.get_object()
+            if leaf.devices.filter(name=device).exists():
+                device = leaf.devices.get(name=device)
+                if device.mode == 'OUT':
+                    leaf.group.send({'text':json.dumps({'type': 'SET_OUTPUT', 'device': device.name, 'value': value, 'format': format})})
+                    return JsonResponse({'accepted': True})
+                else:
+                    return JsonResponse({'accepted': False, 'reason': f'{device} is not an output device'})
+        else:
+            raise PermissionDenied
+
+    def delete(self, *args, **kwargs):
+        leaf = self.get_object()
+        if User.objects.filter(username=f"{leaf.hub.id}-{leaf.uuid}").exists():
+            User.objects.get(username=f"{leaf.hub.id}-{leaf.uuid}").delete()
+        super().delete(*args, **kwargs)
 
 
 class DatastoreList(generics.ListAPIView):
@@ -115,7 +143,7 @@ class DatastoreList(generics.ListAPIView):
             value = request.data.get('value', '')
             format = request.data.get('format', '')
             units = request.data.get('units', '')
-            assert name and value and format
+            assert name and value is not None and format
         except (KeyError, AssertionError):
             return JsonResponse({'accepted': False, 'reason': 'Missing one of [name, value, format]'})
         hub = get_object_or_404(Hub, id=kwargs['id'])
@@ -146,6 +174,22 @@ class DatastoreDetail(generics.RetrieveDestroyAPIView):
         hub = get_object_or_404(Hub, id=self.kwargs['id'])
         if self.request.user.has_perm('view_hub', hub):
             return hub.datastores
+        else:
+            raise PermissionDenied
+
+    def put(self, request, **kwargs):
+        print(request.data)
+        try:
+            value = request.data.get('value', '')
+            format = request.data.get('format', '')
+            assert value is not None and format is not None
+        except (KeyError, AssertionError):
+            return JsonResponse({'accepted': False, 'reason': 'Missing one of [value, format]'})
+        hub = get_object_or_404(Hub, id=kwargs['id'])
+        if self.request.user.has_perm('view_hub', hub):
+            datastore = self.get_object()
+            datastore.value = value
+            return JsonResponse({'accepted': True})
         else:
             raise PermissionDenied
 

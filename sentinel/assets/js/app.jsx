@@ -33,6 +33,16 @@ window.postHeader = {
     }
 };
 
+window.putHeader = {
+    method:'put',
+    credentials: "same-origin",
+    headers: {
+    "X-CSRFToken": Cookies.get("csrftoken"),
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+    }
+};
+
 window.deleteHeader = {
     method:'delete',
     credentials: "same-origin",
@@ -45,6 +55,7 @@ window.deleteHeader = {
 
 
 window.host = "http://localhost:8000";
+window.hub = -1;
 
 export class App extends React.Component {
     constructor(props) {
@@ -131,7 +142,7 @@ export class App extends React.Component {
 
     sendDeleteHub() {
         fetch(window.host + "/api/hub/" + this.state.activeHub, deleteHeader).then(r => {
-            if(r.ok && this.state.showDeleteModal) {
+            if(r.ok) {
                 this.toggleDeleteModal();
                 this.changeActiveHub(-1);
             } else {
@@ -206,6 +217,7 @@ export class App extends React.Component {
     }
 
     changeActiveHub(hub) {
+        window.hub = hub;
         this.setState(
             {
                 activeHub: hub,
@@ -430,7 +442,6 @@ export class App extends React.Component {
     }
 
     componentDidMount(){
-        this.refresh();
         setInterval(this.refresh, 500);
         Dragula([document.querySelector('#leaves')], {
           moves: function (el, container, handle) {

@@ -38,11 +38,11 @@ export class ComparatorPredicate extends React.Component {
         let first = [this._first.state.selected_leaf, this._first.state.selected_device];
         let second;
         if(this._second.state.selected_leaf === 'literal') {
-            console.dir(this._second.state.selected_device)
             second = this.state.first_format !== 'string' ? JSON.parse(this._second.state.selected_device) : this._second.state.selected_device;
         } else {
             second = [this._second.state.selected_leaf, this._second.state.selected_device];
         }
+        console.dir([this.state.operator, first, second]);
         return [this.state.operator, first, second];
     }
 

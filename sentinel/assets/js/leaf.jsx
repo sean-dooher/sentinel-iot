@@ -1,15 +1,42 @@
 import React from "react";
 import { Device } from "./device";
-import {Card, CardBody, CardHeader, CardFooter} from "reactstrap";
+import {Modal, ModalHeader, ModalFooter, ModalBody, Card, CardBody, CardHeader, CardFooter, Button, Alert} from "reactstrap";
 import PropTypes from "prop-types";
 
 export class Leaf extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            date: new Date(Date.now()).toLocaleTimeString()
+            date: new Date(Date.now()).toLocaleTimeString(),
+            deleteErrors: [],
+            showDeleteModal: false,
         };
+        this.addDeleteError = this.addDeleteError.bind(this);
+        this.toggleDeleteModal = this.toggleDeleteModal.bind(this);
+        this.sendDelete = this.sendDelete.bind(this);
         this.updateTime = this.updateTime.bind(this);
+    }
+
+    addDeleteError(text) {
+        this.setState((prev, props) => {
+            let errors = prev.deleteErrors.concat([text]).slice(-3); // limit number of errors to 3
+            return {deleteErrors: errors};
+        });
+    }
+
+    toggleDeleteModal() {
+        this.setState((prev, props) => {return {showDeleteModal: !prev.showDeleteModal};});
+    }
+
+    sendDelete() {
+        fetch(window.host + "/api/hub/" + window.hub + "/leaves/" + this.props.uuid, deleteHeader).then(r => {
+            if(r.ok) {
+                this.toggleDeleteModal();
+            } else {
+                r.json().then(json => this.addDeleteError("Error: " + json.detail)).catch(e => "Error: an unknown error has occurred");
+            }
+        })
+        .catch(r => this.addDeleteError(r))
     }
 
     updateTime() {
@@ -33,8 +60,19 @@ export class Leaf extends React.Component {
                             <div className="dropdown-toggle dropdown-toggle-split pointer leaf-icon"></div>
                           </div>
                           <div className="dropdown-menu" aria-labelledby="leafdropdown">
-                              <button className="dropdown-item">Disconnect Leaf</button>
+                              <button className="dropdown-item" onClick={this.toggleDeleteModal}>Disconnect Leaf</button>
                           </div>
+                          <Modal isOpen={this.state.showDeleteModal} toggle={this.toggleDeleteModal}>
+                              <ModalHeader toggle={this.toggleDeleteModal}>Disconnect Leaf</ModalHeader>
+                              <ModalBody>
+                                {this.state.deleteErrors.map((error, key) => <Alert color="danger" key={key}>{error}</Alert>)}
+                                <p>Are you sure you want to disconnect this leaf? It will not be able to reconnect until you register it again.</p>
+                              </ModalBody>
+                              <ModalFooter>
+                                <Button color="danger" onClick={this.sendDelete}>Yes</Button>{' '}
+                                <Button color="secondary" onClick={this.toggleDeleteModal}>No</Button>
+                              </ModalFooter>
+                          </Modal>
                       </CardHeader>
                       <CardBody>
                       { this.props.devices.length > 0 ?

@@ -12,6 +12,7 @@ export class Datastore extends React.Component {
         };
         this.toggleDeleteModal = this.toggleDeleteModal.bind(this);
         this.updateTime = this.updateTime.bind(this);
+        this.send = this.send.bind(this);
     }
 
     toggleDeleteModal() {
@@ -26,6 +27,26 @@ export class Datastore extends React.Component {
         if(prevProps.value !== this.props.value) {
             this.updateTime();
         }
+    }
+
+    send(value) {
+        let headers = Object.assign({}, window.putHeader);
+        headers.body = JSON.stringify({value: value, format: this.props.format});
+        fetch(window.host + "/api/hub/" + window.hub + "/datastores/" + this.props.name, headers)
+            .then(r => {
+                if(r.ok) {
+                    r.json().then(json => {
+                            if (!json.accepted) {
+                                console.log("Error: " + json.reason);
+                            }
+                        }
+                    ).catch(() => console.log("Error: error occured parsing response"))
+                } else {
+                    r.text().then(text => console.log(text));
+                    console.log("Error: " + r.statusText + " (" + r.status + ")");
+                }
+            })
+            .catch((e) => console.log("Error: an unknown error has occured\n"+e));
     }
 
     render(){
@@ -59,7 +80,7 @@ export class Datastore extends React.Component {
                         </div>
                         <div className="row">
                             <div className="col-md-6">{this.props.format}</div>
-                            <div className="col-md-6"><OutValue format={this.props.format} value={this.props.value} small connected/></div>
+                            <div className="col-md-6"><OutValue send={this.send} format={this.props.format} value={this.props.value} small connected/></div>
                         </div>
                       </CardBody>
                       <CardFooter className="text-muted text-center">

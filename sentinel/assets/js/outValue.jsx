@@ -26,11 +26,13 @@ export class OutValue extends React.Component {
     }
 
     sendSet() {
-
-    }
-
-    getValue() {
-
+        let value;
+        if(this.props.format === 'string') {
+            value = this.state.value;
+        } else {
+            value = JSON.parse(this.state.value);
+        }
+        this.props.send(value);
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -76,4 +78,5 @@ OutValue.propTypes = {
     value: PropTypes.any,
     format: PropTypes.string,
     connected: PropTypes.bool,
+    send: PropTypes.func
 };
