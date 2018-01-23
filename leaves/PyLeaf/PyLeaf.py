@@ -4,13 +4,14 @@ import json
 
 
 class PyLeaf:
-    API_VERSION = '0.0.1'
+    API_VERSION = '1.0.0'
 
-    def __init__(self, name, model, uuid, socket=None):
+    def __init__(self, name, model, uuid, token, socket=None):
         self.devices = {}
         self.name = name
         self.uuid = uuid
         self.model = model
+        self.token = token
         self.socket = None
         self.socket_thread = None
         self.max_connect_attempt = 5
@@ -31,11 +32,12 @@ class PyLeaf:
             self.connected = True
             self.send_config()
 
-        self.socket = PyLeaf.create_socket(socket,
-                                           on_open=on_connect,
-                                           on_close=lambda message: self.attempt_reconnect(),
-                                           on_message=lambda ws, message: self.parse_message(message),
-                                           on_error=lambda ws, error: self.process_error(error))
+        self.socket = WebSocketApp(socket,
+                                   on_open=on_connect,
+                                   on_close=lambda message: self.attempt_reconnect(),
+                                   on_message=lambda ws, message: self.parse_message(message),
+                                   on_error=lambda ws, error: self.process_error(error))
+
         self.socket_thread = threading.Thread(target=self.socket.run_forever)
 
         # override default join behavior to shut down thread properly when exiting program
@@ -69,14 +71,8 @@ class PyLeaf:
     def send_device_list(self):
         message = {'type': 'DEVICE_LIST',
                    'uuid': self.uuid}
-        devices = []
-        for device in self.devices.values():
-            devices.append({'name': device.name,
-                            'format': device.format,
-                            'value': device.value,
-                            'mode': device.mode,
-                            'options': device.options})
-        message['devices'] = devices
+        for device in self.devices:
+            self.send_status(device)
         self.socket.send(json.dumps(message))
 
     def send_name(self):
@@ -93,14 +89,7 @@ class PyLeaf:
             self.socket.send(json.dumps(message))
 
         type = message["type"]
-        if type == 'UPDATE_NAME':
-            self.name = message['name']
-            self.send_name()
-
-        elif type == 'GET_NAME':
-            self.send_name()
-
-        elif type == 'LIST_DEVICES':
+        if type == 'LIST_DEVICES':
             self.send_device_list()
 
         elif type == 'UPDATE_OPTION':
@@ -141,7 +130,7 @@ class PyLeaf:
             return self.send_config()
 
         elif type == 'CONFIG_COMPLETE':
-            return self.send_device_list()
+            return self.process_queue()
 
         elif type == 'SUBSCRIBER_UPDATE':
             sub_message = json.loads(message["message"])
@@ -164,6 +153,7 @@ class PyLeaf:
             'uuid': self.uuid,
             'model': self.model,
             'name': self.name,
+            'token': self.token,
             'api_version': self.API_VERSION,
         }
         self.socket.send(json.dumps(leaf))
@@ -241,14 +231,10 @@ class PyLeaf:
                    'device': device_name}
         self.socket.send(json.dumps(message))
 
-    @classmethod
-    def create_socket(cls, socket, on_open, on_close, on_message, on_error):
-        return WebSocketApp(socket, on_open, on_close, on_message, on_error)
-
 
 class Device:
-    IN = 1
-    OUT = 2
+    IN = "IN"
+    OUT = "OUT"
 
     def __init__(self, name, initial, format, mode=IN, units=None, onchange=None):
         self.name = name
