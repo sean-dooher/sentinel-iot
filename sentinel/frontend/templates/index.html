@@ -270,7 +270,7 @@
                 // handle a successful response
                 success: function (json) {
                     if (json.accepted) {
-                        window.location.replace("hub/dashboard");
+                        window.location.replace("{% url 'dashboard' %}");
                     } else {
                         document.querySelector("#login-alerts").innerHTML = '<div id="login-failed" class="alert alert-danger alert-dismissable fade in">\n' +
                             '                            <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>\n' +

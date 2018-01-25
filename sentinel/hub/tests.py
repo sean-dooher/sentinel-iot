@@ -5,7 +5,7 @@ from guardian.models import Group as PermGroup
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from channels import Group
-from .models import Leaf, Hub
+from .models import Leaf, Hub, Datastore
 import logging
 import json
 
@@ -755,6 +755,84 @@ class ConditionsTests(ConsumerTests):
         response = admin_client.receive()
         self.assertIsNotNone(response, "Expected invalid device message as other_sensor is not an output")
         self.assertEquals(response['type'], 'INVALID_DEVICE')
+
+        def test_basic_conditions(self):
+            hub = self.create_hub("test_hub")
+
+            def test_basic(operator, literal, initial, wrong, right):
+                name = 'basic_' + operator + str(literal)
+                admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0',
+                                                                 '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+                rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e',
+                                                               hub)
+                door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49',
+                                                               hub)
+
+                self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', initial, 'number')
+                self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+
+                predicates = [operator, [rfid_leaf.uuid, 'rfid_reader'], literal]
+                self.send_create_condition(admin_client, admin_leaf.uuid, name,
+                                           predicates, action_type='SET', action_target=door_leaf.uuid,
+                                           action_device='door_open', action_value=True)
+
+                self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', wrong, 'number')
+                self.assertIsNone(door_client.receive())  # condition has not been met yet
+                self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', right, 'number')
+
+                expected = {
+                    'type': 'SET_OUTPUT',
+                    'uuid': door_leaf.uuid,
+                    'device': 'door_open',
+                    'value': True,
+                    'format': 'bool'
+                }
+                response = door_client.receive()
+                self.assertIsNotNone(response, "Expected a SET_OUTPUT response from condition")
+                self.assertEqual(expected['type'], response['type'])
+                self.assertEqual(expected['uuid'], response['uuid'])
+                self.assertEqual(expected['device'], response['device'])
+                self.assertEqual(expected['value'], response['value'])
+                self.assertEqual(expected['format'], response['format'])
+                self.assertIsNone(door_client.receive())  # only gets one update
+                self.send_delete_condition(admin_client, admin_leaf.uuid, name)
+
+            test_basic('=', 3032042781, 33790, 3032042780, 3032042781)
+            test_basic('!=', 3032042781, 3032042781, 3032042781, 33790)
+            test_basic('>', 0, -12, -5, 13)
+            test_basic('<', 0, 12, 5, -13)
+            test_basic('>=', 0, -12, -5, 0)
+            test_basic('<=', 0, 12, 5, 0)
+
+    def test_basic_conditions(self):
+        hub = self.create_hub("test_hub")
+
+        name = 'basic-datastore'
+        admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+
+        self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'door_open', False, 'bool')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 301323, 'number')
+
+        predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 33790]
+        self.send_create_condition(admin_client, admin_leaf.uuid, name,
+                                   predicates, action_type='SET', action_target='datastore',
+                                   action_device='door_open', action_value=True)
+
+        door_open = Datastore.objects.get(name="door_open")
+
+        self.assertEqual(door_open.value, False, 'The RFID leaf does not meet the predicate, so the datastore should be false')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
+        door_open.refresh_from_db()
+        self.assertEqual(door_open.value, False, 'The RFID leaf does not meet the predicate, so the datastore should be false')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        door_open.refresh_from_db()
+        self.assertEqual(door_open.value, True, 'The RFID leaf does meet the predicate, so the datastore should be true')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
+        door_open.refresh_from_db()
+        self.assertEqual(door_open.value, True, 'The datastore should not update to false if the predicate is no longer true')
+
+        self.send_delete_condition(admin_client, admin_leaf.uuid, name)
 
 
 class HubTests(ConsumerTests):
