@@ -29,7 +29,11 @@ def create_leaf_permissions(sender, **kwargs):
         hub_group = PermGroup.objects.get(name="hub-" + str(leaf.hub.id))
         default_group = PermGroup.objects.get(name="default")
         assign_perm('view_leaf', hub_group, leaf)
+        assign_perm('change_leaf', hub_group, leaf)
+        assign_perm('delete_leaf', hub_group, leaf)
         remove_perm('view_leaf', default_group, leaf)
+        remove_perm('change_leaf', default_group, leaf)
+        remove_perm('delete_leaf', default_group, leaf)
 
 
 @receiver(post_save, sender=User)

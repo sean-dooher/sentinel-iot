@@ -149,11 +149,6 @@ REST_FRAMEWORK = {
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
-
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.DjangoObjectPermissions',
-    )
-
 }
 
 # Internationalization

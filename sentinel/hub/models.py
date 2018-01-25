@@ -315,8 +315,7 @@ class Datastore(models.Model):
     class Meta:
         unique_together = (('name', 'hub'),)
         permissions = (
-            ('view_datastore', 'View Datastore'),
-            ('write_datastore', 'Write Datastore'),
+            ('view_datastore', 'Can view the datastore'),
         )
 
     @property

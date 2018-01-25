@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
+from rest_framework.permissions import DjangoObjectPermissions
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
 from .utils import validate_uuid, create_value, SentinelError
@@ -10,6 +11,11 @@ from rest_framework import generics
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from guardian.models import Group as PermGroup
 import secrets, json
+
+
+class ObjectOnlyPermissions(DjangoObjectPermissions):
+    def has_permission(self, request, view):
+        return True
 
 
 def register_leaf(request, id):
@@ -43,6 +49,7 @@ def register_leaf(request, id):
 
 class HubList(generics.ListAPIView):
     serializer_class = HubSerializer
+    permission_classes = [ObjectOnlyPermissions]
 
     def get_queryset(self):
         user = self.request.user
@@ -67,6 +74,7 @@ class HubDetail(generics.RetrieveDestroyAPIView):
     queryset = Hub.objects.all()
     serializer_class = HubSerializer
     lookup_field = "id"
+    permission_classes = [ObjectOnlyPermissions]
 
     def get_object(self):
         obj = super().get_object()
@@ -78,6 +86,7 @@ class HubDetail(generics.RetrieveDestroyAPIView):
 
 class LeafList(generics.ListAPIView):
     serializer_class = LeafSerializer
+    permission_classes = [ObjectOnlyPermissions]
 
     def get_queryset(self):
         hub = get_object_or_404(Hub, id=self.kwargs['id'])
@@ -90,6 +99,7 @@ class LeafList(generics.ListAPIView):
 class LeafDetail(generics.RetrieveDestroyAPIView):
     serializer_class = LeafSerializer
     lookup_field = "uuid"
+    permission_classes = [ObjectOnlyPermissions]
 
     def get_queryset(self):
         hub = get_object_or_404(Hub, id=self.kwargs['id'])
@@ -158,7 +168,7 @@ class DatastoreList(generics.ListAPIView):
             hub_group = PermGroup.objects.get(name="hub-" + str(hub.id))
 
             assign_perm('view_datastore', hub_group, datastore)
-            assign_perm('write_datastore', hub_group, datastore)
+            assign_perm('change_datastore', hub_group, datastore)
             assign_perm('delete_datastore', self.request.user, datastore)
 
             return JsonResponse({'accepted': True})

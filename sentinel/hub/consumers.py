@@ -189,19 +189,19 @@ def hub_handle_datastore_create(message):
 
         if level == 'read':
             assign_perm('view_datastore', user, datastore)
-            remove_perm('write_datastore', user, datastore)
+            remove_perm('change_datastore', user, datastore)
             remove_perm('delete_datastore', user, datastore)
         elif level == 'write':
             assign_perm('view_datastore', user, datastore)
-            assign_perm('write_datastore', user, datastore)
+            assign_perm('change_datastore', user, datastore)
             remove_perm('delete_datastore', user, datastore)
         elif level == 'admin':
             assign_perm('view_datastore', user, datastore)
-            assign_perm('write_datastore', user, datastore)
+            assign_perm('change_datastore', user, datastore)
             assign_perm('delete_datastore', user, datastore)
         elif level == 'deny':
             remove_perm('view_datastore', user, datastore)
-            remove_perm('write_datastore', user, datastore)
+            remove_perm('change_datastore', user, datastore)
             remove_perm('delete_datastore', user, datastore)
 
     if not hub.datastores.filter(name=mess['name']).exists():
@@ -263,7 +263,7 @@ def hub_handle_datastore_set(message):
     try:
         datastore = hub.datastores.get(name=mess['name'])
         user = User.objects.get(username=message.channel_session['user'])
-        if user.has_perm('write_datastore', datastore):
+        if user.has_perm('change_datastore', datastore):
             datastore.value = mess['value']
             reply = {
                 'type': 'DATASTORE_VALUE',
