@@ -53,8 +53,6 @@ window.deleteHeader = {
     }
 };
 
-
-window.host = "http://localhost:8000";
 window.hub = -1;
 
 export class App extends React.Component {
