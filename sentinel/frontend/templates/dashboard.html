@@ -19,7 +19,7 @@
         window.info = {
             username: "{{ request.user.username }}",
             logout_url: "{% url 'logout' %}"};
-        window.host = window.location.host;
+        window.host = location.protocol + "//" + location.host;
     </script>
     {% render_bundle 'main' %}
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
