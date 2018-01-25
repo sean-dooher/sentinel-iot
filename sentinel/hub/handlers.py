@@ -8,7 +8,6 @@ from .models import Hub, Leaf, Condition, Datastore
 import re
 
 
-@receiver(post_save, sender=Hub)
 def create_hub_permission_group(sender, **kwargs):
     if kwargs.get('created', False):
         if not PermGroup.objects.filter(name="default").exists():
@@ -22,7 +21,9 @@ def create_hub_permission_group(sender, **kwargs):
         remove_perm('delete_hub', default_group, hub)
 
 
-@receiver(post_save, sender=Leaf)
+post_save.connect(create_hub_permission_group, sender=Hub)
+
+
 def create_leaf_permissions(sender, **kwargs):
     if kwargs.get('created', False):
         leaf = kwargs['instance']
@@ -36,7 +37,9 @@ def create_leaf_permissions(sender, **kwargs):
         remove_perm('delete_leaf', default_group, leaf)
 
 
-@receiver(post_save, sender=User)
+post_save.connect(create_leaf_permissions, sender=Leaf)
+
+
 def create_user_default_permissions(sender, **kwargs):
     user = kwargs['instance']
     if kwargs.get('created', False) and user.username != 'AnonymousUser' and user.username != AnonymousUser.username:
@@ -51,7 +54,9 @@ def create_user_default_permissions(sender, **kwargs):
             assign_perm('hub.delete_hub', user)
 
 
-@receiver(post_save, sender=Datastore)
+post_save.connect(create_user_default_permissions, sender=User)
+
+
 def create_datastore_permissions(sender, **kwargs):
     if kwargs.get('created', False):
         datastore = kwargs['instance']
@@ -60,7 +65,9 @@ def create_datastore_permissions(sender, **kwargs):
         assign_perm('delete_datastore', hub_group, datastore)
 
 
-@receiver(post_save, sender=Condition)
+post_save.connect(create_datastore_permissions, sender=Datastore)
+
+
 def create_condition_permissions(sender, **kwargs):
     if kwargs.get('created', False):
         condition = kwargs['instance']
@@ -70,3 +77,7 @@ def create_condition_permissions(sender, **kwargs):
         remove_perm('view_condition', default_group, condition)
         assign_perm('delete_condition', hub_group, condition)
         remove_perm('delete_condition', default_group, condition)
+
+
+post_save.connect(create_condition_permissions, sender=Condition)
+

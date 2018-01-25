@@ -5,4 +5,4 @@ class HubConfig(AppConfig):
     name = 'hub'
 
     def ready(self):
-        from . import handlers  # noqa
+        import hub.handlers
