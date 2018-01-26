@@ -3,6 +3,7 @@ from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.utils import timezone
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian.models import Group as PermGroup
 from .models import Leaf, Subscription, Device, Datastore, Hub
@@ -28,7 +29,7 @@ def ws_disconnect(message):
     if 'user' in message.channel_session:
         hub = Hub.objects.get(pk=message.channel_session['hub'])
         leaf = hub.get_leaf(message.channel_session['uuid'])
-        leaf.is_connected = False
+        leaf.is_connected = leaf.last_connect.timestamp() == message.channel_session['connect_time']
         leaf.save()
         Group(f"{leaf.hub.id}-{leaf.uuid}").discard(message.reply_channel)
 
@@ -93,9 +94,10 @@ def hub_handle_config(message):
         except InvalidLeaf:
             leaf = Leaf.create_from_message(mess, hub)
             leaf.hub = hub
-            leaf.save()
+        leaf.last_connected = timezone.now()
         leaf.is_connected = True
         leaf.save()
+        message.channel_session['connect_time'] = leaf.last_connected.timestamp()
         Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
         message.channel_session['user'] = user.username
         message.channel_session['uuid'] = uuid

@@ -103,6 +103,7 @@ class Leaf(models.Model):
     uuid = models.CharField(max_length=36)
     api_version = models.CharField(max_length=10, default="0.1.0")
     is_connected = models.BooleanField(default=True)
+    last_connected = models.DateTimeField()
     hub = models.ForeignKey(Hub, related_name="leaves")
 
     class Meta:
