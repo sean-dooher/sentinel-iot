@@ -30,6 +30,7 @@
     "js-cookie": "^2.2.0",
     "prop-types": "^15.6.0",
     "react-dragula": "^1.1.17",
-    "reactstrap": "^5.0.0-alpha.4"
+    "reactstrap": "^5.0.0-alpha.4",
+    "whatwg-fetch": "^2.0.3"
   }
 }
