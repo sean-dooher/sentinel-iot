@@ -325,7 +325,7 @@ export class App extends React.Component {
             this.socket.close(options={keepClosed: true});
         }
         if(this.is_active(hub)) {
-            this.socket = new ReconnectingWebSocket("ws://" + location.host + "/client/" + hub);
+            this.socket = new ReconnectingWebSocket("wss://" + location.host + "/client/" + hub);
             this.socket.onmessage = this.handleMessage;
             this.socket.onopen = (e) => {
                 console.log("Connecting to hub");
