@@ -112,6 +112,10 @@ class Leaf(models.Model):
         unique_together = (('uuid', 'hub'),)
         permissions = (('view_leaf', 'View Leaf'),)
 
+    def update_time(self):
+        self.last_updated = timezone.now()
+        self.save()
+
     def set_name(self, name):
         message = self.message_template
         message["type"] = "SET_NAME"
@@ -242,8 +246,7 @@ class Device(models.Model):
             self._value.value = new_value
             self._value.save()
             self.leaf.send_subscriber_update(self)
-            self.leaf.last_updated = timezone.now()
-            self.leaf.save()
+            self.leaf.update_time()
 
     @property
     def status_update_dict(self):

@@ -4,14 +4,13 @@ import { AdminPage } from "./adminpage";
 import { Leaf } from "./leaf";
 import { Conditions } from "./conditions";
 import { Datastore } from "./datastore";
-import {ConditionCreator, conditionCreator} from "./conditionCreator";
+import {ConditionCreator} from "./conditionCreator";
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Alert} from 'reactstrap';
 import { FormGroup, Input, Form, Label} from 'reactstrap';
-
+import ReconnectingWebSocket from 'reconnecting-websocket';
+import 'whatwg-fetch';
 import Cookies from "js-cookie";
-
 import Dragula from 'react-dragula';
-import {LeafSelector} from "./leafSelector";
 
 window.getHeader = {
     method:'get',
@@ -81,7 +80,6 @@ export class App extends React.Component {
             newDatastoreValue: true,
         };
         this.refreshHubs = this.refreshHubs.bind(this);
-        this.refresh = this.refresh.bind(this);
         this.changeActiveHub = this.changeActiveHub.bind(this);
         this.toggleDeleteModal = this.toggleDeleteModal.bind(this);
         this.sendDeleteHub = this.sendDeleteHub.bind(this);
@@ -96,6 +94,106 @@ export class App extends React.Component {
         this.createDatastore = this.createDatastore.bind(this);
         this.sendDeleteDatastore = this.sendDeleteDatastore.bind(this);
         this.sendCreateCondition = this.sendCreateCondition.bind(this);
+        this.handleConditionMessage = this.handleConditionMessage.bind(this);
+        this.handleLeafMessage = this.handleLeafMessage.bind(this);
+        this.handleDatastoreMessage = this.handleDatastoreMessage.bind(this);
+        this.handleMessage = this.handleMessage.bind(this);
+    }
+
+    handleMessage(e) {
+        let data = JSON.parse(e.data);
+        switch (data.stream) {
+            case 'leaves':
+                return this.handleLeafMessage(data);
+                break;
+            case 'conditions':
+                return this.handleConditionMessage(data);
+                break;
+            case 'datastores':
+                return this.handleDatastoreMessage(data);
+                break;
+            case 'default':
+                console.error('Unexpected messaged received from databinding');
+                break;
+        }
+    }
+
+    handleLeafMessage(message) {
+        if(message.payload.action === 'list') {
+            this.setState({leaves: message.payload.data})
+        } else if (message.payload.action === 'create') {
+            this.setState((prev, props) => {
+                let leaves = prev.leaves.slice();
+                leaves.push(message.payload.data);
+                leaves.sort();
+                return {leaves: leaves}
+            });
+        } else if (message.payload.action === 'delete') {
+            this.setState((prev, props) => {
+                let leaves = prev.leaves.filter(leaf => leaf.uuid !== message.payload.data.uuid);
+                leaves.sort();
+                return {leaves: leaves}
+            });
+        } if (message.payload.action === 'update') {
+            this.setState((prev, props) => {
+                let leaves = prev.leaves.filter(leaf => leaf.uuid !== message.payload.data.uuid);
+                leaves.push(message.payload.data);
+                leaves.sort();
+                return {leaves: leaves}
+            });
+        }
+    }
+
+    handleDatastoreMessage(message) {
+        if(message.payload.action === 'list') {
+            this.setState({datastores: message.payload.data})
+        } else if (message.payload.action === 'create') {
+            this.setState((prev, props) => {
+                let datastores = prev.datastores.slice();
+                datastores.push(message.payload.data);
+                datastores.sort();
+                return {datastores: datastores}
+            });
+        } else if (message.payload.action === 'delete') {
+            this.setState((prev, props) => {
+                let datastores = prev.datastores.filter(datastore => datastore.name !== message.payload.data.name);
+                datastores.sort();
+                return {datastores: datastores}
+            });
+        } if (message.payload.action === 'update') {
+            this.setState((prev, props) => {
+                let datastores = prev.datastores.filter(datastore => datastore.name !== message.payload.data.name);
+                datastores.push(message.payload.data);
+                datastores.sort();
+                return {datastores: datastores}
+            });
+        }
+    }
+
+    handleConditionMessage(message) {
+        if(message.payload.action === 'list') {
+            this.setState({conditions: message.payload.data})
+        } else if (message.payload.action === 'create') {
+            this.setState((prev, props) => {
+                let conditions = prev.conditions.slice();
+                conditions.push(message.payload.data);
+                conditions.sort();
+                return {conditions: conditions}
+            });
+        } else if (message.payload.action === 'delete') {
+            this.setState((prev, props) => {
+                let conditions = prev.conditions.filter(condition => condition.name !== message.payload.data.name);
+                conditions.sort();
+                return {conditions: conditions}
+            });
+        } if (message.payload.action === 'update') {
+            this.setState((prev, props) => {
+                let conditions = prev.leaves.filter(condition => condition.name !== message.payload.data.name);
+                conditions.push(message.payload.data);
+                conditions.sort();
+                return {conditions: conditions}
+            });
+        }
     }
 
     toggleDeleteModal() {
@@ -159,7 +257,6 @@ export class App extends React.Component {
             .then(r => {
                 if(r.ok) {
                     datastore.toggleDeleteModal();
-                    this.refresh();
                 } else {
                     r.json().then(json => datastore.addDeleteError("Error: " + json.detail)).catch(e => "Error: an unknown error has occurred");
                 }
@@ -192,21 +289,11 @@ export class App extends React.Component {
             .catch(e => this.addLeafError("Error: an unknown error has occured"));
         }
 
-    is_active() {
-        return this.state.activeHub !== -1;
-    }
-
-    refresh(hub) {
-        if(!hub) {
+    is_active(hub) {
+        if(hub == null) {
             hub = this.state.activeHub;
         }
-        this.refreshHubs();
-        if(this.is_active()) {
-            let hub_url = window.host + "/api/hub/" + hub + "/";
-            fetch(hub_url + "leaves", getHeader).then(t => t.json().then(res => this.setState({leaves: res})));
-            fetch(hub_url + "conditions", getHeader).then(t => t.json().then(res => this.setState({conditions: res})));
-            fetch(hub_url + "datastores", getHeader).then(t => t.json().then(res => this.setState({datastores: res})));
-        }
+        return hub !== -1;
     }
 
     refreshHubs() {
@@ -234,7 +321,59 @@ export class App extends React.Component {
                 newDatastoreValue: true,
                 token: '',
             });
-        this.refresh(hub);
+        if(this.socket) {
+            this.socket.close(options={keepClosed: true});
+        }
+        if(this.is_active(hub)) {
+            this.socket = new ReconnectingWebSocket("ws://" + location.host + "/client/" + hub);
+            this.socket.onmessage = this.handleMessage;
+            this.socket.onopen = (e) => {
+                console.log("Connecting to hub");
+                let messages = [{
+                    stream: 'leaves',
+                    payload: {
+                        action: 'subscribe',
+                        data: {action: 'create'}
+                    }
+                }, {
+                    stream: 'leaves',
+                    payload: {
+                        action: 'subscribe',
+                        data: {action: 'update'}
+                    }
+                }, {
+                    stream: 'leaves',
+                    payload: {
+                        action: 'subscribe',
+                        data: {action: 'delete'}
+                    }
+                }, {
+                    stream: 'leaves',
+                    payload: {
+                        action: 'list'
+                    }
+                }];
+                for (let message of messages) {
+                    this.socket.send(JSON.stringify(message));
+                }
+                setTimeout(() => {
+                    for(let message of messages) {
+                        message.stream = 'datastores';
+                        this.socket.send(JSON.stringify(message));
+                    }
+                }, 5);
+
+                setTimeout(() => {
+                    for(let message of messages) {
+                        message.stream = 'conditions';
+                        this.socket.send(JSON.stringify(message));
+                    }
+                }, 10);
+            };
+
+        } else {
+            this.socket = null;
+        }
     }
 
     showLeaves() {
@@ -276,7 +415,6 @@ export class App extends React.Component {
                     r.json().then(json => {
                             if (json.accepted) {
                                 this.toggleConditionModal();
-                                this.refresh();
                             } else {
                                 this.addConditionError("Error: " + json.reason);
                             }
@@ -365,7 +503,6 @@ export class App extends React.Component {
                     r.json().then(json => {
                             if (json.accepted) {
                                 this.toggleDatastoreModal();
-                                this.refresh();
                             } else {
                                 this.addDatastoreError("Error: " + json.reason);
                             }
@@ -444,7 +581,7 @@ export class App extends React.Component {
     }
 
     componentDidMount(){
-        setInterval(this.refresh, 500);
+        this.refreshHubs();
         Dragula([document.querySelector('#leaves')], {
           moves: function (el, container, handle) {
             return handle.classList.contains('drag-handle') || handle.parentNode.classList.contains('drag-handle');

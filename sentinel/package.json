@@ -31,6 +31,7 @@
     "prop-types": "^15.6.0",
     "react-dragula": "^1.1.17",
     "reactstrap": "^5.0.0-alpha.4",
+    "reconnecting-websocket": "^3.2.2",
     "whatwg-fetch": "^2.0.3"
   }
 }

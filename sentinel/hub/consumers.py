@@ -29,7 +29,7 @@ def ws_disconnect(message):
     if 'user' in message.channel_session:
         hub = Hub.objects.get(pk=message.channel_session['hub'])
         leaf = hub.get_leaf(message.channel_session['uuid'])
-        leaf.is_connected = leaf.last_connect.timestamp() == message.channel_session['connect_time']
+        leaf.is_connected = leaf.last_connected.timestamp() == message.channel_session['connect_time']
         leaf.save()
         Group(f"{leaf.hub.id}-{leaf.uuid}").discard(message.reply_channel)
 
@@ -122,6 +122,8 @@ def hub_handle_status(message):
     except Device.DoesNotExist:
         device = Device.create_from_message(mess, hub)
         device.save()
+        device.leaf.update_time()
+
     device.value = mess['value']
     logger.info(f'{hub.id} -- Status updated: {device}')
 
