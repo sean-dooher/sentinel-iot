@@ -358,7 +358,7 @@ class LeafTests(ConsumerTests):
         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         # setup devices
-        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
         # subscribe to the rfid reader
@@ -432,7 +432,7 @@ class LeafTests(ConsumerTests):
         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
         # setup devices
-        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
         # subscribe to the rfid reader
@@ -459,6 +459,7 @@ class LeafTests(ConsumerTests):
         self.assertIsNone(observer_client.receive(), "Did not expect a message from other_sensor after unsubscribing")
 
         # make sure that the original subscription to the rfid_reader still exists
+        self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         self.assertIsNotNone(observer_client.receive(), "Expected to still receive a subscription update")
 
