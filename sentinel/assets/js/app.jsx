@@ -322,7 +322,7 @@ export class App extends React.Component {
                 token: '',
             });
         if(this.socket) {
-            this.socket.close(options={keepClosed: true});
+            this.socket.close(1000, '', {keepClosed: true});
         }
         if(this.is_active(hub)) {
             this.socket = new ReconnectingWebSocket("wss://" + location.host + "/client/" + hub);
