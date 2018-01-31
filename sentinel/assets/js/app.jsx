@@ -119,78 +119,105 @@ export class App extends React.Component {
     }
 
     handleLeafMessage(message) {
+        function comparator(leaf1, leaf2) {
+            if (leaf1.uuid < leaf2.uuid)
+                return -1;
+            if (leaf1.uuid > leaf2.uuid)
+                return 1;
+            return 0;
+        }
         if(message.payload.action === 'list') {
-            this.setState({leaves: message.payload.data})
+            let leaves = message.payload.data;
+            leaves.sort(comparator);
+            this.setState({leaves: leaves})
         } else if (message.payload.action === 'create') {
             this.setState((prev, props) => {
                 let leaves = prev.leaves.slice();
                 leaves.push(message.payload.data);
-                leaves.sort();
+                leaves.sort(comparator);
                 return {leaves: leaves}
             });
         } else if (message.payload.action === 'delete') {
             this.setState((prev, props) => {
                 let leaves = prev.leaves.filter(leaf => leaf.uuid !== message.payload.data.uuid);
-                leaves.sort();
+                leaves.sort(comparator);
                 return {leaves: leaves}
             });
         } if (message.payload.action === 'update') {
             this.setState((prev, props) => {
                 let leaves = prev.leaves.filter(leaf => leaf.uuid !== message.payload.data.uuid);
                 leaves.push(message.payload.data);
-                leaves.sort();
+                leaves.sort(comparator);
                 return {leaves: leaves}
             });
         }
     }
 
     handleDatastoreMessage(message) {
+        function comparator(ds1, ds2) {
+            if (ds1.name < ds2.name)
+                return -1;
+            if (ds1.name > ds2.name)
+                return 1;
+            return 0;
+        }
         if(message.payload.action === 'list') {
-            this.setState({datastores: message.payload.data})
+            let datastores = message.payload.data;
+            datastores.sort(comparator);
+            this.setState({datastores: datastores})
         } else if (message.payload.action === 'create') {
             this.setState((prev, props) => {
                 let datastores = prev.datastores.slice();
                 datastores.push(message.payload.data);
-                datastores.sort();
+                datastores.sort(comparator);
                 return {datastores: datastores}
             });
         } else if (message.payload.action === 'delete') {
             this.setState((prev, props) => {
                 let datastores = prev.datastores.filter(datastore => datastore.name !== message.payload.data.name);
-                datastores.sort();
+                datastores.sort(comparator);
                 return {datastores: datastores}
             });
         } if (message.payload.action === 'update') {
             this.setState((prev, props) => {
                 let datastores = prev.datastores.filter(datastore => datastore.name !== message.payload.data.name);
                 datastores.push(message.payload.data);
-                datastores.sort();
+                datastores.sort(comparator);
                 return {datastores: datastores}
             });
         }
     }
 
     handleConditionMessage(message) {
+        function comparator(c1, c2) {
+            if (c1.name < c2.name)
+                return -1;
+            if (c1.name > c2.name)
+                return 1;
+            return 0;
+        }
         if(message.payload.action === 'list') {
-            this.setState({conditions: message.payload.data})
+            let conditions = message.payload.data;
+            conditions.sort(comparator);
+            this.setState({conditions: conditions})
         } else if (message.payload.action === 'create') {
             this.setState((prev, props) => {
                 let conditions = prev.conditions.slice();
                 conditions.push(message.payload.data);
-                conditions.sort();
+                conditions.sort(comparator);
                 return {conditions: conditions}
             });
         } else if (message.payload.action === 'delete') {
             this.setState((prev, props) => {
                 let conditions = prev.conditions.filter(condition => condition.name !== message.payload.data.name);
-                conditions.sort();
+                conditions.sort(comparator);
                 return {conditions: conditions}
             });
         } if (message.payload.action === 'update') {
             this.setState((prev, props) => {
                 let conditions = prev.leaves.filter(condition => condition.name !== message.payload.data.name);
                 conditions.push(message.payload.data);
-                conditions.sort();
+                conditions.sort(comparator);
                 return {conditions: conditions}
             });
         }
