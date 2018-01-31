@@ -1,6 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 from channels import Group
 from types import SimpleNamespace
@@ -104,6 +105,7 @@ class Leaf(models.Model):
     api_version = models.CharField(max_length=10, default="0.1.0")
     is_connected = models.BooleanField(default=True)
     last_connected = models.DateTimeField()
+    last_updated = models.DateTimeField(default=timezone.now)
     hub = models.ForeignKey(Hub, related_name="leaves")
 
     class Meta:
@@ -236,9 +238,12 @@ class Device(models.Model):
 
     @value.setter
     def value(self, new_value):
-        self._value.value = new_value
-        self._value.save()
-        self.leaf.send_subscriber_update(self)
+        if new_value != self.value:
+            self._value.value = new_value
+            self._value.save()
+            self.leaf.send_subscriber_update(self)
+            self.leaf.last_updated = timezone.now()
+            self.leaf.save()
 
     @property
     def status_update_dict(self):
@@ -312,6 +317,7 @@ class Datastore(models.Model):
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="datastore")
     name = models.CharField(max_length=100)
     hub = models.ForeignKey(Hub, related_name="datastores")
+    last_updated = models.DateTimeField(default=timezone.now)
 
     class Meta:
         unique_together = (('name', 'hub'),)
@@ -329,18 +335,21 @@ class Datastore(models.Model):
 
     @value.setter
     def value(self, new_value):
-        self._value.value = new_value
-        self._value.save()
-        message = {
-            'type': 'DEVICE_STATUS',
-            'value': self.value,
-            'format': self.format,
-            'uuid': 'datastore',
-            'device': self.name
-        }
-        subscriptions = self.hub.subscriptions.filter(target_uuid="datastore", target_device=self.name)
-        for subscription in subscriptions:
-            subscription.handle_update("datastore", self.name, message)
+        if new_value != self.value:
+            self._value.value = new_value
+            self._value.save()
+            message = {
+                'type': 'DEVICE_STATUS',
+                'value': self.value,
+                'format': self.format,
+                'uuid': 'datastore',
+                'device': self.name
+            }
+            subscriptions = self.hub.subscriptions.filter(target_uuid="datastore", target_device=self.name)
+            for subscription in subscriptions:
+                subscription.handle_update("datastore", self.name, message)
+            self.last_updated = timezone.now()
+            self.save()
 
     def refresh_from_db(self, using=None, fields=None):
         self._value.refresh_from_db()

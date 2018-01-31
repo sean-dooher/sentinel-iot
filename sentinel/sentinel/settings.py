@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     'frontend',
     'webpack_loader',
     'corsheaders',
-    'oauth2_provider'
+    'oauth2_provider',
+    'channels_api'
 ]
 
 MIDDLEWARE = [
@@ -149,6 +150,10 @@ REST_FRAMEWORK = {
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
+}
+
+CHANNELS_API = {
+    'DEFAULT_PERMISSION_CLASSES': ('channels_api.permissions.IsAuthenticated',)
 }
 
 # Internationalization
