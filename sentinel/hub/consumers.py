@@ -29,7 +29,7 @@ def ws_disconnect(message):
     if 'user' in message.channel_session:
         hub = Hub.objects.get(pk=message.channel_session['hub'])
         leaf = hub.get_leaf(message.channel_session['uuid'])
-        leaf.is_connected = leaf.last_connected.timestamp() == message.channel_session['connect_time']
+        leaf.is_connected = leaf.last_connected.timestamp() != message.channel_session['connect_time']
         leaf.save()
         Group(f"{leaf.hub.id}-{leaf.uuid}").discard(message.reply_channel)
 
