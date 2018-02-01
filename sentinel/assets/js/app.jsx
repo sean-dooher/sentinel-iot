@@ -98,6 +98,7 @@ export class App extends React.Component {
         this.handleLeafMessage = this.handleLeafMessage.bind(this);
         this.handleDatastoreMessage = this.handleDatastoreMessage.bind(this);
         this.handleMessage = this.handleMessage.bind(this);
+        window.setState = this.setState.bind(this);
     }
 
     handleMessage(e) {
@@ -348,6 +349,18 @@ export class App extends React.Component {
                 newDatastoreValue: true,
                 token: '',
             });
+        if(window.info.demo) {
+            fetch(window.host + "/api/hub/" + hub + "/leaves", getHeader).then(t => t.json().then(res => {
+                this.setState({leaves: res});
+            }));
+            fetch(window.host + "/api/hub/" + hub + "/conditions", getHeader).then(t => t.json().then(res => {
+                this.setState({conditions: res});
+            }));
+            fetch(window.host + "/api/hub/" + hub + "/datastores", getHeader).then(t => t.json().then(res => {
+                this.setState({datastores: res});
+            }));
+            return;
+        }
         if(this.socket) {
             this.socket.close(1000, '', {keepClosed: true});
         }

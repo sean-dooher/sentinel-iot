@@ -1,7 +1,6 @@
 from django.shortcuts import render
 from django.urls import reverse
 from django.contrib.auth import authenticate, login, logout
-from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
 from django.contrib.auth.models import User
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 
@@ -9,9 +8,13 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 # Create your views here.
 def dashboard(request):
     if request.user.is_authenticated:
-        return render(request, 'dashboard.html')
+        return render(request, 'dashboard.html', {'demo': False})
     else:
         return HttpResponseRedirect(reverse('index'))
+
+
+def demo(request):
+    return render(request, 'dashboard.html', {'demo': True})
 
 
 def index(request):
@@ -42,7 +45,7 @@ def login_view(request):
             if 'next' in request.POST:
                 return HttpResponseRedirect(reverse('login'))
             return JsonResponse({'accepted': False, 'reason': 'Invalid username or password.'})
-    elif request.method == 'POST' and request.user.is_authenticated():
+    elif request.method == 'POST' and request.user.is_authenticated:
         return JsonResponse({'accepted': True})
     elif request.method == 'GET':
         info = request.GET.dict()
@@ -55,13 +58,13 @@ def login_view(request):
 
 
 def logout_view(request):
-    if request.user.is_authenticated():
+    if request.user.is_authenticated:
         logout(request)
     return HttpResponseRedirect(reverse('index'))
 
 
 def register(request):
-    if request.method == 'POST' and not request.user.is_authenticated():
+    if request.method == 'POST' and not request.user.is_authenticated:
         try:
             username = request.POST['username']
             password = request.POST['password']
@@ -80,7 +83,7 @@ def register(request):
             login(request, user)
             return JsonResponse({'accepted': True})
 
-    elif request.method == "POST" and request.user.is_authenticated():
+    elif request.method == "POST" and request.user.is_authenticated:
         return JsonResponse({'accepted': False, 'reason': 'You are already logged in'})
     else:
         return HttpResponseRedirect(reverse('index'))

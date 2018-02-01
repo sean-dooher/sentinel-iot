@@ -19,8 +19,12 @@
     <script>
         window.info = {
             username: "{{ request.user.username }}",
-            logout_url: "{% url 'logout' %}"};
+            logout_url: "{% url 'logout' %}",
+            demo: {{ demo|yesno:"true,false" }}
+        };
         window.host = location.protocol + "//" + location.host;
+        if(window.info.demo)
+            window.host = window.host + "/demo"
     </script>
     {% render_bundle 'main' %}
     <script src="{% static 'vendor/jquery/jquery.js' %}"></script>

@@ -1,0 +1,120 @@
+[
+  {
+    "uuid": "6511c0db-a9c9-4d9a-9f24-f59cc63b9d01",
+    "name": "Living Room Lights",
+    "model": "1.0.1",
+    "api_version": "0.1.0",
+    "is_connected": true,
+    "devices": [
+      {
+        "name": "Left Couch Lamp",
+        "format": "bool",
+        "value": false,
+        "mode": "OUT"
+      },
+      {
+        "name": "Right Couch Lamp",
+        "format": "bool",
+        "value": false,
+        "mode": "OUT"
+      },
+      {
+        "name": "Main Light",
+        "format": "bool",
+        "value": false,
+        "mode": "OUT"
+      }
+    ]
+  },
+  {
+    "uuid": "c3609f9f-63ff-4b92-b7f7-87fa995133b1",
+    "name": "Bedroom Lights",
+    "model": "1.0.1",
+    "api_version": "0.1.0",
+    "is_connected": true,
+    "devices": [
+      {
+        "name": "Main Light",
+        "format": "bool",
+        "value": false,
+        "mode": "OUT"
+      }
+    ]
+  },
+  {
+    "uuid": "0b7c04e7-f7c1-414c-91a2-06f975882ade",
+    "name": "Door",
+    "model": "1.0.1",
+    "api_version": "0.1.0",
+    "is_connected": true,
+    "devices": [
+      {
+        "name": "Lock",
+        "format": "bool",
+        "value": false,
+        "mode": "OUT"
+      }
+    ]
+  },
+  {
+    "uuid": "7ec8a1fe-1fdc-41f9-9fce-adf6565e06fa",
+    "name": "RFID Reader",
+    "model": "1.0.1",
+    "api_version": "0.1.0",
+    "is_connected": true,
+    "devices": [
+      {
+        "name": "RFID Scanner",
+        "format": "number",
+        "value": 301921,
+        "mode": "IN"
+      }
+    ]
+  },
+  {
+    "uuid": "e62f6bfc-367f-49be-8fb7-1a75c57093d0",
+    "name": "Living Room Sensors",
+    "model": "1.0.1",
+    "api_version": "0.1.0",
+    "is_connected": true,
+    "devices": [
+      {
+        "name": "Temperature",
+        "format": "number+units",
+        "value": 73.2,
+        "units": "F",
+        "mode": "IN"
+      },
+      {
+        "name": "Humidity",
+        "format": "number+units",
+        "value": 30.1,
+        "units": "%",
+        "mode": "IN"
+      }
+    ]
+  },
+  {
+    "uuid": "46ee40cb-e9a1-4f7a-bd32-5dda435e2273",
+    "name": "Sean Desktop",
+    "model": "1.0.1",
+    "api_version": "0.1.0",
+    "is_connected": false,
+    "devices": [
+      {
+        "name": "Temperature",
+        "format": "number+units",
+        "value": 65,
+        "units": "C",
+        "mode": "IN"
+      },
+      {
+        "name": "CPU Usage",
+        "format": "number+units",
+        "value": 60,
+        "units": "%",
+        "mode": "IN"
+      }
+    ]
+  }
+]

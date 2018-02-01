@@ -1,0 +1,10 @@
+[
+    {
+        "id": 1,
+        "name": "Demo Hub",
+        "num_leaves": 6,
+        "num_datastores": 3,
+        "num_conditions": 2,
+        "num_subscriptions": 0
+    }
+]

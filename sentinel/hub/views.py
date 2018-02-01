@@ -18,6 +18,38 @@ class ObjectOnlyPermissions(DjangoObjectPermissions):
         return True
 
 
+def demo_denied(request):
+    raise PermissionDenied
+
+
+def demo_conditions(request, id):
+    if request.method == "GET":
+        return render(request, "conditions.json")
+    else:
+        raise PermissionDenied
+
+
+def demo_leaves(request, id):
+    if request.method == "GET":
+        return render(request, "leaves.json")
+    else:
+        raise PermissionDenied
+
+
+def demo_hub(request):
+    if request.method == "GET":
+        return render(request, "hub.json")
+    else:
+        raise PermissionDenied
+
+
+def demo_datastores(request, id):
+    if request.method == "GET":
+        return render(request, "datastores.json")
+    else:
+        raise PermissionDenied
+
+
 def register_leaf(request, id):
     if request.method == 'POST':
         hub = get_object_or_404(Hub, id=id)

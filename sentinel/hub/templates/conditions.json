@@ -1,0 +1,24 @@
+[
+	{
+        "name": "unlock_door",
+        "predicate": ["=", ["7ec8a1fe-1fdc-41f9-9fce-adf6565e06fa", "rfid"], 3032042781.0],
+        "action": {
+            "action_type": "SET",
+            "target": "0b7c04e7-f7c1-414c-91a2-06f975882ade",
+            "device": "Lock",
+            "format": "bool",
+            "value": true
+        }
+    },
+    {
+        "name": "lock_door",
+        "predicate": ["NOT", ["=", ["7ec8a1fe-1fdc-41f9-9fce-adf6565e06fa", "rfid"], 3032042781.0]],
+        "action": {
+            "action_type": "SET",
+            "target": "0b7c04e7-f7c1-414c-91a2-06f975882ade",
+            "device": "Lock",
+            "format": "bool",
+            "value": false
+        }
+    }
+]

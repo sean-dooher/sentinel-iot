@@ -106,7 +106,7 @@ class Leaf(models.Model):
     is_connected = models.BooleanField(default=True)
     last_connected = models.DateTimeField()
     last_updated = models.DateTimeField(default=timezone.now)
-    hub = models.ForeignKey(Hub, related_name="leaves")
+    hub = models.ForeignKey(Hub, related_name="leaves", on_delete=models.CASCADE)
 
     class Meta:
         unique_together = (('uuid', 'hub'),)
@@ -306,7 +306,7 @@ class Subscription(PolymorphicModel):
     subscriber_uuid = models.CharField(max_length=36, blank=True, null=True)
     target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=100)
-    hub = models.ForeignKey(Hub, related_name="subscriptions")
+    hub = models.ForeignKey(Hub, related_name="subscriptions", on_delete=models.CASCADE)
 
     def handle_update(self, uuid, device, message):
         sub_message = {'type': 'SUBSCRIPTION_UPDATE',
@@ -319,7 +319,7 @@ class Subscription(PolymorphicModel):
 class Datastore(models.Model):
     _value = models.OneToOneField(Value, on_delete=models.CASCADE, related_name="datastore")
     name = models.CharField(max_length=100)
-    hub = models.ForeignKey(Hub, related_name="datastores")
+    hub = models.ForeignKey(Hub, related_name="datastores", on_delete=models.CASCADE)
     last_updated = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -544,7 +544,7 @@ class Condition(models.Model):
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
     action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
     previously_satisfied = models.BooleanField(default=False)
-    hub = models.ForeignKey(Hub, related_name="conditions")
+    hub = models.ForeignKey(Hub, related_name="conditions", on_delete=models.CASCADE)
 
     class Meta:
         permissions = (
