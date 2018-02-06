@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import ToggleButton from 'react-toggle-button'
 
 export class OutValue extends React.Component {
     constructor(props) {
@@ -25,12 +26,13 @@ export class OutValue extends React.Component {
         this.setState({value: event.target.value});
     }
 
-    sendSet() {
-        let value;
-        if(this.props.format === 'string') {
-            value = this.state.value;
-        } else {
-            value = JSON.parse(this.state.value);
+    sendSet(value) {
+        if(value === null) {
+            if (this.props.format === 'string') {
+                value = this.state.value;
+            } else {
+                value = JSON.parse(this.state.value);
+            }
         }
         this.props.send(value);
     }
@@ -46,17 +48,12 @@ export class OutValue extends React.Component {
     render(){
         if (this.props.format === "bool") {
             return (
-                <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
-                    <select className="form-control custom-select" value={this.state.value.toString()}
-                            onChange={this.handleChange} disabled={!this.props.connected}>
-                        <option value="true">true {this.props.value ? "(current)" : ""}</option>
-                        <option value="false">false {!this.props.value ? "(current)" : ""}</option>
-                    </select>
-                    <div className="input-group-append input-group-btn">
-                        <button onClick={this.sendSet} className="btn btn-outline-secondary" type="button" disabled={!this.props.connected}>
-                            <i className="fas fa-angle-right"/></button>
-                    </div>
-                </div>
+                <ToggleButton
+                  value={ this.state.value || false }
+                  onToggle={() => {
+                      this.setState({value: !this.state.value});
+                      this.sendSet(!this.state.value);
+                  }} />
             );
         } else {
             return (
