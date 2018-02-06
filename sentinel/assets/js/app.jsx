@@ -216,7 +216,7 @@ export class App extends React.Component {
             });
         } if (message.payload.action === 'update') {
             this.setState((prev, props) => {
-                let conditions = prev.leaves.filter(condition => condition.name !== message.payload.data.name);
+                let conditions = prev.conditions.filter(condition => condition.name !== message.payload.data.name);
                 conditions.push(message.payload.data);
                 conditions.sort(comparator);
                 return {conditions: conditions}
