@@ -1,0 +1,42 @@
+version: '2'
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_sentinel
+    ports:
+      - "80:80"
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d
+      - static:/static
+    depends_on:
+      - interfaceserver
+  interfaceserver:
+    build: .
+    command: /app/entrypoint-interface.sh
+    user: app
+    working_dir: /app
+    expose:
+      - "8000"
+    env_file:
+      - docker.env
+    depends_on:
+      - database
+      - redis
+    volumes:
+      - static:/app/static
+  workerserver:
+    build: .
+    user: app
+    working_dir: /app
+    command: /app/entrypoint-worker.sh
+    env_file:
+      - docker.env
+    depends_on:
+      - database
+      - redis
+  database:
+    image: postgres:9.5
+  redis:
+    image: redis:3.0-alpine
+volumes:
+   static:
