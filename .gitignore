@@ -4,9 +4,11 @@ __pycache__/
 .DS_Store
 # C extensions
 *.so
-
+*.key
+*.cer
 venv/*
-
+*/assets/bundles/
+.idea/
 # Distribution / packaging
 bin/
 build/
