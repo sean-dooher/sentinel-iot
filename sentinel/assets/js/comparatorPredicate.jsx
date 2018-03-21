@@ -42,7 +42,6 @@ export class ComparatorPredicate extends React.Component {
         } else {
             second = [this._second.state.selected_leaf, this._second.state.selected_device];
         }
-        console.dir([this.state.operator, first, second]);
         return [this.state.operator, first, second];
     }
 

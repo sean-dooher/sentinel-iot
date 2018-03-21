@@ -48,7 +48,7 @@ export class ConditionCreator extends React.Component {
         } else if (this.state.operator === 'NOT') {
             predicate = ['NOT', this._firstPred.getPredicate()];
         } else {
-            predicate = [this.state.operator, this._firstPred.getPredicate(), this._secondPred.getPredicate()];
+            predicate = [this.state.operator, [this._firstPred.getPredicate(), this._secondPred.getPredicate()]];
         }
         return {
             name: this.state.conditionName,
