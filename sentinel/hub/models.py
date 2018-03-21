@@ -360,6 +360,7 @@ class Datastore(models.Model):
 
 
 class Predicate(PolymorphicModel):
+    operator = models.ForeignKey('Multivariate', on_delete=models.CASCADE, related_name="operands", null=True)
 
     def evaluate(self):
         return True
@@ -382,47 +383,56 @@ class NOT(Predicate):
         return ['NOT', self.predicate.to_representation()]
 
 
-class Bivariate(Predicate):
-    first = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="first_predicate")
-    second = models.ForeignKey(Predicate, on_delete=models.CASCADE, related_name="second_predicate")
+class Multivariate(Predicate):
     op = "NONE"
 
-    def operator(self, x, y):
+    def operation(self, *args):
         return False
 
     def evaluate(self):
-        return self.operator(self.first, self.second)
+        return self.operation(*self.operands.all())
 
     def delete(self, *args, **kwargs):
-        self.first.delete()
-        self.second.delete()
+        for operand in self.operands:
+            operand.delete()
         super().delete(*args, **kwargs)
 
     def to_representation(self):
-        return [self.op, self.first.to_representation(), self.second.to_representation()]
+        return [self.op, [operand.to_representation() for operand in self.operands.all()]]
 
 
-class AND(Bivariate):
+class AND(Multivariate):
     op = "AND"
 
-    def operator(self, x, y):
-        return x.evaluate() and y.evaluate()
+    def operation(self, *args):
+        result = True
+        for operand in args:
+            result = result and operand.evaluate()
+            if not result:  # short circuit
+                break
+        return result
 
 
-class OR(Bivariate):
+class OR(Multivariate):
     op = "OR"
 
-    def operator(self, x, y):
-        return x.evaluate() or y.evaluate()
+    def operation(self, *args):
+        result = False
+        for operand in args:
+            result = result or operand.evaluate()
+            if result:  # short circuit
+                break
+        return result
 
 
-class XOR(Bivariate):
+class XOR(Multivariate):
     op = "XOR"
 
-    def operator(self, x, y):
-        x = x.evaluate()
-        y = y.evaluate()
-        return x ^ y
+    def operation(self, *args):
+        result = False
+        for operand in args:
+            result = result ^ operand.evaluate()
+        return result
 
 
 class ComparatorPredicate(Predicate):

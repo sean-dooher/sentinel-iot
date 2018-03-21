@@ -627,8 +627,8 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
-        predicates = ['AND', ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
-                      ['=', [other_leaf.uuid, 'other_sensor'], True]]
+        predicates = ['AND', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
+                      ['=', [other_leaf.uuid, 'other_sensor'], True]]]
         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_AND', predicates, action_type='SET',
                                    action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 
@@ -654,8 +654,8 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
-        predicates = ['OR', ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
-                      ['=', [other_leaf.uuid, 'other_sensor'], True]]
+        predicates = ['OR', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
+                      ['=', [other_leaf.uuid, 'other_sensor'], True]]]
         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_OR', predicates, action_type='SET',
                                    action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 
@@ -684,8 +684,8 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
-        predicates = ['XOR', ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
-                      ['=', [other_leaf.uuid, 'other_sensor'], True]]
+        predicates = ['XOR', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
+                      ['=', [other_leaf.uuid, 'other_sensor'], True]]]
         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_OR', predicates, action_type='SET',
                                    action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 
@@ -717,9 +717,10 @@ class ConditionsTests(ConsumerTests):
         self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', False, 'bool')
         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
-        predicates = ['OR', ['AND', ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
-                             ['=', [third_leaf.uuid, 'third_sensor'], True]],
-                      ['=', [other_leaf.uuid, 'other_sensor'], True]]
+        predicates = ['OR', [['AND', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
+                                      ['=', [third_leaf.uuid, 'third_sensor'], True]]],
+                             ['=', [other_leaf.uuid, 'other_sensor'], True]]]
+
         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_nested', predicates, action_type='SET',
                                    action_target=door_leaf.uuid, action_device='door_open', action_value=True)
 

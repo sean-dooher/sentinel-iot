@@ -333,11 +333,12 @@ def create_condition(name, pred, action, hub):
             not_predicate.save()
             return not_predicate
         elif type(first) == str and first in operators:
-            first_predicate = eval_predicates(predicates[1])
-            second_predicate = eval_predicates(predicates[2])
-            predicate = operators[first](first=first_predicate, second=second_predicate)
-            predicate.save()
-            return predicate
+            operator_predicate = operators[first].objects.create()
+            predicates = [eval_predicates(operand) for operand in predicates[1]]
+            for predicate in predicates:
+                predicate.operator = operator_predicate
+                predicate.save()
+            return operator_predicate
         else:
             target_uuid, target_device = predicates[1]
             seen_devices.add((target_uuid, target_device))
@@ -373,6 +374,7 @@ def create_condition(name, pred, action, hub):
             else:
                 logger.error(f"{hub.id} -- Invalid predicate comparator: {comparator}")
                 raise InvalidPredicate(pred, name)
+
             predicate.save()
             return predicate
 
