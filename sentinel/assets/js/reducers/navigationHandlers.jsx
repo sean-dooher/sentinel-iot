@@ -6,7 +6,21 @@ export function handleToggleCreateHub(state, action) {
 
 export function handleActiveHubUpdate(state, action) {
     let newState = Object.assign({}, state);
-    newState.hub.active = action.id;
+    if(action.id === -1 && state.hub.active === -1)
+        newState.hub.active = newState.api.hubs.length > 0 ? newState.api.hubs[0].id : -1;
+    else if(action.id !== -1)
+        newState.hub.active = action.id;
     return newState;
 }
 
+export function handleAddCreateError(state, action) {
+    let newState = Object.assign({}, state);
+    newState.hub.createErrors = newState.hub.createErrors.concat(action.message).slice(-3);
+    return newState;
+}
+
+export function handleAddDeleteError(state, action) {
+    let newState = Object.assign({}, state);
+    newState.hub.deleteErrors = newState.hub.deleteErrors.concat(action.message).slice(-3);
+    return newState;
+}

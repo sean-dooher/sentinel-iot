@@ -1,9 +1,12 @@
-import {TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB} from "../actions/navigationActions";
+import {TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_ERROR, ADD_CREATE_ERROR} from "../actions/navigationActions";
 import {UPDATE_HUBS, UPDATE_LEAVES, UPDATE_TRIGGERS, UPDATE_DATASTORES, UPDATE_CONDITIONS} from "../actions/apiActions";
 import {ADD_TRIGGER, ADD_LEAF, ADD_DATASTORE, ADD_CONDITION} from "../actions/apiActions";
 import {UPDATE_TRIGGER, UPDATE_CONDITION, UPDATE_LEAF, UPDATE_DATASTORE} from "../actions/apiActions";
 import {DELETE_TRIGGER, DELETE_CONDITION, DELETE_LEAF, DELETE_DATASTORE} from "../actions/apiActions";
-import {handleToggleCreateHub, handleCreateHub, handleActiveHubUpdate} from "./navigationHandlers";
+import {
+    handleToggleCreateHub, handleCreateHub, handleActiveHubUpdate,
+    handleAddCreateError, handleAddDeleteError
+} from "./navigationHandlers";
 import {handleAddItem, handleDeleteItem, handleUpdateItem, handleUpdateItems} from "./apiHandlers";
 
 const initialState = {
@@ -31,6 +34,12 @@ export function sentinelApp(state = initialState, action) {
     switch (action.type) {
         case TOGGLE_CREATE_HUB:
             return handleToggleCreateHub(state, action);
+        case ADD_CREATE_ERROR:
+            return handleAddCreateError(state, action);
+        case ADD_DELETE_ERROR:
+            return handleAddDeleteError(state, action);
+        case UPDATE_ACTIVE_HUB:
+            return handleActiveHubUpdate(state, action);
         // update collections
         case UPDATE_HUBS:
             return handleUpdateItems(state, action, 'hubs', 'hub', 'id');
@@ -71,9 +80,6 @@ export function sentinelApp(state = initialState, action) {
             return handleDeleteItem(state, action, 'triggers', 'trigger', 'name');
         case UPDATE_TRIGGER:
             return handleUpdateItem(state, action, 'triggers', 'trigger', 'name');
-        // navigation
-        case UPDATE_ACTIVE_HUB:
-            return handleActiveHubUpdate(state, action);
         default:
             return state;
     }

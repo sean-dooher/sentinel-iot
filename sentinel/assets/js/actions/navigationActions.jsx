@@ -1,13 +1,13 @@
 // TODO: sendCreateHub, deleteHub, changeHub
 
-import { updateHubs, updateConditions, updateTriggers, updateLeaves, updateDatastores } from "./apiActions";
-import { handleWebsocketMessage } from "../reducers/apiHandlers";
+import {updateHubs, updateConditions, updateTriggers, updateLeaves, updateDatastores, refreshHubs} from "./apiActions";
+import {handleWebsocketMessage} from "../reducers/apiHandlers";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import 'whatwg-fetch';
 
 
 export const TOGGLE_CREATE_HUB = 'TOGGLE_CREATE_HUB';
-export const TOGGLE_DELETE_HUB = 'TOGGLE_CREATE_HUB';
+export const TOGGLE_DELETE_HUB = 'TOGGLE_DELETE_HUB';
 export const ADD_CREATE_ERROR = 'ADD_CREATE_ERROR';
 export const ADD_DELETE_ERROR = 'ADD_DELETE_ERROR';
 export const UPDATE_ACTIVE_HUB = 'UPDATE_ACTIVE_HUB';
@@ -41,24 +41,43 @@ export function addDeleteError(message) {
 export function deleteHub(id) {
     return dispatch => {
         fetch(window.host + "/api/hub/" + id, window.deleteHeader)
-        .then(r => {
-            if(r.ok) {
-                toggleDeleteHub();
-                updateActiveHub(-1);
-            } else {
-                r.json()
-                .then(json => dispatch(addDeleteError("Error: " + json.detail)))
-                .catch(e => dispatch(addDeleteError("Error: an unknown error has occurred")));
-            }
-        })
-        .catch(r => dispatch(addDeleteError(r)))
+            .then(r => {
+                if (r.ok) {
+                    dispatch(toggleDeleteHub());
+                    dispatch(updateActiveHub(-1));
+                } else {
+                    r.json()
+                        .then(json => dispatch(addDeleteError("Error: " + json.detail)))
+                        .catch(e => dispatch(addDeleteError("Error: an unknown error has occurred")));
+                }
+            })
+            .catch(r => dispatch(addDeleteError(r)))
     }
 }
 
 export function createHub(name) {
-    return {
-        type: TOGGLE_CREATE_HUB,
-        name
+    return dispatch => {
+        let headers = Object.assign({}, window.postHeader);
+        headers.body = JSON.stringify({name});
+        fetch(window.host + "/api/hub/", headers)
+            .then(response => {
+                if (response.ok) {
+                    response.json().then(json => {
+                        if (json.accepted) {
+                            dispatch(toggleCreateHub());
+                            dispatch(refreshHubs());
+                        } else {
+                            dispatch(addCreateError("Error adding hub: " + json.reason));
+                        }
+                    })
+                        .catch(reason => {
+                            dispatch(addCreateError("Error adding hub: " + reason));
+                        });
+                }
+                else {
+                    response.text().then(text => dispatch(addCreateError("Error adding hub: " + text)));
+                }
+            });
     }
 }
 

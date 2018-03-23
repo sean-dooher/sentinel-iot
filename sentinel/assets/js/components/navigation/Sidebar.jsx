@@ -27,11 +27,17 @@ export class Sidebar extends React.Component {
                     <HubModal />
                 </Container>);
     }
+
+    componentDidMount() {
+        this.props.refreshHubs();
+    }
+
 }
 
 Sidebar.propTypes = {
     hubs: PropTypes.array,
     active: PropTypes.number,
     changeHub: PropTypes.func,
+    refreshHubs: PropTypes.func,
     toggleCreate: PropTypes.func
 };

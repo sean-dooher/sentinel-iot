@@ -15,7 +15,7 @@ function attributeSorter(attribute) {
     }
 }
 
-export function handleUpdateItem(state, action, collection, singular, attribute) {
+export function handleUpdateItems(state, action, collection, singular, attribute) {
     let newState = Object.assign({}, state);
     newState.api[collection] = action[collection].sort(attributeSorter(attribute));
     return newState;
@@ -33,7 +33,7 @@ export function handleDeleteItem(state, action, collection, singular, attribute)
     return newState;
 }
 
-export function handleUpdateItems(state, action, collection, singular, attribute) {
+export function handleUpdateItem(state, action, collection, singular, attribute) {
     let newState = Object.assign({}, state);
     newState.api[collection] = state.api[collection].filter(item => item[attribute] !== action[attribute]);
     newState.api[collection] = newState.api[collection].concat(action[singular]).sort(attributeSorter(attribute));

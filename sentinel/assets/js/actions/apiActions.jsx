@@ -1,3 +1,5 @@
+import {updateActiveHub} from "./navigationActions";
+
 export const UPDATE_HUBS = "UPDATE_HUBS";
 export const UPDATE_LEAVES = "UPDATE_LEAVES";
 export const UPDATE_TRIGGERS = "UPDATE_TRIGGERS";
@@ -140,4 +142,12 @@ export function updateTrigger(trigger){
         type: UPDATE_TRIGGER,
         trigger
     }
+}
+
+export function refreshHubs() {
+    return dispatch => fetch(window.host + "/api/hub", window.getHeader)
+        .then(r => r.json().then(hubs => {
+            dispatch(updateHubs(hubs));
+            dispatch(updateActiveHub(-1));
+        }));
 }
