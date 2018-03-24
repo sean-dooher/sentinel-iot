@@ -26,8 +26,8 @@ export class LeafBase extends React.Component {
                       </CardHeader>
                       <CardBody>
                       { this.props.devices.length < 0 ? <p>This Leaf has no devices attached</p> : null }
-                            { this.props.devices.map((device, key) =>
-                                <Device key={key} leaf={this.props.uuid} {... device} connected={this.props.is_connected} />)}
+                            {/*{ this.props.devices.map((device, key) =>*/}
+                                {/*<Device key={key} leaf={this.props.uuid} {... device} connected={this.props.is_connected} />)}*/}
                         </CardBody>
                       <CardFooter className="text-muted text-center">
                         {/*Last Updated: { this.state.date }*/}

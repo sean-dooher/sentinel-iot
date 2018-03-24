@@ -6,7 +6,8 @@ export class App extends React.Component {
     render() {
         return (
             <Navigation>
-                <LeavesSection />
+                {this.props.active !== -1 ?
+                    <LeavesSection/> : null}
             </Navigation>);
     }
 }

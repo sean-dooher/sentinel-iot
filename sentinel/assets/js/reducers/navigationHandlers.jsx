@@ -1,12 +1,14 @@
 export function handleToggleCreateHub(state, action) {
     let newState = Object.assign({}, state);
     newState.hub.showCreate = !state.hub.showCreate;
+    newState.hub.createErrors = [];
     return newState;
 }
 
 export function handleToggleDeleteHub(state, action) {
     let newState = Object.assign({}, state);
     newState.hub.showDelete = !state.hub.showDelete;
+    newState.hub.deleteErrors = [];
     return newState;
 }
 

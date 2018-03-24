@@ -1,4 +1,4 @@
-import {updateActiveHub} from "./navigationActions";
+import {changeHub, updateActiveHub} from "./navigationActions";
 
 export const UPDATE_HUBS = "UPDATE_HUBS";
 export const UPDATE_LEAVES = "UPDATE_LEAVES";
@@ -148,6 +148,6 @@ export function refreshHubs() {
     return dispatch => fetch(window.host + "/api/hub", window.getHeader)
         .then(r => r.json().then(hubs => {
             dispatch(updateHubs(hubs));
-            dispatch(updateActiveHub(-1));
+            dispatch(changeHub(-1));
         }));
 }

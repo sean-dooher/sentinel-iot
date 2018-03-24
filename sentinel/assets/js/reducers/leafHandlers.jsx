@@ -1,12 +1,14 @@
 export function handleToggleDeleteLeaf(state, action) {
     let newState = Object.assign({}, state);
     newState.leaf.showDelete = !state.leaf.showDelete;
+    newState.leaf.deleteErrors = [];
     return newState;
 }
 
 export function handleToggleRegisterLeaf(state, action) {
     let newState = Object.assign({}, state);
     newState.leaf.showRegister = !state.leaf.showRegister;
+    newState.leaf.registerErrors = [];
     return newState;
 }
 

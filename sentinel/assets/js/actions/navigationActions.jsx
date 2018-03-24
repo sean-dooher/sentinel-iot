@@ -93,13 +93,13 @@ export function changeHub(id) {
     return dispatch => {
         dispatch(updateActiveHub(id));
         if (window.info.demo) {
-            fetch(window.host + "/api/hub/" + id + "/leaves", window.getHeader)
+            fetch(window.host + "/api/hub/1/leaves", window.getHeader)
                 .then(t => t.json())
                 .then(leaves => dispatch(updateLeaves(leaves)));
-            fetch(window.host + "/api/hub/" + id + "/conditions", window.getHeader)
+            fetch(window.host + "/api/hub/1/conditions", window.getHeader)
                 .then(t => t.json())
                 .then(conditions => dispatch(updateConditions(conditions)));
-            fetch(window.host + "/api/hub/" + id + "/datastores", window.getHeader)
+            fetch(window.host + "/api/hub/1/datastores", window.getHeader)
                 .then(t => t.json())
                 .then(datastores => dispatch(updateDatastores(datastores)));
             return;
