@@ -1,6 +1,6 @@
 import React from "react";
 import {render} from "react-dom";
-import {App} from "./app";
+import App from "./app";
 import {sentinelApp} from "./reducers/reducers";
 import {createStore, applyMiddleware} from 'redux';
 import {Provider} from 'react-redux';
@@ -53,7 +53,7 @@ window.deleteHeader = {
 
 window.store = createStore(sentinelApp, applyMiddleware(ReduxThunk));
 
-render(<Provider store={store}><App/></Provider>, document.getElementById('react-app'));
+render(<Provider store={store}><App /></Provider>, document.getElementById('react-app'));
 
 
 

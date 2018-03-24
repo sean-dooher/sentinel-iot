@@ -6,7 +6,7 @@ export class HeaderBar extends React.Component {
     render() {
         return <header>
             <div className="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-                <a className="navbar-brand" href="#">Dashboard</a>
+                <a className="navbar-brand" href="/">Sentinel IoT</a>
                 <button className="navbar-toggler d-lg-none" type="button" data-toggle="collapse"
                         data-target="#main-nav" aria-controls="main-dev" aria-expanded="false"
                         aria-label="Toggle navigation">
