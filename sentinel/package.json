@@ -30,8 +30,12 @@
     "js-cookie": "^2.2.0",
     "prop-types": "^15.6.0",
     "react-dragula": "^1.1.17",
+    "react-redux": "^5.0.7",
+    "react-toggle-button": "^2.2.0",
     "reactstrap": "^5.0.0-alpha.4",
     "reconnecting-websocket": "^3.2.2",
+    "redux": "^3.7.2",
+    "redux-thunk": "^2.2.0",
     "whatwg-fetch": "^2.0.3"
   }
 }

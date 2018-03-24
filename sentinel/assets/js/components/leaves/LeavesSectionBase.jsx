@@ -7,9 +7,11 @@ import Dragula from 'react-dragula';
 
 export class LeavesSectionBase extends React.Component {
     dragulaDecorator(component) {
-        console.log("HERE");
         if (component) {
-            let options = {};
+            let options = {invalid: function (el, handle) {
+                console.log(handle.tagName);
+                return !handle.classList.contains('drag-handle') && !handle.parentNode.classList.contains('drag-handle');
+              }};
             Dragula([component], options);
         }
     }

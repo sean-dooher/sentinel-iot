@@ -73,3 +73,25 @@ export function deleteLeaf(hubId, uuid) {
         }).catch(e => dispatch(addDeleteLeafError(e.message)));
     }
 }
+
+export function updateDevice(hub, leaf, device, format, value) {
+    return dispatch => {
+        let headers = Object.assign({}, window.putHeader);
+        headers.body = JSON.stringify({value, format, device});
+        fetch(window.host + "/api/hub/" + hub + "/leaves/" + leaf, headers)
+            .then(r => {
+                if (r.ok) {
+                    r.json().then(json => {
+                            if (!json.accepted) {
+                                console.log("Error: " + json.reason);
+                            }
+                        }
+                    ).catch(() => console.log("Error: error occurred parsing response"))
+                } else {
+                    r.text().then(text => console.log(text));
+                    console.log("Error: " + r.statusText + " (" + r.status + ")");
+                }
+            })
+            .catch((e) => console.log("Error: an unknown error has occurred\n" + e));
+    }
+}

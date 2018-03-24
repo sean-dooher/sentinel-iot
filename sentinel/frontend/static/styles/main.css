@@ -63,6 +63,10 @@ body {
     padding: 5px;
 }
 
+.devices {
+    text-align: center;
+}
+
 .input-group-xs>.form-control,
 .input-group-xs>.input-group-addon,
 .input-group-xs>.input-group-btn>.btn,
