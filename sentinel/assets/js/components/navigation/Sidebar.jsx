@@ -1,9 +1,14 @@
 import React from "react";
 import PropTypes from "prop-types";
 import {Container, Row} from 'reactstrap';
-import HubModal from "../../containers/navigation/HubModal";
+import CreateHubModal from "../../containers/navigation/CreateHubModal";
+import DeleteHubModal from "../../containers/navigation/DeleteHubModal";
 
 export class Sidebar extends React.Component {
+    isActive(id) {
+        return this.props.active === id;
+    }
+
     render() {
         return (
                 <Container fluid={true}>
@@ -13,9 +18,14 @@ export class Sidebar extends React.Component {
                                 {
                                     this.props.hubs.map((hub, key) =>
                                         <li className="nav-item" data-toggle="tooltip" data-placement="right" key={key}>
-                                            <a className={"nav-link" + (this.props.active === hub.id ? " active" : "")}
-                                               href="#"
-                                               onClick={() => this.props.changeHub(hub.id)}>{hub.id + " - " + hub.name}</a>
+                                            <a className={"nav-link" + (this.isActive(hub.id) ? " active" : "")}
+                                               href="#" onClick={() => !this.isActive(hub.id) ? this.props.changeHub(hub.id) : ''}>
+                                                {hub.id + " - " + hub.name}
+                                                {this.isActive(hub.id) ?
+                                                    <span className="float-right" onClick={this.props.toggleDelete}>&times;</span>
+                                                : ''}
+                                            </a>
+
                                         </li>)
                                 }
                                 <li>
@@ -24,7 +34,8 @@ export class Sidebar extends React.Component {
                             </ul>
                         </nav>
                     </Row>
-                    <HubModal />
+                    <CreateHubModal />
+                    <DeleteHubModal />
                 </Container>);
     }
 
@@ -39,5 +50,6 @@ Sidebar.propTypes = {
     active: PropTypes.number,
     changeHub: PropTypes.func,
     refreshHubs: PropTypes.func,
-    toggleCreate: PropTypes.func
+    toggleCreate: PropTypes.func,
+    toggleDelete: PropTypes.func
 };

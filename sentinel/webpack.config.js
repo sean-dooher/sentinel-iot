@@ -9,7 +9,7 @@ module.exports = {
 
   output: {
       path: path.resolve('./assets/bundles/'),
-      filename: '[name]-[hash].js',
+      filename: '[name].js',
   },
 
   module: {

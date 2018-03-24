@@ -3,8 +3,8 @@ import {render} from "react-dom";
 import {App} from "./app";
 import {sentinelApp} from "./reducers/reducers";
 import {createStore, applyMiddleware} from 'redux';
-import {Provider} from 'react-redux'
-import ReduxThunk from 'redux-thunk'
+import {Provider} from 'react-redux';
+import ReduxThunk from 'redux-thunk';
 import Cookies from "js-cookie";
 
 window.getHeader = {

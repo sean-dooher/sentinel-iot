@@ -1,7 +1,6 @@
 import { connect } from 'react-redux'
 import { CreateHub } from '../../components/navigation/CreateHub'
 import { toggleCreateHub, createHub } from "../../actions/navigationActions";
-import {refreshHubs} from "../../actions/apiActions";
 
 const mapStateToProps = (state) => {
     return {createErrors: state.hub.createErrors, show: state.hub.showCreate};
@@ -15,5 +14,5 @@ const mapDispatchToProps = (dispatch) => {
     };
 };
 
-let HubModal = connect(mapStateToProps, mapDispatchToProps)(CreateHub);
-export default HubModal;
+let CreateHubModal = connect(mapStateToProps, mapDispatchToProps)(CreateHub);
+export default CreateHubModal;

@@ -44,6 +44,7 @@ export function deleteHub(id) {
             .then(r => {
                 if (r.ok) {
                     dispatch(toggleDeleteHub());
+                    dispatch(refreshHubs());
                     dispatch(updateActiveHub(-1));
                 } else {
                     r.json()

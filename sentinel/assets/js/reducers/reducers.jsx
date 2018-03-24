@@ -1,12 +1,13 @@
-import {TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_ERROR, ADD_CREATE_ERROR} from "../actions/navigationActions";
+import {
+    TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_ERROR, ADD_CREATE_ERROR,
+    TOGGLE_DELETE_HUB
+} from "../actions/navigationActions";
 import {UPDATE_HUBS, UPDATE_LEAVES, UPDATE_TRIGGERS, UPDATE_DATASTORES, UPDATE_CONDITIONS} from "../actions/apiActions";
 import {ADD_TRIGGER, ADD_LEAF, ADD_DATASTORE, ADD_CONDITION} from "../actions/apiActions";
 import {UPDATE_TRIGGER, UPDATE_CONDITION, UPDATE_LEAF, UPDATE_DATASTORE} from "../actions/apiActions";
 import {DELETE_TRIGGER, DELETE_CONDITION, DELETE_LEAF, DELETE_DATASTORE} from "../actions/apiActions";
-import {
-    handleToggleCreateHub, handleCreateHub, handleActiveHubUpdate,
-    handleAddCreateError, handleAddDeleteError
-} from "./navigationHandlers";
+import {handleToggleCreateHub, handleActiveHubUpdate, handleAddCreateError,
+        handleAddDeleteError, handleToggleDeleteHub} from "./navigationHandlers";
 import {handleAddItem, handleDeleteItem, handleUpdateItem, handleUpdateItems} from "./apiHandlers";
 
 const initialState = {
@@ -26,7 +27,9 @@ const initialState = {
     hub: {
         active:-1,
         showCreate: false,
+        showDelete: false,
         createErrors: [],
+        deleteErrors: [],
     }
 };
 
@@ -34,6 +37,8 @@ export function sentinelApp(state = initialState, action) {
     switch (action.type) {
         case TOGGLE_CREATE_HUB:
             return handleToggleCreateHub(state, action);
+        case TOGGLE_DELETE_HUB:
+            return handleToggleDeleteHub(state, action);
         case ADD_CREATE_ERROR:
             return handleAddCreateError(state, action);
         case ADD_DELETE_ERROR:

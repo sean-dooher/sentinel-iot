@@ -4,9 +4,15 @@ export function handleToggleCreateHub(state, action) {
     return newState;
 }
 
+export function handleToggleDeleteHub(state, action) {
+    let newState = Object.assign({}, state);
+    newState.hub.showDelete = !state.hub.showDelete;
+    return newState;
+}
+
 export function handleActiveHubUpdate(state, action) {
     let newState = Object.assign({}, state);
-    if(action.id === -1 && state.hub.active === -1)
+    if(action.id === -1)
         newState.hub.active = newState.api.hubs.length > 0 ? newState.api.hubs[0].id : -1;
     else if(action.id !== -1)
         newState.hub.active = action.id;

@@ -1,6 +1,6 @@
 import { connect } from 'react-redux'
 import { Sidebar } from '../../components/navigation/Sidebar'
-import { toggleCreateHub, changeHub } from "../../actions/navigationActions";
+import { toggleCreateHub, changeHub, toggleDeleteHub } from "../../actions/navigationActions";
 import {refreshHubs} from "../../actions/apiActions";
 
 const mapStateToProps = (state) => {
@@ -11,6 +11,7 @@ const mapDispatchToProps = dispatch => {
 //TODO: addChangeHub, refreshHub here
     return {
         toggleCreate: () => dispatch(toggleCreateHub()),
+        toggleDelete: () => dispatch(toggleDeleteHub()),
         changeHub: (id) => dispatch(changeHub(id)),
         refreshHubs: () => dispatch(refreshHubs())
     };

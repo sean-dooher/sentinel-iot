@@ -17,11 +17,7 @@ export class CreateHub extends React.Component {
                     </Form>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="primary" onClick={() =>
-                    {
-                        console.dir(this.input);
-                        this.props.createHub(this.input.value);
-                    }}>Create</Button>{' '}
+                    <Button color="primary" onClick={() => this.props.createHub(this.input.value)}>Create</Button>{' '}
                     <Button color="secondary" onClick={this.props.toggleCreate}>Cancel</Button>
                 </ModalFooter>
             </Modal>);
