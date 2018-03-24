@@ -1,14 +1,25 @@
 import {
-    TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_ERROR, ADD_CREATE_ERROR,
+    TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_HUB_ERROR, ADD_CREATE_HUB_ERROR,
     TOGGLE_DELETE_HUB
 } from "../actions/navigationActions";
 import {UPDATE_HUBS, UPDATE_LEAVES, UPDATE_TRIGGERS, UPDATE_DATASTORES, UPDATE_CONDITIONS} from "../actions/apiActions";
 import {ADD_TRIGGER, ADD_LEAF, ADD_DATASTORE, ADD_CONDITION} from "../actions/apiActions";
 import {UPDATE_TRIGGER, UPDATE_CONDITION, UPDATE_LEAF, UPDATE_DATASTORE} from "../actions/apiActions";
 import {DELETE_TRIGGER, DELETE_CONDITION, DELETE_LEAF, DELETE_DATASTORE} from "../actions/apiActions";
-import {handleToggleCreateHub, handleActiveHubUpdate, handleAddCreateError,
-        handleAddDeleteError, handleToggleDeleteHub} from "./navigationHandlers";
+import {
+    ADD_REGISTER_LEAF_ERROR, ADD_DELETE_LEAF_ERROR,
+    CHANGE_REGISTRATION_TOKEN, TOGGLE_DELETE_LEAF, TOGGLE_REGISTER_LEAF
+} from "../actions/leafActions";
+
+import {
+    handleToggleCreateHub, handleActiveHubUpdate, handleAddCreateError,
+    handleAddDeleteError, handleToggleDeleteHub
+} from "./navigationHandlers";
 import {handleAddItem, handleDeleteItem, handleUpdateItem, handleUpdateItems} from "./apiHandlers";
+import {
+    handleChangeRegistrationToken, handleAddDeleteLeafError,
+    handleRegisterLeafError, handleToggleRegisterLeaf
+} from "./leafHandlers";
 
 const initialState = {
     api: {
@@ -25,11 +36,18 @@ const initialState = {
         active: 'Hub'
     },
     hub: {
-        active:-1,
+        active: -1,
         showCreate: false,
         showDelete: false,
         createErrors: [],
         deleteErrors: [],
+    },
+    leaf: {
+        showRegister: false,
+        showDelete: false,
+        registerErrors: [],
+        deleteErrors: [],
+        token: ''
     }
 };
 
@@ -39,9 +57,9 @@ export function sentinelApp(state = initialState, action) {
             return handleToggleCreateHub(state, action);
         case TOGGLE_DELETE_HUB:
             return handleToggleDeleteHub(state, action);
-        case ADD_CREATE_ERROR:
+        case ADD_CREATE_HUB_ERROR:
             return handleAddCreateError(state, action);
-        case ADD_DELETE_ERROR:
+        case ADD_DELETE_HUB_ERROR:
             return handleAddDeleteError(state, action);
         case UPDATE_ACTIVE_HUB:
             return handleActiveHubUpdate(state, action);
@@ -85,6 +103,19 @@ export function sentinelApp(state = initialState, action) {
             return handleDeleteItem(state, action, 'triggers', 'trigger', 'name');
         case UPDATE_TRIGGER:
             return handleUpdateItem(state, action, 'triggers', 'trigger', 'name');
+
+        // leaf section
+        case CHANGE_REGISTRATION_TOKEN:
+            return handleChangeRegistrationToken(state, action);
+        case ADD_DELETE_LEAF_ERROR:
+            return handleAddDeleteLeafError(state, action);
+        case ADD_REGISTER_LEAF_ERROR:
+            return handleRegisterLeafError(state, action);
+        case TOGGLE_REGISTER_LEAF:
+            return handleToggleRegisterLeaf(state, action);
+        case TOGGLE_DELETE_LEAF:
+            return handleToggleDeleteHub(state, action);
+
         default:
             return state;
     }

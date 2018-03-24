@@ -8,8 +8,8 @@ import 'whatwg-fetch';
 
 export const TOGGLE_CREATE_HUB = 'TOGGLE_CREATE_HUB';
 export const TOGGLE_DELETE_HUB = 'TOGGLE_DELETE_HUB';
-export const ADD_CREATE_ERROR = 'ADD_CREATE_ERROR';
-export const ADD_DELETE_ERROR = 'ADD_DELETE_ERROR';
+export const ADD_CREATE_HUB_ERROR = 'ADD_CREATE_HUB_ERROR';
+export const ADD_DELETE_HUB_ERROR = 'ADD_DELETE_HUB_ERROR';
 export const UPDATE_ACTIVE_HUB = 'UPDATE_ACTIVE_HUB';
 
 export function toggleCreateHub() {
@@ -24,16 +24,16 @@ export function toggleDeleteHub() {
     }
 }
 
-export function addCreateError(message) {
+export function addCreateHubError(message) {
     return {
-        type: ADD_CREATE_ERROR,
+        type: ADD_CREATE_HUB_ERROR,
         message
     }
 }
 
-export function addDeleteError(message) {
+export function addDeleteHubError(message) {
     return {
-        type: ADD_DELETE_ERROR,
+        type: ADD_DELETE_HUB_ERROR,
         message
     }
 }
@@ -48,11 +48,11 @@ export function deleteHub(id) {
                     dispatch(updateActiveHub(-1));
                 } else {
                     r.json()
-                        .then(json => dispatch(addDeleteError("Error: " + json.detail)))
-                        .catch(e => dispatch(addDeleteError("Error: an unknown error has occurred")));
+                        .then(json => dispatch(addDeleteHubError("Error: " + json.detail)))
+                        .catch(e => dispatch(addDeleteHubError("Error: an unknown error has occurred")));
                 }
             })
-            .catch(r => dispatch(addDeleteError(r)))
+            .catch(r => dispatch(addDeleteHubError(r)))
     }
 }
 
@@ -68,15 +68,15 @@ export function createHub(name) {
                             dispatch(toggleCreateHub());
                             dispatch(refreshHubs());
                         } else {
-                            dispatch(addCreateError("Error adding hub: " + json.reason));
+                            dispatch(addCreateHubError("Error adding hub: " + json.reason));
                         }
                     })
                         .catch(reason => {
-                            dispatch(addCreateError("Error adding hub: " + reason));
+                            dispatch(addCreateHubError("Error adding hub: " + reason));
                         });
                 }
                 else {
-                    response.text().then(text => dispatch(addCreateError("Error adding hub: " + text)));
+                    response.text().then(text => dispatch(addCreateHubError("Error adding hub: " + text)));
                 }
             });
     }

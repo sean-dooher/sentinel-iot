@@ -19,11 +19,11 @@ export class Sidebar extends React.Component {
                                     this.props.hubs.map((hub, key) =>
                                         <li className="nav-item" data-toggle="tooltip" data-placement="right" key={key}>
                                             <a className={"nav-link" + (this.isActive(hub.id) ? " active" : "")}
-                                               href="#" onClick={() => !this.isActive(hub.id) ? this.props.changeHub(hub.id) : ''}>
+                                               href="#" onClick={() => !this.isActive(hub.id) ? this.props.changeHub(hub.id) : null}>
                                                 {hub.id + " - " + hub.name}
                                                 {this.isActive(hub.id) ?
                                                     <span className="float-right" onClick={this.props.toggleDelete}>&times;</span>
-                                                : ''}
+                                                : null}
                                             </a>
 
                                         </li>)
