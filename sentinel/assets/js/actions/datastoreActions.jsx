@@ -45,7 +45,6 @@ export function createDatastore(hub, name, format, value, units=undefined) {
 
         let headers = Object.assign({}, window.postHeader);
         headers.body = JSON.stringify(data);
-        console.log(headers.body);
         fetch(window.host + "/api/hub/" + hub + "/datastores/", headers)
             .then(r => {
                 if(r.ok) {

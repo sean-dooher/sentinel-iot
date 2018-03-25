@@ -1,3 +1,5 @@
+import 'whatwg-fetch';
+
 export const TOGGLE_REGISTER_LEAF = 'TOGGLE_REGISTER_LEAF';
 export const TOGGLE_DELETE_LEAF = 'TOGGLE_DELETE_LEAF';
 export const ADD_REGISTER_LEAF_ERROR = 'ADD_REGISTER_LEAF_ERROR';

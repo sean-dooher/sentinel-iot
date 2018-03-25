@@ -10,7 +10,8 @@ const mapStateToProps = (state) => {
 const mapDispatchToProps = (dispatch) => {
     return {
         toggleCreate: () => dispatch(toggleCreateDatastore()),
-        registerLeaf: (hub, name, format, value, units=undefined) => dispatch(createDatastore(hub, name, format, value, units)),
+        createDatastore: (hub, name, format, value, units=undefined) =>
+                            dispatch(createDatastore(hub, name, format, value, units)),
     };
 };
 

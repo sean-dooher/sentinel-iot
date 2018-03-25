@@ -1,5 +1,3 @@
-// TODO: sendCreateHub, deleteHub, changeHub
-
 import {updateHubs, updateConditions, updateTriggers, updateLeaves, updateDatastores, refreshHubs} from "./apiActions";
 import {handleWebsocketMessage} from "../reducers/apiHandlers";
 import ReconnectingWebSocket from "reconnecting-websocket";
@@ -108,7 +106,11 @@ export function changeHub(id) {
             window.socket.close(1000, '', {keepClosed: true});
         }
         if (id !== -1) {
-            window.socket = new ReconnectingWebSocket("ws://" + location.host + "/client/" + id);
+            if (location.protocol === 'https:')
+                window.socket = new ReconnectingWebSocket("wss://" + location.host + "/client/" + id);
+            else
+                window.socket = new ReconnectingWebSocket("ws://" + location.host + "/client/" + id);
+
             window.socket.onmessage = (message) => handleWebsocketMessage(dispatch, message);
             window.socket.onopen = (e) => {
                 console.log("Connecting to hub");

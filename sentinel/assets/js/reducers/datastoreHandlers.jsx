@@ -13,7 +13,7 @@ export function handleToggleDeleteDatastore(state, action) {
 
 export function handleToggleCreateDatastore(state, action) {
     let newState = Object.assign({}, state);
-    newState.datastore.showCreate = !newState.datastores.showCreate;
+    newState.datastore.showCreate = !newState.datastore.showCreate;
 
     if(newState.datastore.showDelete)
         newState.datastore.deleteErrors = [];

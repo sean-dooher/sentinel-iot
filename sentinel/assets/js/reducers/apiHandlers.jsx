@@ -35,8 +35,8 @@ export function handleDeleteItem(state, action, collection, singular, attribute)
 
 export function handleUpdateItem(state, action, collection, singular, attribute) {
     let newState = Object.assign({}, state);
-    newState.api[collection] = state.api[collection].filter(item => item[attribute] !== action[attribute]);
-    newState.api[collection] = newState.api[collection].concat(action[singular]).sort(attributeSorter(attribute));
+    let newCollection = state.api[collection].filter(item => item[attribute] !== action[singular][attribute]);
+    newState.api[collection] = newCollection.concat(action[singular]).sort(attributeSorter(attribute));
     return newState;
 }
 

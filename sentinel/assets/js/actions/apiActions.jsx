@@ -10,7 +10,7 @@ export const ADD_LEAF = "ADD_LEAF";
 export const UPDATE_LEAF = "UPDATE_LEAF";
 export const DELETE_LEAF = "DELETE_LEAF";
 
-export const ADD_DATASTORE = "ADD_LEAF";
+export const ADD_DATASTORE = "ADD_DATASTORE";
 export const UPDATE_DATASTORE = "UPDATE_DATASTORE";
 export const DELETE_DATASTORE = "DELETE_DATASTORE";
 
