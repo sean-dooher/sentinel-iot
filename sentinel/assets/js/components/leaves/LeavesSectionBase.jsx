@@ -33,7 +33,6 @@ export class LeavesSectionBase extends React.Component {
     }
 }
 
-// TODO: add dragula support
 LeavesSectionBase.propTypes = {
     leaves: PropTypes.array,
     toggleRegister: PropTypes.func

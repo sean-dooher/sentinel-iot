@@ -48,6 +48,12 @@ const initialState = {
         registerErrors: [],
         deleteErrors: [],
         token: ''
+    },
+    datastores: {
+        showCreate: false,
+        showDelete: false,
+        createErrors: [],
+        deleteErrors: []
     }
 };
 
