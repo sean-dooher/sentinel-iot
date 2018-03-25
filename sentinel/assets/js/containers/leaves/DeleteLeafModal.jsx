@@ -3,7 +3,7 @@ import { DeleteLeaf } from '../../components/leaves/DeleteLeaf'
 import { toggleDeleteLeaf, deleteLeaf } from "../../actions/leafActions";
 
 const mapStateToProps = (state) => {
-    return {deleteErrors: state.leaf.deleteErrors,
+    return {deleteErrors: state.leaf.deleteErrors, uuid: state.leaf.deleteUUID,
         show: state.leaf.showDelete, hub: state.hub.active};
 };
 

@@ -37,7 +37,7 @@ export class CreateDatastore extends React.Component {
                 }
                 }>
                     <ModalBody>
-                        {this.props.createDatastore.map((error, key) => <Alert color="danger"
+                        {this.props.createErrors.map((error, key) => <Alert color="danger"
                                                                                key={key}>{error}</Alert>)}
                         <FormGroup>
                             <Label for="name">Name</Label>
@@ -51,7 +51,7 @@ export class CreateDatastore extends React.Component {
                                 <option>string</option>
                             </Input>
                             <Label for="value">Value</Label>
-                            {this.getValueInput()}
+                            {/*{this.getValueInput()}*/}
                         </FormGroup>
                     </ModalBody>
                     <ModalFooter>

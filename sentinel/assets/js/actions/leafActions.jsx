@@ -10,9 +10,10 @@ export function toggleRegisterLeaf() {
     }
 }
 
-export function toggleDeleteLeaf() {
+export function toggleDeleteLeaf(uuid='') {
     return {
-        type: TOGGLE_DELETE_LEAF
+        type: TOGGLE_DELETE_LEAF,
+        uuid
     }
 }
 

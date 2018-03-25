@@ -2,6 +2,9 @@ export function handleToggleDeleteLeaf(state, action) {
     let newState = Object.assign({}, state);
     newState.leaf.showDelete = !state.leaf.showDelete;
 
+    if(action.uuid)
+        newState.leaf.deleteUUID = action.uuid;
+
     if(newState.leaf.showDelete)
         newState.leaf.deleteErrors = [];
 

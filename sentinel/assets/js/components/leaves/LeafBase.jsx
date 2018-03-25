@@ -7,7 +7,7 @@ import PropTypes from "prop-types";
 export class LeafBase extends React.Component {
     render(){
        return (
-                <div className="leaf col-sm-12 col-md-12 col-lg-6 col-xl-6">
+                <div className="leaf col-sm-12 col-md-12 col-lg-4 col-xl-4">
                     <Card>
                       <CardHeader>
                           <div className="float-left grabber leaf-icon drag-handle"><i className="fas fa-bars"/></div>
@@ -20,11 +20,12 @@ export class LeafBase extends React.Component {
                             <div className="dropdown-toggle dropdown-toggle-split pointer leaf-icon"/>
                           </div>
                           <div className="dropdown-menu" aria-labelledby="leafdropdown">
-                              <button className="dropdown-item" onClick={this.props.toggleDelete}>Disconnect Leaf</button>
+                              <button className="dropdown-item" onClick={() => this.props.toggleDelete(this.props.uuid)}>
+                                  Disconnect Leaf
+                              </button>
                           </div>
-                          <DeleteLeafModal uuid={this.props.uuid}/>
                       </CardHeader>
-                      <CardBody className={"devices"}>
+                      <CardBody className="devices">
                       { this.props.devices.length < 0 ? <p>This Leaf has no devices attached</p> : null }
                             { this.props.devices.map((device, key) =>
                                 <Device key={key} leaf={this.props.uuid} {... device} connected={this.props.is_connected} />)}

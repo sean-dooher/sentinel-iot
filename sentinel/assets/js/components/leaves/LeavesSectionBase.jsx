@@ -4,12 +4,12 @@ import {Button, Alert, Row} from "reactstrap";
 import RegisterLeafModal from "../../containers/leaves/RegisterLeafModal";
 import Leaf from "../../containers/leaves/Leaf";
 import Dragula from 'react-dragula';
+import DeleteLeafModal from "../../containers/leaves/DeleteLeafModal";
 
 export class LeavesSectionBase extends React.Component {
     dragulaDecorator(component) {
         if (component) {
             let options = {invalid: function (el, handle) {
-                console.log(handle.tagName);
                 return !handle.classList.contains('drag-handle') && !handle.parentNode.classList.contains('drag-handle');
               }};
             Dragula([component], options);
@@ -20,6 +20,8 @@ export class LeavesSectionBase extends React.Component {
         return (
             <section className="leaves">
                 <RegisterLeafModal/>
+                <DeleteLeafModal/>
+
                 <h2>Leaves <Button color='primary' onClick={this.props.toggleRegister}>Register</Button></h2>
                 {this.props.leaves.length === 0 ?
                     <Alert color="info">You currently have no leaves registered. Click the button above to register a

@@ -9,9 +9,10 @@ export function toggleCreateDatastore() {
     }
 }
 
-export function toggleDeleteDatastore() {
+export function toggleDeleteDatastore(name='') {
     return {
-        type: TOGGLE_DELETE_DATASTORE
+        type: TOGGLE_DELETE_DATASTORE,
+        name
     }
 }
 

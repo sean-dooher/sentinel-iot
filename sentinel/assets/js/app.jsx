@@ -4,6 +4,7 @@ import {Navigation} from "./components/navigation/Navigation";
 import HubSideBar from "./containers/navigation/HubSideBar";
 import LeavesSection from "./containers/leaves/LeavesSection";
 import PropTypes from "prop-types";
+import DatastoresSection from "./containers/datastores/DatastoresSection";
 
 export class AppBase extends React.Component {
     render() {
@@ -12,6 +13,7 @@ export class AppBase extends React.Component {
                 <HubSideBar />
                 {this.props.hub !== -1 ?
                     <main className="col-sm-9 ml-sm-auto col-md-10 pt-3" role="main">
+                        <DatastoresSection/>
                         <LeavesSection/>
                     </main> : null}
             </Navigation>);

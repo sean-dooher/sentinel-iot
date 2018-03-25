@@ -40,22 +40,26 @@ export class OutValue extends React.Component {
     render(){
         if (this.props.format === "bool") {
             return (
-                <ToggleButton
-                  value={ this.state.value || false }
-                  onToggle={(value) => {
-                    this.setState({value: !this.state.value});
-                    this.sendChange(!this.state.value);
-                  }} disabled={this.props.connected} />
+                <div className="d-inline-block">
+                    <ToggleButton
+                      value={ this.state.value || false }
+                      onToggle={(value) => {
+                        this.setState({value: !this.state.value});
+                        this.sendChange(!this.state.value);
+                      }} disabled={this.props.connected} />
+                </div>
             );
         } else {
             return (
-                <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
-                    <input type="text" pattern={this.getPattern()} onChange={this.handleChange}
-                           className="form-control" placeholder={this.props.value + "(current)"} aria-label="new_value"
-                           aria-describedby="basic-addon2" disabled={!this.props.connected}/>
-                    <div className="input-group-append input-group-btn">
-                        <button onClick={this.sendChange} className="btn btn-outline-secondary" type="button" disabled={!this.props.connected}>
-                            <i className="fas fa-angle-right"/></button>
+                <div className="d-inline-block">
+                    <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
+                        <input type="text" pattern={this.getPattern()} onChange={this.handleChange}
+                               className="form-control" placeholder={this.props.value + "(current)"} aria-label="new_value"
+                               aria-describedby="basic-addon2" disabled={!this.props.connected}/>
+                        <div className="input-group-append input-group-btn">
+                            <button onClick={this.sendChange} className="btn btn-outline-secondary" type="button" disabled={!this.props.connected}>
+                                <i className="fas fa-angle-right"/></button>
+                        </div>
                     </div>
                 </div>);
         }

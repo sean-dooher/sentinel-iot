@@ -1,25 +1,27 @@
-import {
-    TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_HUB_ERROR, ADD_CREATE_HUB_ERROR,
-    TOGGLE_DELETE_HUB
-} from "../actions/navigationActions";
+import {TOGGLE_CREATE_HUB, UPDATE_ACTIVE_HUB, ADD_DELETE_HUB_ERROR} from "../actions/navigationActions";
+import {ADD_CREATE_HUB_ERROR, TOGGLE_DELETE_HUB} from "../actions/navigationActions";
+
 import {UPDATE_HUBS, UPDATE_LEAVES, UPDATE_TRIGGERS, UPDATE_DATASTORES, UPDATE_CONDITIONS} from "../actions/apiActions";
 import {ADD_TRIGGER, ADD_LEAF, ADD_DATASTORE, ADD_CONDITION} from "../actions/apiActions";
 import {UPDATE_TRIGGER, UPDATE_CONDITION, UPDATE_LEAF, UPDATE_DATASTORE} from "../actions/apiActions";
 import {DELETE_TRIGGER, DELETE_CONDITION, DELETE_LEAF, DELETE_DATASTORE} from "../actions/apiActions";
-import {
-    ADD_REGISTER_LEAF_ERROR, ADD_DELETE_LEAF_ERROR,
-    CHANGE_REGISTRATION_TOKEN, TOGGLE_DELETE_LEAF, TOGGLE_REGISTER_LEAF
-} from "../actions/leafActions";
 
-import {
-    handleToggleCreateHub, handleActiveHubUpdate, handleAddCreateError,
-    handleAddDeleteError, handleToggleDeleteHub
-} from "./navigationHandlers";
+import {ADD_REGISTER_LEAF_ERROR, ADD_DELETE_LEAF_ERROR} from "../actions/leafActions";
+import {CHANGE_REGISTRATION_TOKEN, TOGGLE_DELETE_LEAF, TOGGLE_REGISTER_LEAF} from "../actions/leafActions";
+
+import {TOGGLE_DELETE_DATASTORE, TOGGLE_CREATE_DATASTORE} from "../actions/datastoreActions";
+import {ADD_CREATE_DATASTORE_ERROR, ADD_DELETE_DATASTORE_ERROR} from "../actions/datastoreActions";
+
+import {handleToggleCreateHub, handleActiveHubUpdate, handleAddCreateError} from "./navigationHandlers";
+import {handleAddDeleteError, handleToggleDeleteHub} from "./navigationHandlers";
+
 import {handleAddItem, handleDeleteItem, handleUpdateItem, handleUpdateItems} from "./apiHandlers";
-import {
-    handleChangeRegistrationToken, handleAddDeleteLeafError,
-    handleRegisterLeafError, handleToggleRegisterLeaf
-} from "./leafHandlers";
+
+import {handleChangeRegistrationToken, handleAddDeleteLeafError} from "./leafHandlers";
+import {handleRegisterLeafError, handleToggleRegisterLeaf} from "./leafHandlers";
+
+import {handleAddCreateDatastoreError, handleAddDeleteDatastoreError} from "./datastoreHandlers";
+import {handleToggleCreateDatastore, handleToggleDeleteDatastore} from "./datastoreHandlers";
 
 const initialState = {
     api: {
@@ -47,13 +49,15 @@ const initialState = {
         showDelete: false,
         registerErrors: [],
         deleteErrors: [],
+        deleteUUID: '',
         token: ''
     },
-    datastores: {
+    datastore: {
         showCreate: false,
         showDelete: false,
         createErrors: [],
-        deleteErrors: []
+        deleteErrors: [],
+        deleteName: ''
     }
 };
 
@@ -122,6 +126,15 @@ export function sentinelApp(state = initialState, action) {
         case TOGGLE_DELETE_LEAF:
             return handleToggleDeleteHub(state, action);
 
+        // datastore section
+        case ADD_CREATE_DATASTORE_ERROR:
+            return handleToggleCreateDatastore(state, action);
+        case ADD_DELETE_DATASTORE_ERROR:
+            return handleAddDeleteDatastoreError(state, action);
+        case TOGGLE_CREATE_DATASTORE:
+            return handleToggleCreateDatastore(state, action);
+        case TOGGLE_DELETE_DATASTORE:
+            return handleToggleDeleteDatastore(state, action);
         default:
             return state;
     }
