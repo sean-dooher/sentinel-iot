@@ -59,63 +59,63 @@ export function updateTriggers(triggers) {
     }
 }
 
-export function addDatastore(datastore){
+export function addDatastore(datastore) {
     return {
         type: ADD_DATASTORE,
         datastore
     }
 }
 
-export function deleteDatastore(name){
+export function deleteDatastore(name) {
     return {
         type: DELETE_DATASTORE,
         name
     }
 }
 
-export function updateDatastore(datastore){
+export function updateDatastore(datastore) {
     return {
         type: UPDATE_DATASTORE,
         datastore
     }
 }
 
-export function addLeaf(leaf){
+export function addLeaf(leaf) {
     return {
         type: ADD_LEAF,
         leaf
     }
 }
 
-export function deleteLeaf(uuid){
+export function deleteLeaf(uuid) {
     return {
         type: DELETE_LEAF,
         uuid
     }
 }
 
-export function updateLeaf(leaf){
+export function updateLeaf(leaf) {
     return {
         type: UPDATE_LEAF,
         leaf
     }
 }
 
-export function addCondition(condition){
+export function addCondition(condition) {
     return {
         type: ADD_CONDITION,
         condition
     }
 }
 
-export function deleteCondition(name){
+export function deleteCondition(name) {
     return {
         type: DELETE_CONDITION,
         name
     }
 }
 
-export function updateCondition(condition){
+export function updateCondition(condition) {
     return {
         type: UPDATE_CONDITION,
         condition
@@ -123,21 +123,21 @@ export function updateCondition(condition){
 }
 
 
-export function addTrigger(trigger){
+export function addTrigger(trigger) {
     return {
         type: ADD_TRIGGER,
         trigger
     }
 }
 
-export function deleteTrigger(name){
+export function deleteTrigger(name) {
     return {
         type: DELETE_TRIGGER,
         name
     }
 }
 
-export function updateTrigger(trigger){
+export function updateTrigger(trigger) {
     return {
         type: UPDATE_TRIGGER,
         trigger

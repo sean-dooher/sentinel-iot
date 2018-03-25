@@ -102,59 +102,5 @@ export function changeHub(id) {
                 .then(datastores => dispatch(updateDatastores(datastores)));
             return;
         }
-        if (window.socket) {
-            window.socket.close(1000, '', {keepClosed: true});
-        }
-        if (id !== -1) {
-            if (location.protocol === 'https:')
-                window.socket = new ReconnectingWebSocket("wss://" + location.host + "/client/" + id);
-            else
-                window.socket = new ReconnectingWebSocket("ws://" + location.host + "/client/" + id);
-
-            window.socket.onmessage = (message) => handleWebsocketMessage(dispatch, message);
-            window.socket.onopen = (e) => {
-                console.log("Connecting to hub");
-                let messages = [{
-                    stream: 'leaves',
-                    payload: {
-                        action: 'subscribe',
-                        data: {action: 'create'}
-                    }
-                }, {
-                    stream: 'leaves',
-                    payload: {
-                        action: 'subscribe',
-                        data: {action: 'update'}
-                    }
-                }, {
-                    stream: 'leaves',
-                    payload: {
-                        action: 'subscribe',
-                        data: {action: 'delete'}
-                    }
-                }, {
-                    stream: 'leaves',
-                    payload: {
-                        action: 'list'
-                    }
-                }];
-                for (let message of messages) {
-                    window.socket.send(JSON.stringify(message));
-                }
-                // set timeouts to prevent server from forcibly disconnected
-                setTimeout(() => {
-                    for (let message of messages) {
-                        message.stream = 'datastores';
-                        window.socket.send(JSON.stringify(message));
-                    }
-                }, 5);
-                setTimeout(() => {
-                    for (let message of messages) {
-                        message.stream = 'conditions';
-                        window.socket.send(JSON.stringify(message));
-                    }
-                }, 10);
-            }
-        }
     }
 }

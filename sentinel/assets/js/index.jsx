@@ -6,6 +6,7 @@ import {createStore, applyMiddleware} from 'redux';
 import {Provider} from 'react-redux';
 import ReduxThunk from 'redux-thunk';
 import Cookies from "js-cookie";
+import {handleWebsocketMessage} from "./reducers/apiHandlers";
 
 window.getHeader = {
     method: 'get',
@@ -52,6 +53,8 @@ window.deleteHeader = {
 };
 
 window.store = createStore(sentinelApp, applyMiddleware(ReduxThunk));
+window.websocketMessageHandler = (message) => handleWebsocketMessage(window.store.dispatch, message);
+
 
 render(<Provider store={store}><App /></Provider>, document.getElementById('react-app'));
 
