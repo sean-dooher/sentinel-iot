@@ -61,9 +61,9 @@ export function registerLeaf(hubId, uuid) {
     }
 }
 
-export function deleteLeaf(hubId, uuid) {
+export function deleteLeaf(hub, uuid) {
     return dispatch => {
-        fetch(window.host + "/api/hub/" + hubId + "/leaves/" + uuid, window.deleteHeader).then(r => {
+        fetch(window.host + "/api/hub/" + hub + "/leaves/" + uuid, window.deleteHeader).then(r => {
             if(r.ok) {
                 dispatch(toggleDeleteLeaf());
             } else {

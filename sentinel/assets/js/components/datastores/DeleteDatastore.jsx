@@ -12,7 +12,7 @@ export class DeleteDatastore extends React.Component {
                     <p>Are you sure you want to delete this datastore?</p>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="danger" onClick={() => this.props.deleteDatastore(this.props.name)}>
+                    <Button color="danger" onClick={() => this.props.deleteDatastore(this.props.hub, this.props.name)}>
                         Yes
                     </Button>{' '}
                     <Button color="secondary" onClick={this.props.toggleDelete}>No</Button>

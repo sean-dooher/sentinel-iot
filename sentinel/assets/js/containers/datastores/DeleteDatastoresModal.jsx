@@ -8,10 +8,9 @@ const mapStateToProps = (state) => {
 };
 
 const mapDispatchToProps = (dispatch) => {
-//TODO: addChangeHub, refreshHub here
     return {
         toggleDelete: () => dispatch(toggleDeleteDatastore()),
-        deleteLeaf: (hub, name) => dispatch(deleteDatastore(hub, name)),
+        deleteDatastore: (hub, name) => dispatch(deleteDatastore(hub, name)),
     };
 };
 

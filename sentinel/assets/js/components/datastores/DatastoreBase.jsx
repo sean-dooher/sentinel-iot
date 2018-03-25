@@ -34,7 +34,7 @@ export class DatastoreBase extends React.Component {
                     </CardHeader>
                     <CardBody>
                         <div className="row devices">
-                            <div class="device">
+                            <div className="device">
                                 <OutValue format={this.props.format} value={this.props.value}
                                           small connected
                                           updateValue={value =>

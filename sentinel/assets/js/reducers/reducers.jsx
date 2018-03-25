@@ -17,7 +17,7 @@ import {handleAddDeleteError, handleToggleDeleteHub} from "./navigationHandlers"
 
 import {handleAddItem, handleDeleteItem, handleUpdateItem, handleUpdateItems} from "./apiHandlers";
 
-import {handleChangeRegistrationToken, handleAddDeleteLeafError} from "./leafHandlers";
+import {handleChangeRegistrationToken, handleAddDeleteLeafError, handleToggleDeleteLeaf} from "./leafHandlers";
 import {handleRegisterLeafError, handleToggleRegisterLeaf} from "./leafHandlers";
 
 import {handleAddCreateDatastoreError, handleAddDeleteDatastoreError} from "./datastoreHandlers";
@@ -124,11 +124,11 @@ export function sentinelApp(state = initialState, action) {
         case TOGGLE_REGISTER_LEAF:
             return handleToggleRegisterLeaf(state, action);
         case TOGGLE_DELETE_LEAF:
-            return handleToggleDeleteHub(state, action);
+            return handleToggleDeleteLeaf(state, action);
 
         // datastore section
         case ADD_CREATE_DATASTORE_ERROR:
-            return handleToggleCreateDatastore(state, action);
+            return handleAddCreateDatastoreError(state, action);
         case ADD_DELETE_DATASTORE_ERROR:
             return handleAddDeleteDatastoreError(state, action);
         case TOGGLE_CREATE_DATASTORE:

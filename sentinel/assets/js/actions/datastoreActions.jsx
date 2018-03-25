@@ -68,15 +68,15 @@ export function createDatastore(hub, name, format, value, units=undefined) {
 
 export function deleteDatastore(hub, name) {
     return dispatch => {
-        fetch(window.host + "/api/hub/" + hub + "/leaves/" + uuid, window.deleteHeader).then(r => {
+        fetch(window.host + "/api/hub/" + hub + "/datastores/" + name, window.deleteHeader).then(r => {
             if(r.ok) {
-                dispatch(toggleDeleteLeaf());
+                dispatch(toggleDeleteDatastore());
             } else {
                 r.json()
-                    .then(json => dispatch(addDeleteLeafError("Error: " + json.detail)))
-                    .catch(e =>  dispatch(addDeleteLeafError("Error: an unknown error has occurred")));
+                    .then(json => dispatch(addDeleteDatastoreError("Error: " + json.detail)))
+                    .catch(e =>  dispatch(addDeleteDatastoreError("Error: an unknown error has occurred")));
             }
-        }).catch(e => dispatch(addDeleteLeafError(e.message)));
+        }).catch(e => dispatch(addDeleteDatastoreError(e.message)));
     }
 }
 

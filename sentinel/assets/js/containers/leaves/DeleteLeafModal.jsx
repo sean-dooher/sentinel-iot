@@ -8,7 +8,6 @@ const mapStateToProps = (state) => {
 };
 
 const mapDispatchToProps = (dispatch) => {
-//TODO: addChangeHub, refreshHub here
     return {
         toggleDelete: () => dispatch(toggleDeleteLeaf()),
         deleteLeaf: (hub, uuid) => dispatch(deleteLeaf(hub, uuid)),
