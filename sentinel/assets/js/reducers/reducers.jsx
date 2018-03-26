@@ -12,6 +12,9 @@ import {CHANGE_REGISTRATION_TOKEN, TOGGLE_DELETE_LEAF, TOGGLE_REGISTER_LEAF} fro
 import {TOGGLE_DELETE_DATASTORE, TOGGLE_CREATE_DATASTORE} from "../actions/datastoreActions";
 import {ADD_CREATE_DATASTORE_ERROR, ADD_DELETE_DATASTORE_ERROR} from "../actions/datastoreActions";
 
+import {ADD_CREATE_CONDITION_ERROR, ADD_DELETE_CONDITION_ERROR} from "../actions/conditionActions";
+import {TOGGLE_CREATE_CONDITION, TOGGLE_DELETE_CONDITION} from "../actions/conditionActions";
+
 import {handleToggleCreateHub, handleActiveHubUpdate, handleAddCreateError} from "./navigationHandlers";
 import {handleAddDeleteError, handleToggleDeleteHub} from "./navigationHandlers";
 
@@ -22,6 +25,9 @@ import {handleRegisterLeafError, handleToggleRegisterLeaf} from "./leafHandlers"
 
 import {handleAddCreateDatastoreError, handleAddDeleteDatastoreError} from "./datastoreHandlers";
 import {handleToggleCreateDatastore, handleToggleDeleteDatastore} from "./datastoreHandlers";
+
+import {handleAddCreateConditionError, handleAddDeleteConditionError} from "./conditionHandlers";
+import {handleToggleCreateCondition, handleToggleDeleteCondition} from "./conditionHandlers";
 
 const initialState = {
     api: {
@@ -58,6 +64,13 @@ const initialState = {
         createErrors: [],
         deleteErrors: [],
         deleteName: ''
+    },
+    condition: {
+        showCreate: false,
+        showDelete: false,
+        createErrors: [],
+        deleteErrors: [],
+        deleteUUID: ''
     }
 };
 
@@ -135,6 +148,16 @@ export function sentinelApp(state = initialState, action) {
             return handleToggleCreateDatastore(state, action);
         case TOGGLE_DELETE_DATASTORE:
             return handleToggleDeleteDatastore(state, action);
+
+        case ADD_CREATE_CONDITION_ERROR:
+            return handleAddCreateConditionError(state, action);
+        case ADD_DELETE_CONDITION_ERROR:
+            return handleAddDeleteConditionError(state, action);
+        case TOGGLE_CREATE_CONDITION:
+            return handleToggleCreateCondition(state, action);
+        case TOGGLE_DELETE_CONDITION:
+            return handleToggleDeleteCondition(state, action);
+
         default:
             return state;
     }

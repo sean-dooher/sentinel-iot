@@ -91,12 +91,12 @@ export function updateDatastore(hub, name, format, value) {
                                 console.log("Error: " + json.reason);
                             }
                         }
-                    ).catch(() => console.log("Error: error occured parsing response"))
+                    ).catch(() => console.log("Error: error occurred parsing response"))
                 } else {
                     r.text().then(text => console.log(text));
                     console.log("Error: " + r.statusText + " (" + r.status + ")");
                 }
             })
-            .catch((e) => console.log("Error: an unknown error has occured\n"+e));
+            .catch((e) => console.log("Error: an unknown error has occurred\n"+e));
     }
 }
