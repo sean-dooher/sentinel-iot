@@ -1,6 +1,6 @@
 [
 	{
-        "name": "unlock_door",
+        "name": "Unlock Door",
         "predicate": ["=", ["7ec8a1fe-1fdc-41f9-9fce-adf6565e06fa", "rfid"], 3032042781.0],
         "action": {
             "action_type": "SET",
@@ -11,7 +11,7 @@
         }
     },
     {
-        "name": "lock_door",
+        "name": "Lock Door",
         "predicate": ["NOT", ["=", ["7ec8a1fe-1fdc-41f9-9fce-adf6565e06fa", "rfid"], 3032042781.0]],
         "action": {
             "action_type": "SET",
