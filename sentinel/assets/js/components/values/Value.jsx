@@ -30,10 +30,13 @@ export class Value extends React.Component {
     }
 
     sendChange(value) {
-        if (value === undefined)
+        if (value === undefined || value.target)
             value = this.state.value;
 
         if (this.props.format !== 'string') {
+            if(!(typeof value === 'string' || value instanceof String)) {
+                value = JSON.stringify(value);
+            }
             value = JSON.parse(value);
         }
         this.props.updateValue(value);
