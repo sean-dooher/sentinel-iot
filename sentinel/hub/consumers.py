@@ -115,7 +115,7 @@ def hub_handle_status(message):
     mess = message.content['dict']
     hub = Hub.objects.get(id=message.channel_session['hub'])
     leaf = hub.get_leaf(message.channel_session['uuid'])
-    device_name = mess["device"].lower()
+    device_name = mess["device"]
 
     try:
         device = leaf.get_device(device_name, False)

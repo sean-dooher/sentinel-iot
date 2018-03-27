@@ -10,7 +10,7 @@ const mapStateToProps = state => {
 
 const mapDispatchToProps = dispatch => {
     return {
-        updateDevice: (leaf, device, format, value) => dispatch(updateDevice(leaf, device, format, value))
+        updateDevice: (hub, leaf, device, format, value) => dispatch(updateDevice(hub, leaf, device, format, value))
     };
 };
 

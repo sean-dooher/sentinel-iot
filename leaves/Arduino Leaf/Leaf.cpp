@@ -86,7 +86,7 @@ void Leaf::send_config() {
 	root["uuid"] = uuid;
 	root["name"] = name;
 	root["model"] = model;
-	root["password"] = password;
+	root["token"] = password;
 	root["api_version"] = API_VERSION;
 	char buffer[512];
 	root.printTo(buffer, sizeof(buffer));

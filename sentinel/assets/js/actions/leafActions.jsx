@@ -80,7 +80,7 @@ export function deleteLeaf(hub, uuid) {
 export function updateDevice(hub, leaf, device, format, value) {
     return dispatch => {
         let headers = Object.assign({}, window.putHeader);
-        headers.body = JSON.stringify({value, format, device});
+        headers.body = JSON.stringify({value:value, format, device});
         fetch(window.host + "/api/hub/" + hub + "/leaves/" + leaf, headers)
             .then(r => {
                 if (r.ok) {
