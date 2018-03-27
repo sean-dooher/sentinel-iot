@@ -39,8 +39,8 @@ const initialState = {
     },
     navbar: {
         links: [{name: 'Hub', href: '/dashboard'},
-            {name: 'Settings', href: '/dashboard/settings'},
-            {name: 'Profile', href: '/dashboard/profile'}],
+            {name: 'Settings', href: '#'}, //'/dashboard/settings'},
+            {name: 'Profile', href: '#'}],//'/dashboard/profile'}],
         active: 'Hub'
     },
     hub: {

@@ -11,7 +11,7 @@ import {
     Button,
     Alert
 } from "reactstrap";
-import {OutValue} from "../values/OutValue";
+import {Value} from "../values/Value";
 import PropTypes from "prop-types";
 
 export class DatastoreBase extends React.Component {
@@ -35,9 +35,9 @@ export class DatastoreBase extends React.Component {
                     <CardBody>
                         <div className="row devices">
                             <div className="device">
-                                <OutValue format={this.props.format} value={this.props.value}
-                                          small connected
-                                          updateValue={value =>
+                                <Value format={this.props.format} value={this.props.value}
+                                       small connected out
+                                       updateValue={value =>
                                               this.props.updateDatastore(this.props.hub, this.props.name, this.props.format, value)}
                                 />
                             </div>

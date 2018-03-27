@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import ToggleButton from 'react-toggle-button';
 
-export class OutValue extends React.Component {
+export class Value extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -24,15 +24,16 @@ export class OutValue extends React.Component {
 
     handleChange(event) {
         this.setState({value: event.target.value});
+        if(this.props.onChange)
+            this.props.onChange(event.target.value);
     }
 
-    sendChange(value) {
-        if(value === null) {
-            if (this.props.format === 'string') {
-                value = this.state.value;
-            } else {
-                value = JSON.parse(this.state.value);
-            }
+    sendChange() {
+        let value;
+        if (this.props.format === 'string') {
+            value = this.state.value;
+        } else {
+            value = JSON.parse(this.state.value);
         }
         this.props.updateValue(value);
     }
@@ -46,7 +47,7 @@ export class OutValue extends React.Component {
                       onToggle={(value) => {
                         this.setState({value: !this.state.value});
                         this.sendChange(!this.state.value);
-                      }} disabled={this.props.connected} />
+                      }} disabled={!this.props.connected && this.props.out} />
                 </div>
             );
         } else {
@@ -54,11 +55,14 @@ export class OutValue extends React.Component {
                 <div className="d-inline-block">
                     <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
                         <input type="text" pattern={this.getPattern()} onChange={this.handleChange}
-                               className="form-control" placeholder={this.props.value + "(current)"} aria-label="new_value"
-                               aria-describedby="basic-addon2" disabled={!this.props.connected}/>
+                               className="form-control" aria-label="new_value"
+                               placeholder={this.props.value ? this.props.value + "(current)" : null}
+                               aria-describedby="basic-addon2" disabled={!this.props.connected && this.props.out}/>
                         <div className="input-group-append input-group-btn">
-                            <button onClick={this.sendChange} className="btn btn-outline-secondary" type="button" disabled={!this.props.connected}>
-                                <i className="fas fa-angle-right"/></button>
+                            <button type="button" hidden={!this.props.out} disabled={!this.props.connected}
+                                onClick={this.sendChange} className="btn btn-outline-secondary">
+                                <i className="fas fa-angle-right"/>
+                            </button>
                         </div>
                     </div>
                 </div>);
@@ -66,10 +70,12 @@ export class OutValue extends React.Component {
     }
 }
 
-OutValue.propTypes = {
+Value.propTypes = {
     small: PropTypes.bool,
     value: PropTypes.any,
     format: PropTypes.string,
     connected: PropTypes.bool,
-    updateValue: PropTypes.func
+    updateValue: PropTypes.func,
+    onChange: PropTypes.func,
+    out: PropTypes.bool
 };

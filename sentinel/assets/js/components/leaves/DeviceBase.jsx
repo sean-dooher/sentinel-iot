@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {OutValue} from "../values/OutValue";
+import {Value} from "../values/Value";
 
 export class DeviceBase extends React.Component {
     getValue() {
@@ -8,8 +8,8 @@ export class DeviceBase extends React.Component {
             return this.props.value.toString() + (this.props.format === "number+units" ? this.props.units : "");
         }
         else {
-            return <OutValue value={this.props.value} format={this.props.format} small connected={this.props.connected}
-                             updateValue={(value) => this.props.updateDevice(this.props.hub, this.props.leaf,
+            return <Value value={this.props.value} format={this.props.format} small out connected={this.props.connected}
+                          updateValue={(value) => this.props.updateDevice(this.props.hub, this.props.leaf,
                                                         this.props.name, this.props.format, value)}/>
         }
     }

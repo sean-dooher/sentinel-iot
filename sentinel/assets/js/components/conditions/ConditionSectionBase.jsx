@@ -4,6 +4,7 @@ import {predicateToString} from "../../utils/conditionUtils";
 import PropTypes from "prop-types";
 import {Alert, Button} from "reactstrap";
 import DeleteConditionModal from "../../containers/conditions/DeleteConditionModal";
+import CreateConditionModal from "../../containers/conditions/CreateConditionModal";
 
 export class ConditionSectionBase extends React.Component {
     render() {
@@ -11,6 +12,7 @@ export class ConditionSectionBase extends React.Component {
             <div>
                 <h2>Conditions <Button color='primary' onClick={this.props.toggleCreate}>Create</Button></h2>
                 <DeleteConditionModal/>
+                <CreateConditionModal/>
                 {this.props.conditions.length === 0 ?
                     <Alert color="info">
                         You currently have no conditions. Click the button above to create a new

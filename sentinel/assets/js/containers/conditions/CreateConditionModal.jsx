@@ -1,10 +1,12 @@
 import { connect } from 'react-redux'
-// import { CreateCondition } from '../../components/conditions/CreateCondition'
+import { CreateCondition } from '../../components/conditions/CreateCondition'
 import { toggleCreateCondition, createCondition } from "../../actions/conditionActions";
 
 const mapStateToProps = (state) => {
     return {show: state.condition.showCreate,
-            createErrors:state.condition.createErrors, hub:state.hub.active};
+            createErrors:state.condition.createErrors, hub:state.hub.active,
+            datastores:state.api.datastores, leaves:state.api.leaves
+    };
 };
 
 const mapDispatchToProps = (dispatch) => {
