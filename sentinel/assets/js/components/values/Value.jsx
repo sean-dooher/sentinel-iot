@@ -1,6 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import ToggleButton from 'react-toggle-button';
+import {Input} from "reactstrap";
 
 export class Value extends React.Component {
     constructor(props) {
@@ -40,6 +41,26 @@ export class Value extends React.Component {
 
     render(){
         if (this.props.format === "bool") {
+            if(this.props.boolSelect) {
+               return (
+                   <div>
+                    <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
+                        <Input type="select" onChange={this.handleChange}
+                               className="form-control custom-select" aria-label="new_value"
+                               disabled={!this.props.connected && this.props.out}>
+                            <option>{"true" + (this.props.value ? " (current)" : "")}</option>
+                            <option>{"false" + (this.props.value !== undefined && !this.props.value ? " (current)" : "")}</option>
+
+                        </Input>
+                        <div className="input-group-append input-group-btn">
+                            <button type="button" hidden={!this.props.out} disabled={!this.props.connected}
+                                onClick={this.sendChange} className="btn btn-outline-secondary">
+                                <i className="fas fa-angle-right"/>
+                            </button>
+                        </div>
+                    </div>
+                </div>);
+            }
             return (
                 <div className="d-inline-block">
                     <ToggleButton
@@ -48,11 +69,10 @@ export class Value extends React.Component {
                         this.setState({value: !this.state.value});
                         this.sendChange(!this.state.value);
                       }} disabled={!this.props.connected && this.props.out} />
-                </div>
-            );
+                </div>);
         } else {
             return (
-                <div className="d-inline-block">
+                <div>
                     <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
                         <input type="text" pattern={this.getPattern()} onChange={this.handleChange}
                                className="form-control" aria-label="new_value"
@@ -77,5 +97,6 @@ Value.propTypes = {
     connected: PropTypes.bool,
     updateValue: PropTypes.func,
     onChange: PropTypes.func,
-    out: PropTypes.bool
+    out: PropTypes.bool,
+    boolSelect: PropTypes.bool
 };

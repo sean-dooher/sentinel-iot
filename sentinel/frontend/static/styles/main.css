@@ -93,3 +93,7 @@ body {
 .nav-logout:hover {
     color: rgba(255, 255, 255, 0.75);
 }
+
+.no-padding {
+    padding: 0;
+}

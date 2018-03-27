@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import {Button} from "reactstrap";
-import {LeafSelector} from "../values/LeafSelector";
+import {ComparatorPredicate} from "./ComparatorPredicate";
 
 export class PredicateCreator extends React.Component {
     constructor(props) {
@@ -14,10 +14,13 @@ export class PredicateCreator extends React.Component {
 
     render() {
         return this.state.predicates.map((key, predicate) => {
-            return <div key={key}>
-                {/*<ComparatorPredicate datastores={this.props.datastores} leaves={this.props.leaves}/>*/}
-                <LeafSelector literal leaves={this.props.leaves} datastores={this.props.datastores} />
-                <Button size="sm" color="danger">-</Button>
+            return <div key={key} className="row">
+                <div className="col-11">
+                    <ComparatorPredicate datastores={this.props.datastores} leaves={this.props.leaves}/>
+                </div>
+                <div className="col-1">
+                    <Button size="sm" color="danger">-</Button>
+                </div>
             </div>
         });
     }

@@ -59,9 +59,11 @@ export function getLeaf(uuid, leaves) {
 
 export function getDevice(uuid, name, leaves) {
     let leaf = getLeaf(uuid, leaves);
-    let candidates = leaf.devices.filter(device => device.name === name);
-    if (candidates.length > 0)
-        return candidates[0];
-    else
-        return null;
+    if(leaf) {
+        let candidates = leaf.devices.filter(device => device.name === name);
+        if (candidates.length > 0)
+            return candidates[0];
+    }
+
+    return null;
 }

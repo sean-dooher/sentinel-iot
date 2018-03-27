@@ -43,13 +43,17 @@ export class LeafSelector extends React.Component {
         if(this.state.selected_leaf !== 'literal') {
             if (this.state.selected_device !== prevState.selected_device && this.props.formatChanged) {
                 let device = getDevice(this.state.selected_leaf, this.state.selected_device, this.props.leaves);
-                this.props.formatChanged(device.format);
+
+                if(device)
+                    this.props.formatChanged(device.format);
             }
             if (this.state.selected_leaf !== prevState.selected_leaf) {
                 if(this.state.selected_leaf === 'datastore') {
                     this.setState({selected_device: this.props.datastores[0].name})
                 } else {
-                    this.setState({selected_device: getLeaf(this.state.selected_leaf, this.props.leaves).devices[0].name})
+                    let leaf = getLeaf(this.state.selected_leaf, this.props.leaves);
+                    if(leaf)
+                        this.setState({selected_device: leaf.devices[0].name})
                 }
             }
         } else if (this.state.selected_leaf !== prevState.selected_leaf) {
@@ -60,7 +64,7 @@ export class LeafSelector extends React.Component {
     render(){
        return (<div className="row">
            <div className="col-md-6">
-               <Input type="select" name="leaf" className="form-control custom-select"
+               <Input type="select" name="leaf" className="form-control custom-select p-r-0"
                               value={this.state.selected_leaf} onChange={this.handleLeafChange}>
                    { this.props.literal ? <option value="literal">Literal</option> : null}
                    { this.props.datastores && this.props.datastores.length > 0 ? <option value="datastore">Datastore</option> : null}
@@ -70,12 +74,12 @@ export class LeafSelector extends React.Component {
            </div>
            <div className="col-md-6">
                {this.state.selected_leaf !== 'literal' ?
-               <Input type="select" name="device" className="form-control custom-select" onClick={this.handleDeviceChange}>
+               <Input type="select" name="device" className="form-control custom-select p-r-0" onClick={this.handleDeviceChange}>
                    {getDevices(this.state.selected_leaf, this.props.leaves,
                        this.props.datastores, this.props.format, this.props.out)
                        .map((device, key) => <option key={key} value={device.name}>{device.name}</option>)}
                </Input>
-                   : <Value format={this.props.format} onChange={this.handleDeviceChange}/>}
+                   : <Value format={this.props.format} onChange={this.handleDeviceChange} boolSelect/>}
            </div>
        </div>);
     }
