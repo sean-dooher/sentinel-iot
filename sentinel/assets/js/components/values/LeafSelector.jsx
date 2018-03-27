@@ -4,6 +4,8 @@ import {Input} from "reactstrap";
 import {Value} from "./Value";
 import {getDevice, getDevices, getLeaf, getLeaves} from "../../utils/leafUtils";
 
+// TODO: Fix
+
 export class LeafSelector extends React.Component {
     constructor(props) {
         super(props);

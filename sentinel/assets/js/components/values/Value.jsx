@@ -46,11 +46,10 @@ export class Value extends React.Component {
                    <div>
                     <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
                         <Input type="select" onChange={this.handleChange}
-                               className="form-control custom-select" aria-label="new_value"
+                               className="custom-select" aria-label="new_value"
                                disabled={!this.props.connected && this.props.out}>
                             <option>{"true" + (this.props.value ? " (current)" : "")}</option>
                             <option>{"false" + (this.props.value !== undefined && !this.props.value ? " (current)" : "")}</option>
-
                         </Input>
                         <div className="input-group-append input-group-btn">
                             <button type="button" hidden={!this.props.out} disabled={!this.props.connected}

@@ -15,15 +15,17 @@ export class CreateCondition extends React.Component {
                     <Input type="text" name="name" id="name" placeholder="Name" onChange={this.updateConditionName}/>
                     <br/>
                     <h4>Predicate</h4>
-                    <PredicateCreator leaves={this.props.leaves} datastores={this.props.datastores}/>
+                    <PredicateCreator leaves={this.props.leaves} datastores={this.props.datastores}
+                                      ref={ref => this.predicate = ref}/>
                     <br/>
                     <h4>Action</h4>
                     {/*<ActionCreator leaves={this.props.leaves} datastores={this.props.datastores}*/}
                                    {/*ref={c => this._action = c}/>*/}
 
                 </ModalBody>
+                {/*this.props.createCondition(this.props.hub, this.props.name)}*/}
                 <ModalFooter>
-                    <Button color="primary" onClick={() => this.props.createCondition(this.props.hub, this.props.name)}>
+                    <Button color="primary" onClick={() => console.log(this.predicate.createPredicate())}>
                         Send
                     </Button>{' '}
                     <Button color="secondary" onClick={this.props.toggleCreate}>Cancel</Button>
