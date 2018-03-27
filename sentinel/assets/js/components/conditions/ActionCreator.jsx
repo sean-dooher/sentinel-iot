@@ -14,16 +14,15 @@ export class ActionCreator extends React.Component {
     }
 
     getOperators() {
+        let operators = this.state.first_format === 'bool' || this.state.first_format === 'string' ?
+            ['SET'] : ['SET', 'CHANGE'];
         return (<div className="row">
             <select name="operator" className="form-control custom-select"
                     value={this.state.operator} onChange={this.handleComparatorChange}>
-                <option value="SET">set to</option>
-                {this.state.first_format !== 'bool' && this.state.first_format !== 'string' ?
-                    <option value="CHANGE">change by</option> : null}
+                {operators.map((op, key) => <option value={op} key={key}>{op}</option>)}
             </select>
         </div>);
     }
-
 
     formatChanged(newFormat) {
         this.setState({first_format: newFormat, operator: 'SET'});
@@ -52,15 +51,13 @@ export class ActionCreator extends React.Component {
     render(){
        return <div className="row">
            <div className="col-md-5">
-            <LeafSelector leaves={this.props.leaves} datastores={this.props.datastores}
-                          ref={(c) => this._first = c} formatChanged={this.formatChanged} output/>
+            <LeafSelector datastores={this.props.datastores} leaves={this.props.leaves} ref={(c) => this._first = c} formatChanged={this.formatChanged}/>
            </div>
            <div className="col-md-2">
             {this.getOperators()}
            </div>
            <div className="col-md-5">
-            <LeafSelector leaves={this.props.leaves} datastores={this.props.datastores}
-                          format={this.state.first_format} ref={(c) => this._second = c} literal/>
+            <LeafSelector datastores={this.props.datastores} leaves={this.props.leaves} literal format={this.state.first_format} ref={(c) => this._second = c}/>
            </div>
        </div>;
     }

@@ -42,7 +42,6 @@ export class PredicateCreator extends React.Component {
 
     createPredicate() {
         let predicate = this.predicates.slice(-1)[0][1].getPredicate();
-        console.log(this.state.connectors);
         for(let i = this.predicates.length - 2; i >= 0; i--) {
             let connector = this.state.connectors[i][1];
             predicate = [connector, predicate, this.predicates[i][1].getPredicate()];

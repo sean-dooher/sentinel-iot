@@ -49,21 +49,27 @@ export function getDevices(uuid, leaves, datastores, format = '', out = false) {
     return [];
 }
 
-export function getLeaf(uuid, leaves) {
-    let candidates = leaves.filter(leaf => leaf.uuid === uuid);
-    if (candidates.length > 0)
-        return candidates[0];
-    else
-        return null;
-}
-
-export function getDevice(uuid, name, leaves) {
-    let leaf = getLeaf(uuid, leaves);
-    if(leaf) {
-        let candidates = leaf.devices.filter(device => device.name === name);
+export function getLeaf(uuid, leaves, datastores) {
+    if (uuid !== 'datastore') {
+        let candidates = leaves.filter(leaf => leaf.uuid === uuid);
         if (candidates.length > 0)
             return candidates[0];
     }
+    else
+        return datastores;
+}
 
-    return null;
+export function getDevice(uuid, name, leaves, datastores) {
+    let leaf = getLeaf(uuid, leaves, datastores);
+    if(leaf) {
+        let candidates;
+
+        if (uuid !== 'datastore')
+            candidates = leaf.devices.filter(device => device.name === name);
+        else
+            candidates = datastores.filter(ds => ds.name === name);
+
+        if (candidates.length > 0)
+            return candidates[0];
+    }
 }
