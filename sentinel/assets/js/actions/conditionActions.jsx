@@ -38,7 +38,6 @@ export function createCondition(hub, name, predicate, action) {
             predicate,
             action
         };
-
         let headers = Object.assign({}, window.postHeader);
         headers.body = JSON.stringify(condition);
         fetch(window.host + "/api/hub/" + hub + "/conditions/", headers)
