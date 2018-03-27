@@ -14,7 +14,7 @@ export class Value extends React.Component {
     }
 
     getPattern() {
-        if(this.props.format === "number" || this.props.format === "number+units") {
+        if (this.props.format === "number" || this.props.format === "number+units") {
             return "^[0-9]+$";
         } else if (this.props.format === "bool") {
             return "^(true|false|0|1)$";
@@ -25,49 +25,57 @@ export class Value extends React.Component {
 
     handleChange(event) {
         this.setState({value: event.target.value});
-        if(this.props.onChange)
+        if (this.props.onChange)
             this.props.onChange(event.target.value);
     }
 
-    sendChange() {
-        let value;
-        if (this.props.format === 'string') {
+    sendChange(value) {
+        if (value === undefined)
             value = this.state.value;
-        } else {
-            value = JSON.parse(this.state.value);
+
+        if (this.props.format !== 'string') {
+            value = JSON.parse(value);
         }
         this.props.updateValue(value);
     }
 
-    render(){
+    componentDidUpdate(prevProps, prevState) {
+        if (prevProps.value !== this.props.value) {
+            if (this.props.format === 'bool') {
+                this.setState({value: this.props.value});
+            }
+        }
+    }
+
+    render() {
         if (this.props.format === "bool") {
-            if(this.props.boolSelect) {
-               return (
-                   <div>
-                    <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
-                        <Input type="select" onChange={this.handleChange}
-                               className="custom-select" aria-label="new_value"
-                               disabled={!this.props.connected && this.props.out}>
-                            <option>{"true" + (this.props.value ? " (current)" : "")}</option>
-                            <option>{"false" + (this.props.value !== undefined && !this.props.value ? " (current)" : "")}</option>
-                        </Input>
-                        <div className="input-group-append input-group-btn">
-                            <button type="button" hidden={!this.props.out} disabled={!this.props.connected}
-                                onClick={this.sendChange} className="btn btn-outline-secondary">
-                                <i className="fas fa-angle-right"/>
-                            </button>
+            if (this.props.boolSelect) {
+                return (
+                    <div>
+                        <div className={"input-group" + (this.props.small ? " input-group-xs" : "")}>
+                            <Input type="select" onChange={this.handleChange}
+                                   className="custom-select" aria-label="new_value"
+                                   disabled={!this.props.connected && this.props.out}>
+                                <option>{"true" + (this.props.value ? " (current)" : "")}</option>
+                                <option>{"false" + (this.props.value !== undefined && !this.props.value ? " (current)" : "")}</option>
+                            </Input>
+                            <div className="input-group-append input-group-btn">
+                                <button type="button" hidden={!this.props.out} disabled={!this.props.connected}
+                                        onClick={this.sendChange} className="btn btn-outline-secondary">
+                                    <i className="fas fa-angle-right"/>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>);
+                    </div>);
             }
             return (
                 <div className="d-inline-block">
                     <ToggleButton
-                      value={ this.state.value || false }
-                      onToggle={(value) => {
-                        this.setState({value: !this.state.value});
-                        this.sendChange(!this.state.value);
-                      }} disabled={!this.props.connected && this.props.out} />
+                        value={this.state.value || false}
+                        onToggle={() => {
+                            this.setState({value: !this.state.value});
+                            this.sendChange(!this.state.value);
+                        }} disabled={!this.props.connected && this.props.out}/>
                 </div>);
         } else {
             return (
@@ -79,7 +87,7 @@ export class Value extends React.Component {
                                aria-describedby="basic-addon2" disabled={!this.props.connected && this.props.out}/>
                         <div className="input-group-append input-group-btn">
                             <button type="button" hidden={!this.props.out} disabled={!this.props.connected}
-                                onClick={this.sendChange} className="btn btn-outline-secondary">
+                                    onClick={this.sendChange} className="btn btn-outline-secondary">
                                 <i className="fas fa-angle-right"/>
                             </button>
                         </div>

@@ -52,7 +52,10 @@ export function createCondition(hub, name, predicate, action) {
                         }
                     ).catch(e => dispatch(addCreateConditionError("Error: error occurred parsing response")))
                 } else {
-                    r.text().then(t => console.log(t));
+                    r.text().then(t => {
+                        console.log(t);
+                        dispatch(addCreateConditionError("Error: " + r.statusText + " (" + r.status + ")"));
+                    });
                     dispatch(addCreateConditionError("Error: " + r.statusText + " (" + r.status + ")"));
                 }
             })
