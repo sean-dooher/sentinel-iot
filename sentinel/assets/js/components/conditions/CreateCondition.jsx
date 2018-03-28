@@ -27,7 +27,7 @@ export class CreateCondition extends React.Component {
                 <ModalFooter>
                     <Button color="primary"
                             onClick={() => this.props.createCondition(this.props.hub, this.name.value,
-                                this.predicate.createPredicate(), this.action.createAction())}>
+                                this.predicate.createPredicate(), [this.action.createAction()])}>
                         Send
                     </Button>{' '}
                     <Button color="secondary" onClick={this.props.toggleCreate}>Cancel</Button>

@@ -244,8 +244,8 @@ class ConditionList(generics.ListAPIView):
         try:
             name = request.data.get('name', '')
             predicate = request.data.get('predicate', '')
-            action = request.data.get('action', '')
-            assert name and predicate and action
+            actions = request.data.get('actions', '')
+            assert name and predicate and actions
         except (KeyError, AssertionError):
             return JsonResponse({'accepted': False, 'reason': 'Missing one of [name, predicate, action]'})
 
@@ -253,7 +253,7 @@ class ConditionList(generics.ListAPIView):
 
         if self.request.user.has_perm('view_hub', hub):
             try:
-                create_condition(name, predicate, action, hub)
+                create_condition(name, predicate, actions, hub)
             except SentinelError as e:
                 return JsonResponse({'accepted': True, 'reason': str(e)})
 

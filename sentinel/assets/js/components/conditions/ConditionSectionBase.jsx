@@ -1,6 +1,6 @@
 import React from "react";
 import {getNameFromUUID} from "../../utils/leafUtils";
-import {predicateToString} from "../../utils/conditionUtils";
+import {actionToString, predicateToString} from "../../utils/conditionUtils";
 import PropTypes from "prop-types";
 import {Alert, Button} from "reactstrap";
 import DeleteConditionModal from "../../containers/conditions/DeleteConditionModal";
@@ -24,27 +24,28 @@ export class ConditionSectionBase extends React.Component {
                         <tr>
                             <th>Name</th>
                             <th>Predicate</th>
-                            <th>Action</th>
-                            <th>Action Target</th>
-                            <th>Action Value</th>
+                            <th>Actions</th>
                             <th/>
                         </tr>
                         </thead>
                         <tbody>
                         {this.props.conditions.map((condition, key) =>
                             <tr key={key}>
+                                {console.log(condition)}
                                 <td>{condition.name}</td>
                                 <td>{predicateToString(condition.predicate, this.props.leaves)
                                     .split('\n').map((item, key) => {
                                     return <span key={key}>{item}<br/></span>
                                 })}</td>
-                                <td>{condition.action.action_type}</td>
                                 <td>
-                                    {'<'}
-                                    {getNameFromUUID(condition.action.target, this.props.leaves)}, {condition.action.device}
-                                    {'>'}
+                                    {condition.actions.map((action, key) => {
+                                        return (
+                                            <div key={key}>
+                                                {actionToString(action, this.props.leaves)}
+                                                <br/>
+                                            </div>);
+                                    })}
                                 </td>
-                                <td>{condition.action.value.toString()}</td>
                                 <td>
                                     <button className="btn btn-danger"
                                             onClick={() => this.props.toggleDelete(condition.name)}>Delete

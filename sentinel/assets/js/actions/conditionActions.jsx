@@ -31,12 +31,12 @@ export function addDeleteConditionError(message) {
 }
 
 
-export function createCondition(hub, name, predicate, action) {
+export function createCondition(hub, name, predicate, actions) {
     return dispatch => {
         let condition = {
             name,
             predicate,
-            action
+            actions
         };
         let headers = Object.assign({}, window.postHeader);
         headers.body = JSON.stringify(condition);

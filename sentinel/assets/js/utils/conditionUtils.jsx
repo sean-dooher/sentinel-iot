@@ -51,3 +51,18 @@ export function predicateToString(predicate, leaves, not=false, tab=0) {
 
     return predicate;
 }
+
+export function actionToString(action, leaves) {
+    let action_types = {
+        'SET': 'set',
+        'CHANGE': 'change'
+    };
+
+    let target = getNameFromUUID(action.target, leaves);
+
+    let value = action.value instanceof Array ?
+        "<" + getNameFromUUID(action.value[0], leaves) + ", " + action.value[1] + ">" : action.value.toString();
+
+    return action_types[action.action_type] + " <" + target + ", " + action.device + "> to " + value;
+
+}
