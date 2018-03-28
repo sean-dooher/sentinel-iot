@@ -4,17 +4,19 @@
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
 #include <elapsedMillis.h>
-
+#include <EEPROM.h>
 
 ESP8266WiFiMulti WiFiMulti;
-const short int BUILTIN_LED1 = 2; //GPIO2
-const short int LEFT_LAMP = 5;
+const short int TOP_OUTLET = 5;
+const short int BOTTOM_OUTLET = 4;
 
 
-Leaf leaf("lamps", "1.0.1", "b549b7b9-ca65-4552-9e72-3e07dec02568", "pass");
-BooleanDevice lamp1("left_lamp_on", false, device_mode::OUT);
+Leaf leaf("Whiteboard Outlets", "1.0.1", "uuid", "token");
+BooleanDevice top_outlet("Top Outlet", false, device_mode::OUT);
+BooleanDevice bottom_outlet("Bottom Outlet", false, device_mode::OUT);
 
 void setup() {
+  EEPROM.begin(2);
   WiFiMulti.addAP("user", "pass");
 
   while (WiFiMulti.run() != WL_CONNECTED) {
@@ -40,17 +42,23 @@ void setup() {
     else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
-  ArduinoOTA.setHostname("LED-Leaf");
+  ArduinoOTA.setHostname("Whiteboard Leaves");
   ArduinoOTA.begin();
 
-  // Hostname defaults to esp8266-[ChipID]
-  leaf.connect("192.168.1.6", 8000, "/hub/1");
-  leaf.register_device(lamp1);
-  lamp1.on_change = handle_change;
-  pinMode(BUILTIN_LED1, OUTPUT);
-  pinMode(LEFT_LAMP, OUTPUT);
-  digitalWrite(BUILTIN_LED1, HIGH);
-  digitalWrite(LEFT_LAMP, HIGH);
+  leaf.connect("sentinel-iot.net", 80, "/hub/1");
+  leaf.register_device(bottom_outlet);
+  top_outlet.on_change = handle_change_top;
+  
+  leaf.register_device(top_outlet);
+  bottom_outlet.on_change = handle_change_bottom;
+  pinMode(TOP_OUTLET, OUTPUT);
+  pinMode(BOTTOM_OUTLET, OUTPUT);
+
+  top_outlet.set_value(EEPROM.read(0));
+  bottom_outlet.set_value(EEPROM.read(1));
+
+  digitalWrite(TOP_OUTLET, 1 - top_outlet.get_value());
+  digitalWrite(BOTTOM_OUTLET, 1 - bottom_outlet.get_value());
 }
 
 void loop() {
@@ -58,14 +66,17 @@ void loop() {
   leaf.update();
 }
 
-void handle_change(Device& device) {
+void handle_change_top(Device& device) {
   boolean newValue = ((BooleanDevice&) device).get_value();
-  if (newValue == 1) {
-    digitalWrite(BUILTIN_LED1, LOW);
-    digitalWrite(LEFT_LAMP, LOW);
-  } else {
-    digitalWrite(BUILTIN_LED1, HIGH);
-    digitalWrite(LEFT_LAMP, HIGH);
-  }
+  digitalWrite(TOP_OUTLET, 1 - newValue);
+  EEPROM.write(0, newValue);
+  EEPROM.commit();
+}
+
+void handle_change_bottom(Device& device) {
+  boolean newValue = ((BooleanDevice&) device).get_value();
+  digitalWrite(BOTTOM_OUTLET, newValue);
+  EEPROM.write(1, newValue);
+  EEPROM.commit();
 }
 
