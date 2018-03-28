@@ -162,12 +162,6 @@ class LeafDetail(generics.RetrieveDestroyAPIView):
         else:
             raise PermissionDenied
 
-    def delete(self, *args, **kwargs):
-        leaf = self.get_object()
-        if User.objects.filter(username=f"{leaf.hub.id}-{leaf.uuid}").exists():
-            User.objects.get(username=f"{leaf.hub.id}-{leaf.uuid}").delete()
-        super().delete(*args, **kwargs)
-
 
 class DatastoreList(generics.ListAPIView):
     serializer_class = DatastoreSerializer

@@ -1,5 +1,5 @@
 from django.dispatch import receiver
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.contrib.auth.models import User
 from django.contrib.auth.models import AnonymousUser
 from guardian.models import Group as PermGroup
@@ -81,3 +81,11 @@ def create_condition_permissions(sender, **kwargs):
 
 post_save.connect(create_condition_permissions, sender=Condition)
 
+
+def delete_leaf_user(sender, **kwargs):
+    leaf = kwargs['instance']
+    if User.objects.filter(username=f"{leaf.hub.id}-{leaf.uuid}").exists():
+        User.objects.get(username=f"{leaf.hub.id}-{leaf.uuid}").delete()
+
+
+pre_delete.connect(delete_leaf_user, sender=Leaf)

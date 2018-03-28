@@ -12,7 +12,7 @@ export function toggleRegisterLeaf() {
     }
 }
 
-export function toggleDeleteLeaf(uuid='') {
+export function toggleDeleteLeaf(uuid = '') {
     return {
         type: TOGGLE_DELETE_LEAF,
         uuid
@@ -56,7 +56,7 @@ export function registerLeaf(hubId, uuid) {
                         }
                     ).catch(e => dispatch(addRegisterLeafError("Error: error occurred while parsing response")));
                 } else {
-                    dispatch(addRegisterLeafError(("Error: " + r.statusText + " (" + r.status + ")")));
+                    dispatch(addRegisterLeafError("Error: " + r.statusText + " (" + r.status + ")"));
                 }
             })
             .catch(e => dispatch(addRegisterLeafError("Error: an unknown error has occurred")));
@@ -66,12 +66,12 @@ export function registerLeaf(hubId, uuid) {
 export function deleteLeaf(hub, uuid) {
     return dispatch => {
         fetch(window.host + "/api/hub/" + hub + "/leaves/" + uuid, window.deleteHeader).then(r => {
-            if(r.ok) {
+            if (r.ok) {
                 dispatch(toggleDeleteLeaf());
             } else {
-                r.json()
-                    .then(json => dispatch(addDeleteLeafError("Error: " + json.detail)))
-                    .catch(e =>  dispatch(addDeleteLeafError("Error: an unknown error has occurred")));
+                r.text()
+                    .then(text => console.log(text));
+                dispatch(addDeleteLeafError("Error: " + r.statusText + " (" + r.status + ")"));
             }
         }).catch(e => dispatch(addDeleteLeafError(e.message)));
     }
@@ -80,7 +80,7 @@ export function deleteLeaf(hub, uuid) {
 export function updateDevice(hub, leaf, device, format, value) {
     return dispatch => {
         let headers = Object.assign({}, window.putHeader);
-        headers.body = JSON.stringify({value:value, format, device});
+        headers.body = JSON.stringify({value: value, format, device});
         fetch(window.host + "/api/hub/" + hub + "/leaves/" + leaf, headers)
             .then(r => {
                 if (r.ok) {
