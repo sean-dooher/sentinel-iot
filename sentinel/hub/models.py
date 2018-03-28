@@ -498,6 +498,7 @@ class Action(PolymorphicModel):
     target_uuid = models.CharField(max_length=36)
     target_device = models.CharField(max_length=36)
     _value = models.OneToOneField(Value, on_delete=models.CASCADE)
+    condition = models.ForeignKey('Condition', on_delete=models.CASCADE, related_name='actions', null=True)
 
     def run(self):
         pass
@@ -552,7 +553,6 @@ class ChangeAction(Action):
 class Condition(models.Model):
     name = models.CharField(max_length=100)
     predicate = models.OneToOneField(Predicate, on_delete=models.CASCADE, related_name="condition")
-    action = models.OneToOneField(Action, on_delete=models.CASCADE, related_name="condition")
     previously_satisfied = models.BooleanField(default=False)
     hub = models.ForeignKey(Hub, related_name="conditions", on_delete=models.CASCADE)
 
@@ -565,7 +565,8 @@ class Condition(models.Model):
     def execute(self):
         pred = self.predicate.evaluate()
         if pred and not self.previously_satisfied:
-            self.action.run()
+            for action in self.actions.all():
+                action.run()
         self.previously_satisfied = pred
         self.save()
 

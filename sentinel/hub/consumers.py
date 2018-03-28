@@ -318,10 +318,10 @@ def hub_handle_datastore_delete(message):
 def hub_handle_condition_create(message):
     mess = message.content['dict']
     hub = Hub.objects.get(id=message.channel_session['hub'])
-    create_condition(mess['name'], mess['predicate'], mess['action'], hub)
+    create_condition(mess['name'], mess['predicate'], mess['actions'], hub)
 
 
-def create_condition(name, pred, action, hub):
+def create_condition(name, pred, actions, hub):
     operators = {'AND': AND, 'OR': OR, 'XOR': XOR}
     seen_devices = set()
 
@@ -380,39 +380,43 @@ def create_condition(name, pred, action, hub):
 
     predicate = eval_predicates(pred)
 
-    # create action
-    target_uuid, target_device = action['target'], action['device']
-    output_device = hub.get_device(target_uuid, target_device)
-    output_format = output_device.format
-    if isinstance(output_device, Datastore) or output_device.mode == 'OUT':
-        value = create_value(output_format, action['value'])
-        value.save()
-
-        if type(action['value']) != list:
-            value = create_value(output_format, value=action['value'])
-            value.save()
-        else:
-            remote_uuid, remote_device = action['value']
-            seen_devices.add((remote_uuid, remote_device))
-            value = hub.get_device(remote_uuid, remote_device)._value
-
-        if action['action_type'] == 'SET':
-            action = SetAction(target_uuid=target_uuid, target_device=target_device, _value=value)
-            action.save()
-        elif action['action_type'] == 'CHANGE':
-            action = ChangeAction(target_uuid=target_uuid, target_device=target_device, _value=value)
-            action.save()
-    else:
-        raise InvalidDevice(hub.get_leaf(target_uuid), output_device, InvalidDevice.MODE)
-
     # save condition, deleting old one if exists
-    condition = Condition(name=name, predicate=predicate, action=action, hub=hub)
+    condition = Condition(name=name, predicate=predicate, hub=hub)
     try:
         old_condition = hub.conditions.get(name=name)
         old_condition.delete()
     except ObjectDoesNotExist:
         pass
     condition.save()
+
+    # create action
+    for action in actions:
+        target_uuid, target_device = action['target'], action['device']
+        output_device = hub.get_device(target_uuid, target_device)
+        output_format = output_device.format
+        if isinstance(output_device, Datastore) or output_device.mode == 'OUT':
+            value = create_value(output_format, action['value'])
+            value.save()
+
+            if type(action['value']) != list:
+                value = create_value(output_format, value=action['value'])
+                value.save()
+            else:
+                remote_uuid, remote_device = action['value']
+                seen_devices.add((remote_uuid, remote_device))
+                value = hub.get_device(remote_uuid, remote_device)._value
+
+            if action['action_type'] == 'SET':
+                action = SetAction(target_uuid=target_uuid, target_device=target_device,
+                                   _value=value, condition=condition)
+                action.save()
+            elif action['action_type'] == 'CHANGE':
+                action = ChangeAction(target_uuid=target_uuid, target_device=target_device,
+                                      _value=value, condition=condition)
+                action.save()
+        else:
+            raise InvalidDevice(hub.get_leaf(target_uuid), output_device, InvalidDevice.MODE)
+
     for target, device in seen_devices:
         cond_sub = ConditionalSubscription(target_uuid=target, target_device=device, condition=condition, hub=hub)
         cond_sub.save()

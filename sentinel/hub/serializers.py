@@ -65,11 +65,11 @@ class ActionSerializer(ValueSerializer):
 
 class ConditionSerializer(serializers.ModelSerializer):
     predicate = serializers.SerializerMethodField()
-    action = ActionSerializer()
+    actions = ActionSerializer(many=True)
 
     class Meta:
         model = Condition
-        fields = ('name', 'predicate', 'action')
+        fields = ('name', 'predicate', 'actions')
 
     def get_predicate(self, obj):
         return obj.predicate.to_representation()
