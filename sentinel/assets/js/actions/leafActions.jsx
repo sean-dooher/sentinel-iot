@@ -69,8 +69,6 @@ export function deleteLeaf(hub, uuid) {
             if (r.ok) {
                 dispatch(toggleDeleteLeaf());
             } else {
-                r.text()
-                    .then(text => console.log(text));
                 dispatch(addDeleteLeafError("Error: " + r.statusText + " (" + r.status + ")"));
             }
         }).catch(e => dispatch(addDeleteLeafError(e.message)));
