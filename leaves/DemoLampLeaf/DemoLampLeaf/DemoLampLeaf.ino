@@ -75,7 +75,7 @@ void handle_change_top(Device& device) {
 
 void handle_change_bottom(Device& device) {
   boolean newValue = ((BooleanDevice&) device).get_value();
-  digitalWrite(BOTTOM_OUTLET, newValue);
+  digitalWrite(BOTTOM_OUTLET, 1 - newValue);
   EEPROM.write(1, newValue);
   EEPROM.commit();
 }
