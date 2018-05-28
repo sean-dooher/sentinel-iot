@@ -16,6 +16,8 @@ pipeline {
                 sh 'docker-compose stop interfaceserver'
                 sh 'docker-compose stop database'
                 sh 'docker-compose stop redis'
+                sh 'docker-compose rm -f database'
+                sh 'docker-compose rm -f redis'
                 sh 'echo Testing..'
             }
         }
