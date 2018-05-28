@@ -5,14 +5,14 @@ pipeline {
         stage('Build') {
             steps {
                 sh 'echo Building..'
-		sh 'docker-compose build'
+                sh 'docker-compose build'
             }
         }
         stage('Test') {
             steps {
                 sh 'docker-compose run -d database'
                 sh 'docker-compose run -d redis'
-                sh 'docker-compose run interfaceserver /app/manage.py test'
+                sh 'docker-compose run interfaceserver /app/run_tests.sh'
                 sh 'docker-compose stop interfaceserver'
                 sh 'docker-compose stop database'
                 sh 'docker-compose stop redis'

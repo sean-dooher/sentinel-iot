@@ -15,6 +15,7 @@ RUN pip install -r /app/requirements.txt
 
 COPY --chown=app:app ./sentinel/ /app/
 ADD --chown=app:app entrypoint-*.sh /app/
+COPY --chown:app:app run_tests.sh /app/
 RUN mkdir /app/static
 RUN chown app:app /app/static
 
