@@ -24,4 +24,10 @@ pipeline {
             }
         }
     }
+    post {
+        failure {
+            sh 'docker-compose stop interfaceserver database redis'
+            sh 'docker-compose rm -f interfaceserver database redis'
+        }
+    }
 }
