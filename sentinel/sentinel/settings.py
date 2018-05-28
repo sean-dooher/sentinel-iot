@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '=)')
 DEBUG = os.environ.get('DJANGO_DEBUG', True)
 DOCKER = os.environ.get('DJANGO_DOCKER', False)
 
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', 'interfaceserver']
+ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', 'interfaceserver', 'sentinelserver']
 
 # Application definition
 STATICFILES_DIRS = (
