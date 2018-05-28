@@ -45,4 +45,4 @@ urllib3==1.22
 websocket-client==0.44.0
 websockets==4.0.1
 zope.interface==4.4.2
-
+django-nose

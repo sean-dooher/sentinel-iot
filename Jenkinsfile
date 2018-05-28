@@ -25,7 +25,7 @@ pipeline {
         }
     }
     post {
-        failure {
+        always {
             sh 'docker-compose stop interfaceserver database redis'
             sh 'docker-compose rm -f interfaceserver database redis'
         }
