@@ -13,11 +13,8 @@ pipeline {
                 sh 'docker-compose run -d database'
                 sh 'docker-compose run -d redis'
                 sh 'docker-compose run interfaceserver bash /app/run_tests.sh'
-                sh 'docker-compose stop interfaceserver'
-                sh 'docker-compose stop database'
-                sh 'docker-compose stop redis'
-                sh 'docker-compose rm -f database'
-                sh 'docker-compose rm -f redis'
+                sh 'docker-compose stop interfaceserver database redis'
+                sh 'docker-compose rm -f interfaceserver database redis'
                 sh 'echo Testing..'
             }
         }
