@@ -879,3 +879,4 @@ class HubTests(ConsumerTests):
         # ensure that only one hub receives output
         self.assertIsNotNone(out_client1.receive(), "Expected an out on hub1")
         self.assertIsNone(out_client2.receive(), "Did not expect second hub to receive output")
+        self.assertTrue(False)
