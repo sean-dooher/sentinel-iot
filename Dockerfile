@@ -11,6 +11,9 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
+RUN wget -O /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64
+RUN chmod +x /usr/bin/dumb-init
+
 COPY requirements.txt /sentinel/requirements.txt
 RUN pip install -r /sentinel/requirements.txt
 
@@ -23,4 +26,5 @@ RUN chown sentinel:sentinel /sentinel/static
 
 USER sentinel
 WORKDIR /sentinel
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 ENV PYTHONUNBUFFERED 1

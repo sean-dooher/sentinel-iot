@@ -1,0 +1,39 @@
+version: '2'
+services:
+  interfaceserver:
+    build: 
+      context: .
+      args:
+        user_id: 1000
+    command: python3 manage.py runserver 0.0.0.0:8000
+    user: sentinel
+    working_dir: /sentinel
+    ports:
+      - "80:8000"
+    env_file:
+      - docker.env
+    depends_on:
+      - database
+      - redis
+    volumes:
+      - static:/sentinel/static
+      - ./sentinel:/sentinel
+  workerserver:
+    build: 
+      context: .
+      args:
+        user_id: 1000
+    user: sentinel
+    working_dir: /sentinel
+    command: /entry/entrypoint-worker.sh
+    env_file:
+      - docker.env
+    depends_on:
+      - database
+      - redis
+  database:
+    image: postgres:9.5
+  redis:
+    image: redis:3.0-alpine
+volumes:
+   static:
