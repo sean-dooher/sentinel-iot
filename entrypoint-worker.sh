@@ -2,5 +2,5 @@
 dockerize -wait tcp://database:5432
 dockerize -wait tcp://redis:6379
 
-cd /app && python manage.py runworker
+cd /sentinel && python manage.py runworker
 

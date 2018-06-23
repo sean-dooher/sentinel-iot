@@ -1,25 +1,26 @@
 FROM python:3.6
 
+ARG user_id=1000
+
+RUN useradd -u $user_id --system sentinel && \
+    mkdir /sentinel && \
+    chown sentinel:sentinel /sentinel
+
 ENV DOCKERIZE_VERSION v0.6.1
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
+COPY requirements.txt /sentinel/requirements.txt
+RUN pip install -r /sentinel/requirements.txt
 
-RUN useradd --system app && \
-    mkdir /app && \
-    chown app:app /app
-
-ADD requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
-
-COPY --chown=app:app ./sentinel/ /app/
-ADD --chown=app:app entrypoint-*.sh /app/
-COPY --chown=app:app run_tests.sh /app/
-RUN mkdir /app/static
-RUN chown app:app /app/static
+COPY --chown=sentinel:sentinel ./sentinel/ /sentinel/
+COPY --chown=sentinel:sentinel entrypoint-*.sh /entry/
+COPY --chown=sentinel:sentinel run_tests.sh /sentinel/
+RUN mkdir /sentinel/static
+RUN chown sentinel:sentinel /sentinel/static
 
 
-USER app
-WORKDIR /app
+USER sentinel
+WORKDIR /sentinel
 ENV PYTHONUNBUFFERED 1
