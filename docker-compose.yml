@@ -15,7 +15,7 @@ services:
       context: .
       args:
         user_id: 1000
-    image: sentinel
+    image: sentinel${BUILD_ID}
     command: /entry/entrypoint-interface.sh
     user: sentinel
     working_dir: /sentinel
@@ -29,7 +29,7 @@ services:
     volumes:
       - static:/sentinel/static
   workerserver:
-    image: sentinel
+    image: sentinel${BUILD_ID}
     user: sentinel
     working_dir: /sentinel
     command: /entry/entrypoint-worker.sh
