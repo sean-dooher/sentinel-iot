@@ -23,12 +23,12 @@ pipeline {
         sh 'docker push seandooher/sentinel-iot'
       }
     }
-    post {
-      always {
-        sh 'docker-compose down -v'
-        sh 'docker container prune -f'
-        sh 'docker network prune -f'
-      }
+  }
+  post {
+    always {
+      sh 'docker-compose down -v'
+      sh 'docker container prune -f'
+      sh 'docker network prune -f'
     }
   }
 }
