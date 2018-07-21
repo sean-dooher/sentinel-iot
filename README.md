@@ -1,4 +1,4 @@
-# Sentinel IOT
+# Sentinel IOT [![Build Status](http://builder.dooher.net/buildStatus/icon?job=sentinel-iot/master)](http://builder.dooher.net/job/sentinel-iot/job/master/)
 
 ## Sentinel Hub
 
