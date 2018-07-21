@@ -21,9 +21,6 @@ def create_hub_permission_group(sender, **kwargs):
         remove_perm('delete_hub', default_group, hub)
 
 
-post_save.connect(create_hub_permission_group, sender=Hub)
-
-
 def create_leaf_permissions(sender, **kwargs):
     if kwargs.get('created', False):
         leaf = kwargs['instance']
@@ -35,9 +32,6 @@ def create_leaf_permissions(sender, **kwargs):
         remove_perm('view_leaf', default_group, leaf)
         remove_perm('change_leaf', default_group, leaf)
         remove_perm('delete_leaf', default_group, leaf)
-
-
-post_save.connect(create_leaf_permissions, sender=Leaf)
 
 
 def create_user_default_permissions(sender, **kwargs):
@@ -54,18 +48,12 @@ def create_user_default_permissions(sender, **kwargs):
             assign_perm('hub.delete_hub', user)
 
 
-post_save.connect(create_user_default_permissions, sender=User)
-
-
 def create_datastore_permissions(sender, **kwargs):
     if kwargs.get('created', False):
         datastore = kwargs['instance']
         hub_group = PermGroup.objects.get(name="hub-" + str(datastore.hub.id))
         assign_perm('view_datastore', hub_group, datastore)
         assign_perm('delete_datastore', hub_group, datastore)
-
-
-post_save.connect(create_datastore_permissions, sender=Datastore)
 
 
 def create_condition_permissions(sender, **kwargs):
@@ -79,13 +67,30 @@ def create_condition_permissions(sender, **kwargs):
         remove_perm('delete_condition', default_group, condition)
 
 
-post_save.connect(create_condition_permissions, sender=Condition)
-
-
 def delete_leaf_user(sender, **kwargs):
     leaf = kwargs['instance']
     if User.objects.filter(username=f"{leaf.hub.id}-{leaf.uuid}").exists():
         User.objects.get(username=f"{leaf.hub.id}-{leaf.uuid}").delete()
 
 
+post_save.connect(create_hub_permission_group, sender=Hub)
+post_save.connect(create_leaf_permissions, sender=Leaf)
+post_save.connect(create_user_default_permissions, sender=User)
+post_save.connect(create_datastore_permissions, sender=Datastore)
+post_save.connect(create_condition_permissions, sender=Condition)
 pre_delete.connect(delete_leaf_user, sender=Leaf)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

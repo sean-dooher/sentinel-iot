@@ -5,4 +5,4 @@ class HubConfig(AppConfig):
     name = 'hub'
 
     def ready(self):
-        import hub.handlers
+        import hub.signals
