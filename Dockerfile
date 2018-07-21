@@ -20,9 +20,8 @@ RUN pip install -r /sentinel/requirements.txt
 COPY --chown=sentinel:sentinel ./sentinel/ /sentinel/
 COPY --chown=sentinel:sentinel entrypoint-*.sh /entry/
 COPY --chown=sentinel:sentinel run_tests.sh /sentinel/
-RUN mkdir /sentinel/static
-RUN chown sentinel:sentinel /sentinel/static
-
+RUN mkdir /sentinel/static && chown sentinel:sentinel /sentinel/static
+RUN mkdir /sentinel/reports && chown sentinel:sentinel /sentinel/reports
 
 USER sentinel
 WORKDIR /sentinel

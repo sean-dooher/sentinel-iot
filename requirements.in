@@ -12,3 +12,4 @@ channels-api
 redis
 asgi-redis
 psycopg2
+coverage

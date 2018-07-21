@@ -8,7 +8,7 @@ pipeline {
     }
     stage('Test') {
       steps {
-        sh 'docker-compose run interfaceserver python3 manage.py test'
+        sh 'docker-compose run interfaceserver ./run_tests.sh'
       }
     }
   }
