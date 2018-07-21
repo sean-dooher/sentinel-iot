@@ -10,7 +10,7 @@ pipeline {
       steps {
         sh 'mkdir reports && chmod 777 reports'
         sh 'docker-compose run -v $WORKSPACE/reports:/sentinel/reports interfaceserver sh ./run_tests.sh'
-        junit reports/junit.xml
+        junit(testResults: reports/junit.xml, healthScaleFactor: 1)
       }
     }
   }
