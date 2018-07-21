@@ -79,18 +79,3 @@ post_save.connect(create_user_default_permissions, sender=User)
 post_save.connect(create_datastore_permissions, sender=Datastore)
 post_save.connect(create_condition_permissions, sender=Condition)
 pre_delete.connect(delete_leaf_user, sender=Leaf)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
