@@ -5,6 +5,7 @@ services:
       context: .
       args:
         user_id: 1000
+    image: sentinel
     command: python3 manage.py runserver 0.0.0.0:8000
     user: sentinel
     working_dir: /sentinel
@@ -19,10 +20,7 @@ services:
       - static:/sentinel/static
       - ./sentinel:/sentinel
   workerserver:
-    build: 
-      context: .
-      args:
-        user_id: 1000
+    image: sentinel
     user: sentinel
     working_dir: /sentinel
     command: /entry/entrypoint-worker.sh
