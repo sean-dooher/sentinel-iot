@@ -135,7 +135,6 @@ def hub_handle_subscribe(message):
     device = mess['sub_device'].lower()
     hub = Hub.objects.get(id=message.channel_session['hub'])
 
-    # ensure the target exists by trying to access it
     if device == 'leaf':
         hub.get_leaf(target_uuid)
     else:
@@ -156,7 +155,6 @@ def hub_handle_unsubscribe(message):
     device = mess['sub_device'].lower()
     hub = Hub.objects.get(id=message.channel_session['hub'])
 
-    # ensure the target exists by trying to access it
     if device == 'leaf':
         hub.get_leaf(target_uuid)
     else:
