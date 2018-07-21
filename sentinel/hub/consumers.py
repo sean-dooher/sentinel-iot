@@ -9,7 +9,8 @@ from guardian.models import Group as PermGroup
 from .models import Leaf, Subscription, Device, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
-from .utils import is_valid_message, create_value, get_user, InvalidDevice, InvalidPredicate, InvalidLeaf, PermissionDenied
+from .utils import is_valid_message, create_value, get_user
+from hub.exceptions import InvalidDevice, InvalidPredicate, InvalidLeaf, PermissionDenied
 import json
 import logging
 

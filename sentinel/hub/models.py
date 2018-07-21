@@ -76,7 +76,8 @@ class Hub(models.Model):
         return f"{self.name} - {self.id}"
 
     def get_device(self, uuid, device):
-        from .utils import InvalidLeaf, InvalidDevice
+        from hub.exceptions import InvalidLeaf
+        from hub.exceptions import InvalidDevice
         try:
             if uuid == 'datastore':
                 return self.datastores.get(name=device)
@@ -90,7 +91,7 @@ class Hub(models.Model):
             raise InvalidDevice(self.leaves.get(uuid=uuid), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
 
     def get_leaf(self, uuid):
-        from .utils import InvalidLeaf
+        from hub.exceptions import InvalidLeaf
         leaf = self.leaves.filter(uuid=uuid)
         if leaf.exists():
             return leaf.first()

@@ -5,7 +5,8 @@ from django.http import JsonResponse, HttpResponse
 from rest_framework.permissions import DjangoObjectPermissions
 from hub.models import Leaf, Device, Datastore, Condition, Hub
 from hub.serializers import LeafSerializer, ConditionSerializer, DatastoreSerializer, HubSerializer
-from .utils import validate_uuid, create_value, SentinelError
+from .utils import validate_uuid, create_value
+from hub.exceptions import SentinelError
 from .consumers import create_condition
 from rest_framework import generics
 from guardian.shortcuts import assign_perm, remove_perm, get_objects_for_user
