@@ -1,0 +1,17 @@
+version: '3'
+services:
+  nginx:
+    container_name: sentinel-nginx
+    ports:
+      - "443:443"
+      - "80:80"
+  interfaceserver:
+    environment:
+      - DJANGO_SSL=TRUE
+  database:
+    volumes:
+      - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:
+  nginx_logs:
+# TODO: add certs
