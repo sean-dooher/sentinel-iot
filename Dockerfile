@@ -1,3 +1,11 @@
+FROM node:8-alpine as react-pkg
+RUN mkdir /sentinel
+COPY sentinel/webpack.config.js sentinel/.babelrc /sentinel/
+COPY sentinel/package.json sentinel/package-lock.json /sentinel/
+RUN cd /sentinel && npm install
+COPY sentinel/assets /sentinel/assets
+RUN cd /sentinel && npm run build
+
 FROM python:3.6-alpine
 
 ARG user_id=1000
@@ -19,6 +27,7 @@ RUN pip install -r /sentinel/requirements.txt
 COPY --chown=sentinel:sentinel ./sentinel/ /sentinel/
 COPY --chown=sentinel:sentinel entrypoint-*.sh /entry/
 COPY --chown=sentinel:sentinel run_tests.sh /sentinel/
+COPY --from=react-pkg /sentinel/assets/bundles/main.js /sentinel/assets/bundles/main.js
 RUN mkdir /sentinel/static && chown sentinel:sentinel /sentinel/static
 RUN mkdir /sentinel/reports && chown sentinel:sentinel /sentinel/reports
 
