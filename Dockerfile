@@ -1,8 +1,8 @@
-FROM python:3.6
+FROM python:3.6-alpine
 
 ARG user_id=1000
 
-RUN useradd -u $user_id --system sentinel && \
+RUN adduser -D -u $user_id sentinel && \
     mkdir /sentinel && \
     chown sentinel:sentinel /sentinel
 
@@ -11,8 +11,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
-RUN wget -O /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64
-RUN chmod +x /usr/bin/dumb-init
+RUN apk update && apk add dumb-init postgresql-dev gcc python3-dev musl-dev jpeg-dev zlib-dev
 
 COPY requirements.txt /sentinel/requirements.txt
 RUN pip install -r /sentinel/requirements.txt
