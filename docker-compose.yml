@@ -18,7 +18,7 @@ services:
     expose:
       - "8000"
     env_file:
-      - config/docker.env
+      - config/local.env
     depends_on:
       - database
       - redis
@@ -28,7 +28,7 @@ services:
     image: sentinel-iot:${ID:-latest}
     command: sh /entry/entrypoint-worker.sh
     env_file:
-      - config/docker.env
+      - config/local.env
     depends_on:
       - database
       - redis
