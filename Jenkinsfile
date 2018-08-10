@@ -32,8 +32,6 @@ pipeline {
       sh 'docker-compose down -v'
       sh 'docker container prune -f'
       sh 'docker network prune -f'
-      sh 'docker image prune -f'
-      sh 'docker rmi sentinel-iot:$ID'
      }
   }
 }
