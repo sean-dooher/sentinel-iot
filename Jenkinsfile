@@ -1,5 +1,8 @@
 pipeline {
   agent any
+  environment {
+    ID = "${env.GIT_BRANCH}-${env.BUILD_ID}";
+  }
   stages {
     stage('Build') {
       steps {
@@ -19,8 +22,8 @@ pipeline {
         branch 'master'
       }
       steps {
-        sh 'docker tag sentinel$BUILD_ID seandooher/sentinel-iot'
-        sh 'docker push seandooher/sentinel-iot'
+        sh 'docker tag sentinel-iot:$ID seandooher/sentinel-iot:latest'
+        sh 'docker push seandooher/sentinel-iot:latest'
       }
     }
   }
@@ -29,6 +32,8 @@ pipeline {
       sh 'docker-compose down -v'
       sh 'docker container prune -f'
       sh 'docker network prune -f'
-    }
+      sh 'docker image prune -f'
+      sh 'docker rmi sentinel-iot:$ID'
+     }
   }
 }
