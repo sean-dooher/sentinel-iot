@@ -12,20 +12,22 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os, sys
 
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '=)')
+DEBUG = os.environ.get('DJANGO_DEBUG', "TRUE") == "TRUE"
+DOCKER = os.environ.get('DJANGO_DOCKER', "FALSE") == "TRUE"
+TESTING = sys.argv[1:2] == ['test']
+SSL = os.environ.get('DJANGO_SSL', "FALSE") == "TRUE"
+DJANGO_HOSTNAME = os.environ.get('DJANGO_HOSTNAME', 'localhost')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', True)
-DOCKER = os.environ.get('DJANGO_DOCKER', False)
+ALLOWED_HOSTS = [DJANGO_HOSTNAME]
 
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', 'interfaceserver', 'sentinelserver']
+if DJANGO_HOSTNAME == 'localhost':
+    ALLOWED_HOSTS += ['0.0.0.0', '127.0.0.1']
+
+if SSL:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 STATICFILES_DIRS = (
@@ -91,22 +93,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sentinel.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/1.11/ref/settings/#databases
-
 DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
-            'NAME': os.environ.get('POSTGRES_NAME', 'postgres'),
+            'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
             'USER': os.environ.get('POSTGRES_USER', 'postgres'),
             'PASSWORD': os.environ.get('POSTGRESS_PASSWORD', 'postgres'),
             'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
             'PORT': '5432',
         }
     }
-# Password validation
-# https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
 
 REDIS_HOST = 'redis' if DOCKER else 'localhost'
 RQ_QUEUES = {
@@ -194,10 +190,6 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
