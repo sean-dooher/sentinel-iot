@@ -19,7 +19,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', "TRUE") == "TRUE"
 DOCKER = os.environ.get('DJANGO_DOCKER', "FALSE") == "TRUE"
 TESTING = sys.argv[1:2] == ['test']
 SSL = os.environ.get('DJANGO_SSL', "FALSE") == "TRUE"
-DJANGO_HOSTNAME = os.environ.get('DJANGO_HOST', 'localhost')
+DJANGO_HOSTNAME = os.environ.get('DJANGO_HOSTNAME', 'localhost')
 
 ALLOWED_HOSTS = [DJANGO_HOSTNAME]
 
