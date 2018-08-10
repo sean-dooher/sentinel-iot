@@ -29,7 +29,7 @@ idna==2.6                 # via requests
 incremental==17.5.0       # via twisted
 msgpack-python==0.5.6     # via asgi-redis
 oauthlib==2.0.6           # via django-oauth-toolkit
-psycopg2==2.7.3.2
+psycopg2-binary==2.7.5
 pytz==2017.3              # via django
 redis==2.10.6
 requests==2.18.4          # via django-oauth-toolkit
