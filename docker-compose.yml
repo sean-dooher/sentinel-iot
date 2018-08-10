@@ -12,7 +12,7 @@ services:
       context: .
       args:
         user_id: 1000
-    image: sentinel:${ID:-latest}
+    image: seandooher/sentinel-iot:${ID:-latest}
     command: sh /entry/entrypoint-interface.sh
     expose:
       - "8000"
@@ -24,7 +24,7 @@ services:
     volumes:
       - static:/sentinel/static
   workerserver:
-    image: sentinel:${ID:-latest}
+    image: seandooher/sentinel-iot:${ID:-latest}
     command: sh /entry/entrypoint-worker.sh
     env_file:
       - config/docker.env
