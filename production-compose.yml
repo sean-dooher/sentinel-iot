@@ -13,7 +13,7 @@ services:
       - /docker-volumes/etc/letsencrypt/live/${SENTINEL_HOST}/privkey.pem:/certs/key.pem
       - /docker-volumes/data/letsencrypt:/data/letsencrypt
       - nginx_logs:/logs
-    command: /bin/bash -c "envsubst '$$SENTINEL_HOST' < /config/production.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    command: /bin/bash -c "envsubst '$$DJANGO_HOSTNAME' < /config/production.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
   interfaceserver:
     env_file:
       - config/production.env

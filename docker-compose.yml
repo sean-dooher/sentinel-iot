@@ -7,7 +7,7 @@ services:
       - static:/static
     depends_on:
       - interfaceserver
-    command: /bin/bash -c "envsubst '$$SENTINEL_HOST' < /config/local.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    command: /bin/bash -c "envsubst '$$DJANGO_HOSTNAME' < /config/local.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
   interfaceserver:
     build: 
       context: .
