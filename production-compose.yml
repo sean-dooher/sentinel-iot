@@ -2,6 +2,8 @@ version: '3'
 services:
   nginx:
     container_name: sentinel-nginx
+    env_file:
+      - config/production.env
     ports:
       - "443:443"
       - "80:80"
