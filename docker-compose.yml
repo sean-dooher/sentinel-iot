@@ -15,10 +15,12 @@ services:
         user_id: 1000
     image: sentinel-iot:${ID:-latest}
     command: sh /entry/entrypoint-interface.sh
+    environment:
+      POSTGRES_HOST: "database"
+      PROJECT_NAME: "sentinel"
+      DJANGO_DOCKER: "TRUE"
     expose:
       - "8000"
-    env_file:
-      - config/local.env
     depends_on:
       - database
       - redis
@@ -27,8 +29,10 @@ services:
   workerserver:
     image: sentinel-iot:${ID:-latest}
     command: sh /entry/entrypoint-worker.sh
-    env_file:
-      - config/local.env
+    environment:
+      POSTGRES_HOST: "database"
+      PROJECT_NAME: "sentinel"
+      DJANGO_DOCKER: "TRUE"
     depends_on:
       - database
       - redis
