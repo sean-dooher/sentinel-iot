@@ -201,6 +201,9 @@ class Leaf(models.Model):
             if subscription.subscriber_uuid not in seen_devices:
                 subscription.handle_update(self.uuid, 'leaf', message)
 
+    def get_user(self):
+        return User.objects.get(username=self.username)
+
     @property
     def username(self):
         return f"{self.hub.id}-{self.uuid}"

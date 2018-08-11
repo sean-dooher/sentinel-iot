@@ -21,30 +21,36 @@ logger = logging.getLogger(__name__)
 
 
 def handle(message):
-    if message.type == MessageType.Config:
-        return hub_handle_config(message)
-    elif message.type == MessageType.DeviceStatus:
-        return hub_handle_status(message)
-    elif message.type == MessageType.Subscribe:
-        return hub_handle_subscribe(message)
-    elif message.type == MessageType.Unsubscribe:
-        return hub_handle_unsubscribe(message)
-    elif message.type == MessageType.DatastoreCreate:
-        return hub_handle_datastore_create(message)
-    elif message.type == MessageType.DatastoreDelete:
-        return hub_handle_datastore_delete(message)
-    elif message.type == MessageType.DatastoreGet:
-        return hub_handle_datastore_get(message)
-    elif message.type == MessageType.DatastoreSet:
-        return hub_handle_datastore_set(message)
-    elif message.type == MessageType.ConditionCreate:
-        return hub_handle_condition_create(message)
-    elif message.type == MessageType.ConditionDelete:
-        return hub_handle_condition_delete(message)
-    elif message.type == MessageType.GetDevice:
-        return hub_handle_get_device(message)
-    else:
-        logger.error(f"{message.hub_id} -- Invalid Message: Unknown type in message")
+    try:
+        if message.type == MessageType.Config:
+            return hub_handle_config(message)
+        elif message.type == MessageType.DeviceStatus:
+            return hub_handle_status(message)
+        elif message.type == MessageType.Subscribe:
+            return hub_handle_subscribe(message)
+        elif message.type == MessageType.Unsubscribe:
+            return hub_handle_unsubscribe(message)
+        elif message.type == MessageType.DatastoreCreate:
+            return hub_handle_datastore_create(message)
+        elif message.type == MessageType.DatastoreDelete:
+            return hub_handle_datastore_delete(message)
+        elif message.type == MessageType.DatastoreGet:
+            return hub_handle_datastore_get(message)
+        elif message.type == MessageType.DatastoreSet:
+            return hub_handle_datastore_set(message)
+        elif message.type == MessageType.ConditionCreate:
+            return hub_handle_condition_create(message)
+        elif message.type == MessageType.ConditionDelete:
+            return hub_handle_condition_delete(message)
+        elif message.type == MessageType.GetDevice:
+            return hub_handle_get_device(message)
+        else:
+            logger.error(f"{message.hub_id} -- Invalid Message: Unknown type in message")
+    except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
+        logger.error(f"{message.hub_id} -- {e} in handling {message.type} for {message.data['uuid']}")
+        reply = e.get_error_message()
+        reply['hub'] = message.hub.id
+        message.reply(reply)
 
 
 @channel_session_user_from_http
@@ -75,7 +81,7 @@ def ws_message(message):
 
 def hub_handle_config(message: Message):
     uuid = message.data['uuid']
-    username = f"{message.hub}-{uuid}"
+    username = f"{message.hub.id}-{uuid}"
 
     user = authenticate(username=username, password=message.data['token'])
     if user:
@@ -86,7 +92,7 @@ def hub_handle_config(message: Message):
             leaf.model = message.data['model']
         except InvalidLeaf:
             leaf = Leaf.create_from_message(message.data, message.hub)
-            leaf.hub = hub
+            leaf.hub = message.hub
         leaf.last_connected = timezone.now()
         leaf.is_connected = True
         leaf.save()
@@ -150,8 +156,8 @@ def hub_handle_unsubscribe(message):
         message.hub.get_device(target_uuid, device)
 
     try:
-        subscription = hub.subscriptions.get(subscriber_uuid=subscriber_uuid,
-                                             target_uuid=target_uuid, target_device=device)
+        subscription = message.hub.subscriptions.get(subscriber_uuid=subscriber_uuid,
+                                                     target_uuid=target_uuid, target_device=device)
         subscription.delete()
         logger.info(f"{message.hub.id} -- <{subscriber_uuid}> unsubscribed from <{target_uuid}-{device}>")
     except ObjectDoesNotExist:
@@ -192,7 +198,7 @@ def hub_handle_datastore_create(message):
             remove_perm('delete_datastore', user, datastore)
 
     if not message.hub.datastores.filter(name=message.data['name']).exists():
-        units = message.data['units'] if 'units' in mess else None
+        units = message.data['units'] if 'units' in message.data else None
         value = create_value(message.data['format'], message.data['value'], units)
         value.save()
         datastore = Datastore(name=message.data['name'], _value=value, hub=message.hub)
@@ -217,12 +223,12 @@ def hub_handle_datastore_create(message):
 
 def hub_handle_datastore_get(message):
     try:
-        datastore = hub.datastores.get(name=message.data['name'])
+        datastore = message.hub.datastores.get(name=message.data['name'])
         user = User.objects.get(username=message.leaf.username)
         if user.has_perm('view_datastore', datastore):
             reply = {
                 'type': 'DATASTORE_VALUE',
-                'hub': hub.id,
+                'hub': message.hub.id,
                 'name': datastore.name,
                 'value': datastore.value,
                 'format': datastore.format
@@ -256,7 +262,7 @@ def hub_handle_datastore_set(message):
             message.reply(reply)
             logger.info(f"{message.hub.id} -- Datastore updated: {datastore}")
         else:
-            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_SET', name=message.data['name'])
+            raise PermissionDenied(message.leaf.uuid, 'DATASTORE_SET', name=message.data['name'])
     except Datastore.DoesNotExist:
         reply = {
             'type': 'UNKNOWN_DATASTORE',
@@ -269,7 +275,7 @@ def hub_handle_datastore_set(message):
 
 def hub_handle_datastore_delete(message):
     try:
-        datastore = hub.datastores.get(name=message.data['name'])
+        datastore = message.hub.datastores.get(name=message.data['name'])
         user = User.objects.get(username=message.leaf.username)
         if user.has_perm('delete_datastore', datastore):
             datastore.delete()
@@ -278,7 +284,7 @@ def hub_handle_datastore_delete(message):
                      'name': message.data['name']}
             message.reply_channel.send({'text': json.dumps(reply)})
         else:
-            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_DELETE', name=message.data['name'])
+            raise PermissionDenied(message.leaf.uuid, 'DATASTORE_DELETE', name=message.data['name'])
     except Datastore.DoesNotExist:
         reply = {
             'type': 'UNKNOWN_DATASTORE',
