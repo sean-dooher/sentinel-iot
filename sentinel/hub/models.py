@@ -202,6 +202,10 @@ class Leaf(models.Model):
                 subscription.handle_update(self.uuid, 'leaf', message)
 
     @property
+    def username(self):
+        return f"{self.hub.id}-{self.uuid}"
+
+    @property
     def message_template(self):
         return {"uuid": self.uuid, "hub_id": self.hub_id}
 
