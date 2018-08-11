@@ -1,3 +1,6 @@
+import json
+import logging
+
 from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
@@ -6,14 +9,41 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian.models import Group as PermGroup
+
+from .messages import MessageType, MessageV1, Message
 from .models import Leaf, Subscription, Device, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
 from .utils import is_valid_message, create_value, get_user, InvalidDevice, InvalidPredicate, InvalidLeaf, PermissionDenied
-import json
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+def handle(message):
+    if message.type == MessageType.Config:
+        return hub_handle_config(message)
+    elif message.type == MessageType.DeviceStatus:
+        return hub_handle_status(message)
+    elif message.type == MessageType.Subscribe:
+        return hub_handle_subscribe(message)
+    elif message.type == MessageType.Unsubscribe:
+        return hub_handle_unsubscribe(message)
+    elif message.type == MessageType.DatastoreCreate:
+        return hub_handle_datastore_create(message)
+    elif message.type == MessageType.DatastoreDelete:
+        return hub_handle_datastore_delete(message)
+    elif message.type == MessageType.DatastoreGet:
+        return hub_handle_datastore_get(message)
+    elif message.type == MessageType.DatastoreSet:
+        return hub_handle_datastore_set(message)
+    elif message.type == MessageType.ConditionCreate:
+        return hub_handle_condition_create(message)
+    elif message.type == MessageType.ConditionDelete:
+        return hub_handle_condition_delete(message)
+    elif message.type == MessageType.GetDevice:
+        return hub_handle_get_device(message)
+    else:
+        logger.error(f"{message.hub_id} -- Invalid Message: Unknown type in message")
 
 
 @channel_session_user_from_http
@@ -37,78 +67,40 @@ def ws_disconnect(message):
 @channel_session_user
 def ws_message(message):
     try:
-        mess = json.loads(message.content['text'])
-        message.content['dict'] = mess
-        assert is_valid_message(mess), "required attributes missing from message"
-        assert 'hub' in message.channel_session and (mess['type'] == 'CONFIG' or 'user' in message.channel_session)
-        if mess['type'] == 'CONFIG':
-            return hub_handle_config(message)
-        elif mess['type'] == 'DEVICE_STATUS':
-            return hub_handle_status(message)
-        elif mess['type'] == 'SUBSCRIBE':
-            return hub_handle_subscribe(message)
-        elif mess['type'] == 'UNSUBSCRIBE':
-            return hub_handle_unsubscribe(message)
-        elif mess['type'] == 'DATASTORE_CREATE':
-            return hub_handle_datastore_create(message)
-        elif mess['type'] == 'DATASTORE_DELETE':
-            return hub_handle_datastore_delete(message)
-        elif mess['type'] == 'DATASTORE_GET':
-            return hub_handle_datastore_get(message)
-        elif mess['type'] == 'DATASTORE_SET':
-            return hub_handle_datastore_set(message)
-        elif mess['type'] == 'CONDITION_CREATE':
-            return hub_handle_condition_create(message)
-        elif mess['type'] == 'CONDITION_DELETE':
-            return hub_handle_condition_delete(message)
-        elif mess['type'] == 'GET_DEVICE':
-            return hub_handle_get_device(message)
-        else:
-            logger.error(f"{message.channel_session['hub']} -- Invalid Message: Unknown type in message")
-    except json.decoder.JSONDecodeError:
-        logger.error(f"{message.channel_session['hub']} -- Invalid Message: JSON Decoding failed")
-    except AssertionError as e:
-        logger.error(f"{message.channel_session['hub']} -- Invalid Message: {e}")
-        logger.error(mess)
-    except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
-        leaf = message.channel_session['user']
-        logger.error(f"{message.channel_session['hub']} -- {e} in handling {mess['type']} for {leaf}")
-        reply = e.get_error_message()
-        reply['hub'] = message.channel_session['hub']
-        message.reply_channel.send({'text': json.dumps(reply)})
+        handle(MessageV1(message))
+    except InvalidMessage:
+        logger.error("Failed to handle message, aborting.")
 
 
-def hub_handle_config(message):
-    mess = message.content['dict']
-    uuid = mess['uuid']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-    username = f"{message.channel_session['hub']}-{uuid}"
+def hub_handle_config(message: Message):
+    uuid = message.data['uuid']
+    username = f"{message.hub}-{uuid}"
 
-    user = authenticate(username=username, password=mess['token'])
+    user = authenticate(username=username, password=message.data['token'])
     if user:
         try:
-            leaf = hub.get_leaf(uuid)
-            leaf.api_version = mess['api_version']
-            leaf.name = mess['name']
-            leaf.model = mess['model']
+            leaf = message.hub.get_leaf(uuid)
+            leaf.api_version = message.data['api_version']
+            leaf.name = message.data['name']
+            leaf.model = message.data['model']
         except InvalidLeaf:
-            leaf = Leaf.create_from_message(mess, hub)
+            leaf = Leaf.create_from_message(message.data, message.hub)
             leaf.hub = hub
         leaf.last_connected = timezone.now()
         leaf.is_connected = True
         leaf.save()
-        message.channel_session['connect_time'] = leaf.last_connected.timestamp()
-        Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
-        message.channel_session['user'] = user.username
-        message.channel_session['uuid'] = uuid
-        response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub": hub.id, "uuid": uuid})}
-        message.reply_channel.send(response)
+        message.save_session_info('connect_time', leaf.last_connected.timestamp())
+        message.register_leaf(leaf)
+        message.save_session_info('user', user.username)
+        message.save_session_info('uuid', uuid)
+        response = {"type": "CONFIG_COMPLETE", "hub": message.hub.id, "uuid": uuid}
+        message.reply(response)
         leaf.refresh_devices()
-        logger.info(f'{hub.id} -- Config received for {leaf.name}')
+        logger.info(f'{message.hub.id} -- Config received for {leaf.name}')
     else:
-        logger.error(f"{hub.id} -- Authentication failed for {uuid}")
-        response = {"text": json.dumps({"type": "CONFIG_FAILED", "hub": hub.id, "uuid": uuid})}
-        message.reply_channel.send(response)
+        logger.error(f"{message.hub.id} -- Authentication failed for {uuid}")
+        response = {"type": "CONFIG_FAILED", "hub": message.hub.id, "uuid": uuid}
+        message.reply(response)
 
 
 def hub_handle_status(message):

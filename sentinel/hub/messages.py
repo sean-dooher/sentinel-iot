@@ -1,10 +1,12 @@
 import json
 import logging
+from enum import Enum
 
+from channels import Group
 from django.contrib.auth import authenticate
 
-from sentinel.hub.models import Hub
-from sentinel.hub.utils import InvalidLeaf, validate_uuid, InvalidDevice, PermissionDenied, InvalidMessage
+from .models import Hub
+from .utils import InvalidLeaf, validate_uuid, InvalidDevice, PermissionDenied, InvalidMessage
 
 logger = logging.getLogger(__name__)
 
@@ -20,26 +22,27 @@ class MessageType(Enum):
     DatastoreSet = 'DATASTORE_SET'
     ConditionCreate = 'CONDITION_CREATE'
     ConditionDelete = 'CONDITION_DELETE'
+    GetDevice = 'GET_DEVICE'
 
 
 class Message:
     def __init__(self, data):
         self.data = data
 
+        self.hub = Hub.objects.get(id=data['hub'])
         try:
-            self.leaf = hub.get_leaf(data['uuid'])
+            self.leaf = self.hub.get_leaf(data['uuid'])
             self.user = self.leaf.get_user()
         except InvalidLeaf as e:
             if self.type != MessageType.Config:
                 raise e
 
-        self.hub = Hub.objects.get(id=data['hub'])
-
     @property
     def type(self):
         return MessageType(self.data['type'])
 
-    def get_hub(self):
+    @property
+    def hub_id(self):
         return self.data['hub']
 
     def validate(self):
@@ -91,6 +94,9 @@ class Message:
     def save_session_info(self, name, value):
         pass
 
+    def register_leaf(self, leaf):
+        pass
+
 
 class MessageV1(Message):
     def __init__(self, message):
@@ -99,19 +105,26 @@ class MessageV1(Message):
 
         try:
             data = json.loads(message.content['text'])
+            data['hub'] = message.channel_session['hub']
             super().__init__(data)
-        except json.decoder.JSONDecodeError:
-            logger.error(f"{self.get_hub()} -- Invalid Message: JSON Decoding failed")
+        except json.decoder.JSONDecodeError as e:
+            logger.error(f"{self.hub_id} -- Invalid Message: JSON Decoding failed")
+            raise InvalidMessage(e)
         except InvalidMessage as e:
-            logger.error(f"{self.get_hub()} -- Invalid Message: {e}")
+            logger.error(f"{self.hub_id} -- Invalid Message: {e}")
+            raise e
         except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
-            logger.error(f"{self.get_hub()} -- {e} in handling {self.type} for {self.data['uuid']}")
+            logger.error(f"{self.hub_id} -- {e} in handling {self.type} for {self.data['uuid']}")
             reply = e.get_error_message()
-            reply['hub'] = self.get_hub()
+            reply['hub'] = self.hub()
             self.reply(reply)
+            raise InvalidMessage(e)
 
     def save_session_info(self, name, value):
         self.session[name] = value
 
     def reply(self, response):
         self.reply_channel.send({"text": json.dumps(response)})
+
+    def register_leaf(self, leaf):
+        Group(f"{leaf.hub.id}-{leaf.uuid}").add(self.reply_channel)
