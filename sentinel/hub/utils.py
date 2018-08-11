@@ -139,3 +139,15 @@ class PermissionDenied(SentinelError):
         for kwarg in self.additional:
             message[kwarg] = self.additional[kwarg]
         return message
+
+
+class InvalidMessage(SentinelError):
+    def __init__(self, message):
+        super().__init__(f"Invalid message: {message}")
+        self.message = message
+
+    def get_error_message(self):
+        return {
+            'type': 'INVALID_MESSAGE',
+            'message': self.message
+        }

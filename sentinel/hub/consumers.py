@@ -1,3 +1,6 @@
+import json
+import logging
+
 from channels import Group
 from channels.auth import channel_session_user, channel_session_user_from_http
 from django.core.exceptions import ObjectDoesNotExist
@@ -6,14 +9,48 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian.models import Group as PermGroup
+
+from .messages import MessageType, MessageV1, Message
 from .models import Leaf, Subscription, Device, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
-from .utils import is_valid_message, create_value, get_user, InvalidDevice, InvalidPredicate, InvalidLeaf, PermissionDenied
-import json
-import logging
+from .utils import create_value, get_user, InvalidDevice, InvalidPredicate
+from .utils import InvalidLeaf, PermissionDenied, InvalidMessage
 
 logger = logging.getLogger(__name__)
+
+
+def handle(message):
+    try:
+        if message.type == MessageType.Config:
+            return hub_handle_config(message)
+        elif message.type == MessageType.DeviceStatus:
+            return hub_handle_status(message)
+        elif message.type == MessageType.Subscribe:
+            return hub_handle_subscribe(message)
+        elif message.type == MessageType.Unsubscribe:
+            return hub_handle_unsubscribe(message)
+        elif message.type == MessageType.DatastoreCreate:
+            return hub_handle_datastore_create(message)
+        elif message.type == MessageType.DatastoreDelete:
+            return hub_handle_datastore_delete(message)
+        elif message.type == MessageType.DatastoreGet:
+            return hub_handle_datastore_get(message)
+        elif message.type == MessageType.DatastoreSet:
+            return hub_handle_datastore_set(message)
+        elif message.type == MessageType.ConditionCreate:
+            return hub_handle_condition_create(message)
+        elif message.type == MessageType.ConditionDelete:
+            return hub_handle_condition_delete(message)
+        elif message.type == MessageType.GetDevice:
+            return hub_handle_get_device(message)
+        else:
+            logger.error(f"{message.hub_id} -- Invalid Message: Unknown type in message")
+    except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
+        logger.error(f"{message.hub_id} -- {e} in handling {message.type} for {message.data['uuid']}")
+        reply = e.get_error_message()
+        reply['hub'] = message.hub.id
+        message.reply(reply)
 
 
 @channel_session_user_from_http
@@ -37,153 +74,107 @@ def ws_disconnect(message):
 @channel_session_user
 def ws_message(message):
     try:
-        mess = json.loads(message.content['text'])
-        message.content['dict'] = mess
-        assert is_valid_message(mess), "required attributes missing from message"
-        assert 'hub' in message.channel_session and (mess['type'] == 'CONFIG' or 'user' in message.channel_session)
-        if mess['type'] == 'CONFIG':
-            return hub_handle_config(message)
-        elif mess['type'] == 'DEVICE_STATUS':
-            return hub_handle_status(message)
-        elif mess['type'] == 'SUBSCRIBE':
-            return hub_handle_subscribe(message)
-        elif mess['type'] == 'UNSUBSCRIBE':
-            return hub_handle_unsubscribe(message)
-        elif mess['type'] == 'DATASTORE_CREATE':
-            return hub_handle_datastore_create(message)
-        elif mess['type'] == 'DATASTORE_DELETE':
-            return hub_handle_datastore_delete(message)
-        elif mess['type'] == 'DATASTORE_GET':
-            return hub_handle_datastore_get(message)
-        elif mess['type'] == 'DATASTORE_SET':
-            return hub_handle_datastore_set(message)
-        elif mess['type'] == 'CONDITION_CREATE':
-            return hub_handle_condition_create(message)
-        elif mess['type'] == 'CONDITION_DELETE':
-            return hub_handle_condition_delete(message)
-        elif mess['type'] == 'GET_DEVICE':
-            return hub_handle_get_device(message)
-        else:
-            logger.error(f"{message.channel_session['hub']} -- Invalid Message: Unknown type in message")
-    except json.decoder.JSONDecodeError:
-        logger.error(f"{message.channel_session['hub']} -- Invalid Message: JSON Decoding failed")
-    except AssertionError as e:
-        logger.error(f"{message.channel_session['hub']} -- Invalid Message: {e}")
-        logger.error(mess)
-    except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
-        leaf = message.channel_session['user']
-        logger.error(f"{message.channel_session['hub']} -- {e} in handling {mess['type']} for {leaf}")
-        reply = e.get_error_message()
-        reply['hub'] = message.channel_session['hub']
-        message.reply_channel.send({'text': json.dumps(reply)})
+        handle(MessageV1(message))
+    except InvalidMessage:
+        logger.error("Failed to handle message, aborting.")
 
 
-def hub_handle_config(message):
-    mess = message.content['dict']
-    uuid = mess['uuid']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-    username = f"{message.channel_session['hub']}-{uuid}"
+def hub_handle_config(message: Message):
+    uuid = message.data['uuid']
+    username = f"{message.hub.id}-{uuid}"
 
-    user = authenticate(username=username, password=mess['token'])
+    user = authenticate(username=username, password=message.data['token'])
     if user:
         try:
-            leaf = hub.get_leaf(uuid)
-            leaf.api_version = mess['api_version']
-            leaf.name = mess['name']
-            leaf.model = mess['model']
+            leaf = message.hub.get_leaf(uuid)
+            leaf.api_version = message.data['api_version']
+            leaf.name = message.data['name']
+            leaf.model = message.data['model']
         except InvalidLeaf:
-            leaf = Leaf.create_from_message(mess, hub)
-            leaf.hub = hub
+            leaf = Leaf.create_from_message(message.data, message.hub)
+            leaf.hub = message.hub
         leaf.last_connected = timezone.now()
         leaf.is_connected = True
         leaf.save()
-        message.channel_session['connect_time'] = leaf.last_connected.timestamp()
-        Group(f"{leaf.hub.id}-{leaf.uuid}").add(message.reply_channel)
-        message.channel_session['user'] = user.username
-        message.channel_session['uuid'] = uuid
-        response = {"text": json.dumps({"type": "CONFIG_COMPLETE", "hub": hub.id, "uuid": uuid})}
-        message.reply_channel.send(response)
+        message.save_session_info('connect_time', leaf.last_connected.timestamp())
+        message.register_leaf(leaf)
+        message.save_session_info('user', user.username)
+        message.save_session_info('uuid', uuid)
+        response = {"type": "CONFIG_COMPLETE", "hub": message.hub.id, "uuid": uuid}
+        message.reply(response)
         leaf.refresh_devices()
-        logger.info(f'{hub.id} -- Config received for {leaf.name}')
+        logger.info(f'{message.hub.id} -- Config received for {leaf.name}')
     else:
-        logger.error(f"{hub.id} -- Authentication failed for {uuid}")
-        response = {"text": json.dumps({"type": "CONFIG_FAILED", "hub": hub.id, "uuid": uuid})}
-        message.reply_channel.send(response)
+        logger.error(f"{message.hub.id} -- Authentication failed for {uuid}")
+        response = {"type": "CONFIG_FAILED", "hub": message.hub.id, "uuid": uuid}
+        message.reply(response)
 
 
 def hub_handle_status(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-    leaf = hub.get_leaf(message.channel_session['uuid'])
-    device_name = mess["device"]
+    hub = message.hub
+    leaf = message.leaf
+    device_name = message.data["device"]
 
     try:
         device = leaf.get_device(device_name, False)
     except Device.DoesNotExist:
-        device = Device.create_from_message(mess, hub)
+        device = Device.create_from_message(message.data, hub)
         device.save()
         device.leaf.update_time()
 
-    device.value = mess['value']
+    device.value = message.data['value']
     logger.info(f'{hub.id} -- Status updated: {device}')
 
 
 def hub_handle_subscribe(message):
-    mess = message.content['dict']
-    target_uuid = mess['sub_uuid'].lower()
-    subscriber_uuid = message.channel_session['uuid'].lower()
-    device = mess['sub_device'].lower()
-    hub = Hub.objects.get(id=message.channel_session['hub'])
+    target_uuid = message.data['sub_uuid'].lower()
+    subscriber_uuid = message.leaf.uuid.lower()
+    device = message.data['sub_device'].lower()
 
     if device == 'leaf':
-        hub.get_leaf(target_uuid)
+        message.hub.get_leaf(target_uuid)
     else:
-        hub.get_device(target_uuid, device)
+        message.hub.get_device(target_uuid, device)
 
     try:
-        hub.subscriptions.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
-        logger.info(f"{hub.id} -- <{subscriber_uuid}> subscribed to <{target_uuid}-{device}>")
+        message.hub.subscriptions.get(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device)
+        logger.info(f"{message.hub.id} -- <{subscriber_uuid}> subscribed to <{target_uuid}-{device}>")
     except ObjectDoesNotExist:
-        subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid, target_device=device, hub=hub)
+        subscription = Subscription(subscriber_uuid=subscriber_uuid, target_uuid=target_uuid,
+                                    target_device=device, hub=message.hub)
         subscription.save()
 
 
 def hub_handle_unsubscribe(message):
-    mess = message.content['dict']
-    target_uuid = mess['sub_uuid'].lower()
-    subscriber_uuid = message.channel_session['uuid'].lower()
-    device = mess['sub_device'].lower()
-    hub = Hub.objects.get(id=message.channel_session['hub'])
+    target_uuid = message.data['sub_uuid'].lower()
+    subscriber_uuid = message.leaf.uuid.lower()
+    device = message.data['sub_device'].lower()
 
     if device == 'leaf':
-        hub.get_leaf(target_uuid)
+        message.hub.get_leaf(target_uuid)
     else:
-        hub.get_device(target_uuid, device)
+        message.hub.get_device(target_uuid, device)
 
     try:
-        subscription = hub.subscriptions.get(subscriber_uuid=subscriber_uuid,
-                                             target_uuid=target_uuid, target_device=device)
+        subscription = message.hub.subscriptions.get(subscriber_uuid=subscriber_uuid,
+                                                     target_uuid=target_uuid, target_device=device)
         subscription.delete()
-        logger.info(f"{hub.id} -- <{subscriber_uuid}> unsubscribed from <{target_uuid}-{device}>")
+        logger.info(f"{message.hub.id} -- <{subscriber_uuid}> unsubscribed from <{target_uuid}-{device}>")
     except ObjectDoesNotExist:
         return
 
 
 def hub_handle_get_device(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-    # TODO: finish
+    pass
 
 
 def hub_handle_datastore_create(message):
-    mess = message.content['dict']
-    uuid = message.channel_session['uuid']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
+    uuid = message.leaf.uuid.lower()
 
     def give_permissions(user, level):
         if user != 'default':
             try:
-                user = get_user(user, hub.id)
+                user = get_user(user, message.hub.id)
             except User.DoesNotExist:
                 return
         else:
@@ -206,117 +197,106 @@ def hub_handle_datastore_create(message):
             remove_perm('change_datastore', user, datastore)
             remove_perm('delete_datastore', user, datastore)
 
-    if not hub.datastores.filter(name=mess['name']).exists():
-        units = mess['units'] if 'units' in mess else None
-        value = create_value(mess['format'], mess['value'], units)
+    if not message.hub.datastores.filter(name=message.data['name']).exists():
+        units = message.data['units'] if 'units' in message.data else None
+        value = create_value(message.data['format'], message.data['value'], units)
         value.save()
-        datastore = Datastore(name=mess['name'], _value=value, hub=hub)
+        datastore = Datastore(name=message.data['name'], _value=value, hub=message.hub)
         datastore.save()
 
-        if 'permissions' in mess:  # apply permissions if provided
-            for leaf in mess['permissions']:
-                give_permissions(leaf, mess['permissions'][leaf])
+        if 'permissions' in message.data:  # apply permissions if provided
+            for leaf in message.data['permissions']:
+                give_permissions(leaf, message.data['permissions'][leaf])
         else:
             give_permissions('default', 'read')  # give default read otherwise
 
         give_permissions(uuid, 'admin')
         reply = {
             'type': 'DATASTORE_CREATED',
-            'hub': hub.id,
+            'hub': message.hub.id,
             'name': datastore.name,
             'format': datastore.format
         }
-        message.reply_channel.send({'text': json.dumps(reply)})
-        logger.info(f"{hub.id} -- Datastore created: {mess['name']}")
+        message.reply(reply)
+        logger.info(f"{message.hub.id} -- Datastore created: {message.data['name']}")
 
 
 def hub_handle_datastore_get(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-
     try:
-        datastore = hub.datastores.get(name=mess['name'])
-        user = User.objects.get(username=message.channel_session['user'])
+        datastore = message.hub.datastores.get(name=message.data['name'])
+        user = User.objects.get(username=message.leaf.username)
         if user.has_perm('view_datastore', datastore):
             reply = {
                 'type': 'DATASTORE_VALUE',
-                'hub': hub.id,
+                'hub': message.hub.id,
                 'name': datastore.name,
                 'value': datastore.value,
                 'format': datastore.format
             }
-            message.reply_channel.send({'text': json.dumps(reply)})
+            message.reply(reply)
         else:
-            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_GET', name=mess['name'])
+            raise PermissionDenied(message.leaf.uuid, 'DATASTORE_GET', name=message.data['name'])
     except Datastore.DoesNotExist:
         reply = {
             'type': 'UNKNOWN_DATASTORE',
-            'hub': hub.id,
+            'hub': message.hub.id,
             'request': 'DATASTORE_GET',
-            'name': mess['name']
+            'name': message.data['name']
         }
-        message.reply_channel.send({'text': json.dumps(reply)})
+        message.reply(reply)
 
 
 def hub_handle_datastore_set(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-
     try:
-        datastore = hub.datastores.get(name=mess['name'])
-        user = User.objects.get(username=message.channel_session['user'])
+        datastore = message.hub.datastores.get(name=message.data['name'])
+        user = User.objects.get(username=message.leaf.username)
         if user.has_perm('change_datastore', datastore):
-            datastore.value = mess['value']
+            datastore.value = message.data['value']
             reply = {
                 'type': 'DATASTORE_VALUE',
-                'hub': hub.id,
+                'hub': message.hub.id,
                 'name': datastore.name,
                 'value': datastore.value,
                 'format': datastore.format
             }
-            message.reply_channel.send({'text': json.dumps(reply)})
-            logger.info(f"{hub.id} -- Datastore updated: {datastore}")
+            message.reply(reply)
+            logger.info(f"{message.hub.id} -- Datastore updated: {datastore}")
         else:
-            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_SET', name=mess['name'])
+            raise PermissionDenied(message.leaf.uuid, 'DATASTORE_SET', name=message.data['name'])
     except Datastore.DoesNotExist:
         reply = {
             'type': 'UNKNOWN_DATASTORE',
-            'hub': hub.id,
+            'hub': message.hub.id,
             'request': 'DATASTORE_SET',
-            'name': mess['name']
+            'name': message.data['name']
         }
-        message.reply_channel.send({'text': json.dumps(reply)})
+        message.reply(reply)
 
 
 def hub_handle_datastore_delete(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-
     try:
-        datastore = hub.datastores.get(name=mess['name'])
-        user = User.objects.get(username=message.channel_session['user'])
+        datastore = message.hub.datastores.get(name=message.data['name'])
+        user = User.objects.get(username=message.leaf.username)
         if user.has_perm('delete_datastore', datastore):
             datastore.delete()
             reply = {'type': 'DATASTORE_DELETED',
-                     'hub': hub.id,
-                     'name': mess['name']}
+                     'hub': message.hub.id,
+                     'name': message.data['name']}
             message.reply_channel.send({'text': json.dumps(reply)})
         else:
-            raise PermissionDenied(message.channel_session['uuid'], 'DATASTORE_DELETE', name=mess['name'])
+            raise PermissionDenied(message.leaf.uuid, 'DATASTORE_DELETE', name=message.data['name'])
     except Datastore.DoesNotExist:
         reply = {
             'type': 'UNKNOWN_DATASTORE',
-            'hub': hub.id,
+            'hub': message.hub.id,
             'request': 'DATASTORE_DELETE',
-            'name': mess['name']
+            'name': message.data['name']
         }
-        message.reply_channel.send({'text': json.dumps(reply)})
+        message.reply(reply)
 
 
 def hub_handle_condition_create(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-    create_condition(mess['name'], mess['predicate'], mess['actions'], hub)
+    create_condition(message.data['name'], message.data['predicate'], message.data['actions'], message.hub)
 
 
 def create_condition(name, pred, actions, hub):
@@ -422,11 +402,8 @@ def create_condition(name, pred, actions, hub):
 
 
 def hub_handle_condition_delete(message):
-    mess = message.content['dict']
-    hub = Hub.objects.get(id=message.channel_session['hub'])
-
     try:
-        condition = hub.conditions.get(name=mess['name'])
+        condition = message.hub.conditions.get(name=message.data['name'])
         condition.delete()
     except ObjectDoesNotExist:
-        logger.error(f"{hub.id} -- tried to delete {mess['name']} condition that does not exist")
+        logger.error(f"{message.hub.id} -- tried to delete {message.data['name']} condition that does not exist")
