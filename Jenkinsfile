@@ -22,7 +22,7 @@ pipeline {
         branch 'master'
       }
       steps {
-        sh 'docker tag sentinel-iot:$ID seandooher/sentinel-iot:latest'
+        sh 'docker tag seandooher/sentinel-iot:$ID seandooher/sentinel-iot:latest'
         sh 'docker push seandooher/sentinel-iot:latest'
       }
     }
