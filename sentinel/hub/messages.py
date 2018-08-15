@@ -50,43 +50,43 @@ class Message:
         if not valid:
             return False
         elif self.type == MessageType.Config:
-            valid = valid and self.data['name']
-            valid = valid and self.data['model']
-            valid = valid and self.data['token']
-            valid = valid and self.data['api_version']
+            valid = valid and 'name' in self.data
+            valid = valid and 'model' in self.data
+            valid = valid and 'token' in self.data
+            valid = valid and 'api_version' in self.data
         elif self.type == MessageType.DeviceStatus:
-            valid = valid and self.data['device']
-            valid = valid and self.data['mode']
-            valid = valid and self.data['format']
-            valid = valid and self.data['value']
+            valid = valid and 'device' in self.data
+            valid = valid and 'mode' in self.data
+            valid = valid and 'format' in self.data
+            valid = valid and 'value' in self.data
         elif self.type == MessageType.Subscribe or self.type == MessageType.Unsubscribe:
-            valid = valid and self.data['sub_uuid'] and validate_uuid(self.data['sub_uuid'])
-            valid = valid and self.data['sub_device']
+            valid = valid and 'sub_uuid' in self.data and validate_uuid(self.data['sub_uuid'])
+            valid = valid and 'sub_device' in self.data
         elif self.type == MessageType.DatastoreCreate:
-            valid = valid and self.data['name']
-            valid = valid and self.data['value']
-            valid = valid and self.data['format']
+            valid = valid and 'name' in self.data
+            valid = valid and 'value' in self.data
+            valid = valid and 'format' in self.data
         elif self.type == MessageType.DatastoreGet:
-            return valid and self.data['name']
+            return valid and 'name' in self.data
         elif self.type == MessageType.DatastoreSet:
-            valid = valid and self.data['name']
-            valid = valid and self.data['value']
+            valid = valid and 'name' in self.data
+            valid = valid and 'value' in self.data
         elif self.type == MessageType.DatastoreDelete:
-            valid = valid and self.data['name']
+            valid = valid and 'name' in self.data
         elif self.type == MessageType.ConditionCreate:
-            valid = valid and self.data['name']
-            valid = valid and self.data['predicate']
-            valid = valid and self.data['actions']
+            valid = valid and 'name' in self.data
+            valid = valid and 'predicate' in self.data
+            valid = valid and 'actions' in self.data
             if valid and type(self.data['actions']) == list:
                 for action in self.data['actions']:
-                    valid = valid and self.data['target'] in action
-                    valid = valid and self.data['device'] in action
-                    valid = valid and self.data['value'] in action
+                    valid = valid and 'target' in action
+                    valid = valid and 'device' in action
+                    valid = valid and 'value' in action
         elif self.type == MessageType.ConditionDelete:
-            valid = valid and self.data['name']
+            valid = valid and 'name' in self.data
         else:
             return False
-        return valid and self.data['uuid'] and validate_uuid(self.data['uuid'])
+        return valid and 'uuid' in self.data and validate_uuid(self.data['uuid'])
 
     def reply(self, response):
         pass
