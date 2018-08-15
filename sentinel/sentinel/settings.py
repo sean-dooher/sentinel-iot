@@ -21,7 +21,7 @@ TESTING = sys.argv[1:2] == ['test']
 SSL = os.environ.get('DJANGO_SSL', "FALSE") == "TRUE"
 DJANGO_HOSTNAME = os.environ.get('DJANGO_HOSTNAME', 'localhost')
 
-ALLOWED_HOSTS = [DJANGO_HOSTNAME]
+ALLOWED_HOSTS = [DJANGO_HOSTNAME, 'sentinelserver']
 
 if DJANGO_HOSTNAME == 'localhost':
     ALLOWED_HOSTS += ['0.0.0.0', '127.0.0.1']

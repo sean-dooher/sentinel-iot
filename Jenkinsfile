@@ -6,13 +6,13 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh 'docker-compose build'
+        sh 'docker-compose -p $ID build'
       }
     }
     stage('Test') {
       steps {
         sh 'mkdir reports && chmod 777 reports'
-        sh 'docker-compose run -v $WORKSPACE/reports:/sentinel/reports interfaceserver sh ./run_tests.sh'
+        sh 'docker-compose -p $ID run -v $WORKSPACE/reports:/sentinel/reports interfaceserver sh ./run_tests.sh'
         junit 'reports/junit.xml'
         cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'reports/coverage.xml', conditionalCoverageTargets: '70, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '80, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '80, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
       }
@@ -29,7 +29,7 @@ pipeline {
   }
   post {
     always {
-      sh 'docker-compose down -v'
+      sh 'docker-compose -p $ID down -v'
       sh 'docker container prune -f'
       sh 'docker network prune -f'
      }
