@@ -29,6 +29,12 @@ if DJANGO_HOSTNAME == 'localhost':
 if SSL:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# change password hashing for faster testing
+if TESTING:
+    PASSWORD_HASHERS = (
+        'django.contrib.auth.hashers.MD5PasswordHasher',
+    )
+
 # Application definition
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'assets'),
