@@ -128,3 +128,6 @@ class MessageV1(Message):
 
     def register_leaf(self, leaf):
         Group(f"{leaf.hub.id}-{leaf.uuid}").add(self.reply_channel)
+
+    def unregister_leaf(self, leaf):
+        Group(f"{leaf.hub.id}-{leaf.uuid}").discard(self.reply_channel)

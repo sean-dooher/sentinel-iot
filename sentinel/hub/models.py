@@ -89,7 +89,7 @@ class Hub(models.Model):
         except Device.DoesNotExist:
             raise InvalidDevice(self.leaves.get(uuid=uuid), SimpleNamespace(name=device), InvalidDevice.UNKNOWN)
 
-    def get_leaf(self, uuid):
+    def get_leaf(self, uuid: str) -> 'Leaf':
         from .utils import InvalidLeaf
         leaf = self.leaves.filter(uuid=uuid)
         if leaf.exists():
@@ -116,13 +116,13 @@ class Leaf(models.Model):
         self.last_updated = timezone.now()
         self.save()
 
-    def set_name(self, name):
+    def set_name(self, name: str):
         message = self.message_template
         message["type"] = "SET_NAME"
         message["name"] = name
         self.send_message(message)
 
-    def set_option(self, device, option, value):
+    def set_option(self, device: str, option: str, value: str):
         message = self.message_template
         message["type"] = "SET_OPTION"
         message["device"] = device
@@ -130,30 +130,30 @@ class Leaf(models.Model):
         message["value"] = value
         self.send_message(message)
 
-    def set_output(self, device, value):
+    def set_output(self, device: str, value: str):
         message = self.message_template
         message["type"] = "SET_OUTPUT"
         message["device"] = device
         message["value"] = value
         self.send_message(message)
 
-    def get_option(self, device, option, update=True):
+    def get_option(self, device: str, option: str, update=True):
         if update:
             self.refresh_option(device, option)
         # TODO: Replace following code with real code, add option
         return self.get_device(device, update=False).option_set.filter(name=option)
 
-    def get_options(self, device, update=True):
+    def get_options(self, device: str, update=True):
         if update:
             self.refresh_options()
         return self.get_device(device, update=False).option_set.all()
 
-    def get_device(self, device, update=True):
+    def get_device(self, device: str, update=True) -> 'Device':
         if update:
             self.refresh_device(device)
         return self.devices.get(name=device)
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self.name
 
     def refresh_devices(self):
@@ -171,20 +171,20 @@ class Leaf(models.Model):
         message["type"] = "LIST_OPTIONS"
         self.send_message(message)
 
-    def refresh_device(self, device):
+    def refresh_device(self, device: str):
         message = self.message_template
         message["type"] = "GET_DEVICE"
         message["device"] = device
         self.send_message(message)
 
-    def refresh_option(self, device, option):
+    def refresh_option(self, device: str, option: str):
         message = self.message_template
         message["type"] = "GET_OPTION"
         message["option"] = option
         message["device"] = device
         self.send_message(message)
 
-    def send_message(self, message):
+    def send_message(self, message: dict) -> None:
         message = {"text": json.dumps(message)}
         Group(f"{self.hub.id}-{self.uuid}").send(message)
 
@@ -320,7 +320,7 @@ class Subscription(PolymorphicModel):
                        'sub_uuid': uuid,
                        'sub_device': device,
                        'message': message}
-        Group(f"{self.hub.id}-{self.subscriber_uuid}").send({'text': json.dumps(sub_message)})
+        self.hub.get_leaf(self.subscriber_uuid).send_message(sub_message)
 
 
 class Datastore(models.Model):
@@ -528,7 +528,7 @@ class SetAction(Action):
                        'device': self.target_device,
                        'value': self._value.value,
                        'format': self._value.format}
-            Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+            self.condition.hub.get_leaf(self.target_uuid).send_message(message)
         else:
             datastore = self.condition.hub.datastores.get(name=self.target_device)
             datastore.value = self._value.value
@@ -546,7 +546,7 @@ class ChangeAction(Action):
                        'device': self.target_device,
                        'value': self.value.value,
                        'format': self.value.format}
-            Group(f"{self.condition.hub.id}-{self.target_uuid}").send({'text': json.dumps(message)})
+            self.condition.hub.get_leaf(self.target_uuid).send_message(message)
         else:
             datastore = self.condition.hub.datastores.get(name=self.target_device)
             datastore.value = datastore.value + self._value.value
