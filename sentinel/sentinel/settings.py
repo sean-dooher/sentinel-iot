@@ -17,7 +17,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '=)')
 DEBUG = os.environ.get('DJANGO_DEBUG', "TRUE") == "TRUE"
 DOCKER = os.environ.get('DJANGO_DOCKER', "FALSE") == "TRUE"
-TESTING = sys.argv[1:2] == ['test']
+TESTING = sys.argv[1:2] == ['test'] or sys.argv[1:2] == ['jenkins']
 SSL = os.environ.get('DJANGO_SSL', "FALSE") == "TRUE"
 DJANGO_HOSTNAME = os.environ.get('DJANGO_HOSTNAME', 'localhost')
 
