@@ -1,4 +1,9 @@
 # Byte-compiled / optimized / DLL files
+.vscode/
+sentinel-env/
+venv/
+*/node_modules
+
 __pycache__/
 *.py[cod]
 .DS_Store
