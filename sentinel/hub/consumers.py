@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 def handle(message):
     try:
+        if not message.validate():
+            raise InvalidMessage(message)
         if message.type == MessageType.Config:
             return hub_handle_config(message)
         elif message.type == MessageType.DeviceStatus:
@@ -46,7 +48,7 @@ def handle(message):
             return hub_handle_get_device(message)
         else:
             logger.error(f"{message.hub_id} -- Invalid Message: Unknown type in message")
-    except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
+    except (InvalidDevice, InvalidLeaf, PermissionDenied, InvalidMessage) as e:
         logger.error(f"{message.hub_id} -- {e} in handling {message.type} for {message.data['uuid']}")
         reply = e.get_error_message()
         reply['hub'] = message.hub.id
@@ -68,7 +70,7 @@ def ws_disconnect(message):
         leaf = hub.get_leaf(message.channel_session['uuid'])
         leaf.is_connected = leaf.last_connected.timestamp() != message.channel_session['connect_time']
         leaf.save()
-        Group(f"{leaf.hub.id}-{leaf.uuid}").discard(message.reply_channel)
+        MessageV1.unregister_leaf(message, leaf)
 
 
 @channel_session_user
