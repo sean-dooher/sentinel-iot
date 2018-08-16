@@ -14,7 +14,7 @@ services:
       args:
         user_id: 1000
     image: seandooher/sentinel-iot:${ID:-latest}
-    command: sh /entry/entrypoint-interface.sh
+    command: /entry/entrypoint-interface.sh
     environment:
       POSTGRES_HOST: "database"
       PROJECT_NAME: "sentinel"
@@ -28,7 +28,7 @@ services:
       - static:/sentinel/static
   workerserver:
     image: seandooher/sentinel-iot:${ID:-latest}
-    command: sh /entry/entrypoint-worker.sh
+    command: /entry/entrypoint-worker.sh
     environment:
       POSTGRES_HOST: "database"
       PROJECT_NAME: "sentinel"
