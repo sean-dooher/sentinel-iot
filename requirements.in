@@ -7,9 +7,7 @@ django-polymorphic
 django-webpack-loader
 djangorestframework
 websockets
-channels==1.1.8
-channels-api
-redis
-asgi-redis
+channels
+channels_redis
 psycopg2-binary
 coverage
