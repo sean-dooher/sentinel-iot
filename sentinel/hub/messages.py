@@ -2,8 +2,9 @@ import json
 import logging
 from enum import Enum
 
-from channels import Group
+# from channels import Group
 from django.contrib.auth import authenticate
+from asgiref.sync import async_to_sync
 
 from .models import Hub
 from .utils import InvalidLeaf, validate_uuid, InvalidDevice, PermissionDenied, InvalidMessage
@@ -98,15 +99,49 @@ class Message:
         pass
 
 
-class MessageV1(Message):
-    def __init__(self, message):
-        self.session = message.channel_session
-        self.reply_channel = message.reply_channel
+# class MessageV1(Message):
+#     def __init__(self, message):
+#         self.session = message.channel_session
+#         self.reply_channel = message.reply_channel
+
+#         try:
+#             data = json.loads(message.content['text'])
+#             data['hub'] = message.channel_session['hub']
+#             super().__init__(data)
+#         except json.decoder.JSONDecodeError as e:
+#             logger.error(f"{self.hub_id} -- Invalid Message: JSON Decoding failed")
+#             raise InvalidMessage(e)
+#         except InvalidMessage as e:
+#             logger.error(f"{self.hub_id} -- Invalid Message: {e}")
+#             raise e
+#         except (InvalidDevice, InvalidLeaf, PermissionDenied) as e:
+#             logger.error(f"{self.hub_id} -- {e} in handling {self.type} for {self.data['uuid']}")
+#             reply = e.get_error_message()
+#             reply['hub'] = self.hub()
+#             self.reply(reply)
+#             raise InvalidMessage(e)
+
+#     def save_session_info(self, name, value):
+#         self.session[name] = value
+
+#     def reply(self, response):
+#         self.reply_channel.send({"text": json.dumps(response)})
+
+#     def register_leaf(self, leaf):
+#         Group(f"{leaf.hub.id}-{leaf.uuid}").add(self.reply_channel)
+
+#     def unregister_leaf(self, leaf):
+#         Group(f"{leaf.hub.id}-{leaf.uuid}").discard(self.reply_channel)
+
+
+class MessageV2(Message):
+    def __init__(self, consumer, message):
+        self.session = consumer.scope["session"]
+        self.consumer = consumer
 
         try:
-            data = json.loads(message.content['text'])
-            data['hub'] = message.channel_session['hub']
-            super().__init__(data)
+            message['hub'] = self.session['hub']
+            super().__init__(message)
         except json.decoder.JSONDecodeError as e:
             logger.error(f"{self.hub_id} -- Invalid Message: JSON Decoding failed")
             raise InvalidMessage(e)
@@ -122,12 +157,15 @@ class MessageV1(Message):
 
     def save_session_info(self, name, value):
         self.session[name] = value
+    
+    def get_session_info(self, name):
+        return self.session[name]
 
     def reply(self, response):
-        self.reply_channel.send({"text": json.dumps(response)})
+        self.consumer.send(text_data=json.dumps(response))
 
     def register_leaf(self, leaf):
-        Group(f"{leaf.hub.id}-{leaf.uuid}").add(self.reply_channel)
+        async_to_sync(self.consumer.channel_layer.group_add)(f"{leaf.hub.id}-{leaf.uuid}", self.consumer.channel_name)
 
     def unregister_leaf(self, leaf):
-        Group(f"{leaf.hub.id}-{leaf.uuid}").discard(self.reply_channel)
+        async_to_sync(self.consumer.channel_layer.group_discard)(f"{leaf.hub.id}-{leaf.uuid}", self.consumer.channel_name)
