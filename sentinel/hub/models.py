@@ -3,7 +3,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
-from channels import Group
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from types import SimpleNamespace
 import json
 
@@ -185,8 +186,11 @@ class Leaf(models.Model):
         self.send_message(message)
 
     def send_message(self, message: dict) -> None:
-        message = {"text": json.dumps(message)}
-        Group(f"{self.hub.id}-{self.uuid}").send(message)
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"{self.hub.id}-{self.uuid}",
+            message
+        )
 
     def send_subscriber_update(self, device):
         seen_devices = set()
@@ -211,10 +215,6 @@ class Leaf(models.Model):
     @property
     def message_template(self):
         return {"uuid": self.uuid, "hub_id": self.hub_id}
-
-    @property
-    def group(self):
-        return Group(f"{self.hub.id}-{self.uuid}")
 
     def __repr__(self):
         return "Leaf <name: {}, uuid:{}>".format(self.name, self.uuid)
