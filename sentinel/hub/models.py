@@ -65,11 +65,6 @@ class BooleanValue(Value):
 class Hub(models.Model):
     name = models.CharField(max_length=100)
 
-    class Meta:
-        permissions = (
-            ('view_hub', 'View Hub'),
-        )
-
     def __str__(self):
         return repr(self)
 
@@ -111,7 +106,6 @@ class Leaf(models.Model):
 
     class Meta:
         unique_together = (('uuid', 'hub'),)
-        permissions = (('view_leaf', 'View Leaf'),)
 
     def update_time(self):
         self.last_updated = timezone.now()
@@ -331,9 +325,6 @@ class Datastore(models.Model):
 
     class Meta:
         unique_together = (('name', 'hub'),)
-        permissions = (
-            ('view_datastore', 'Can view the datastore'),
-        )
 
     @property
     def format(self):
@@ -564,9 +555,6 @@ class Condition(models.Model):
     hub = models.ForeignKey(Hub, related_name="conditions", on_delete=models.CASCADE)
 
     class Meta:
-        permissions = (
-            ('view_condition', 'View Condition'),
-        )
         unique_together = (('name', 'hub'),)
 
     def execute(self):
