@@ -11,3 +11,5 @@ channels
 channels_redis
 psycopg2-binary
 coverage
+pytest-django
+pytest-asyncio
