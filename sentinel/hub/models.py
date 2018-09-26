@@ -183,7 +183,7 @@ class Leaf(models.Model):
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"{self.hub.id}-{self.uuid}",
-            message
+            { "type": "leaf.send", "message": message}
         )
 
     def send_subscriber_update(self, device):

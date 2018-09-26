@@ -1,7 +1,7 @@
 import json
 import logging
 
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import JsonWebsocketConsumer
 from asgiref.sync import async_to_sync
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -20,12 +20,15 @@ from .utils import InvalidLeaf, PermissionDenied, InvalidMessage
 
 logger = logging.getLogger(__name__)
 
-class LeafConsumer(WebsocketConsumer):
+class LeafConsumer(JsonWebsocketConsumer):
     def connect(self):
-        id = self.scope["url_route"]["kwargs"]["id"]
+        id = int(self.scope["url_route"]["kwargs"]["id"])
+
         if Hub.objects.filter(id=id).exists():
             self.scope["session"]["hub"] = id
-        self.accept()
+            self.accept()
+        else:
+            self.close()
 
     def disconnect(self, close_code):
         if 'user' in self.scope["session"]:
@@ -36,11 +39,15 @@ class LeafConsumer(WebsocketConsumer):
             self.consumer = self # TODO: make unregister static
             MessageV2.unregister_leaf(self, leaf)
 
-    def receive(self, text_data):
+    def receive_json(self, content):
         try:
-            handle(MessageV2(json.loads(text_data)))
+            handle(MessageV2(self, content))
         except InvalidMessage:
             logger.error("Failed to handle message, aborting.")
+
+    def leaf_send(self, event):
+        self.send_json(event['message'])
+
 
 def handle(message: Message):
     try:

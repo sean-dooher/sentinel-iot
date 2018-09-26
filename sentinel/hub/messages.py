@@ -162,7 +162,7 @@ class MessageV2(Message):
         return self.session[name]
 
     def reply(self, response):
-        self.consumer.send(text_data=json.dumps(response))
+        self.consumer.send_json(response)
 
     def register_leaf(self, leaf):
         async_to_sync(self.consumer.channel_layer.group_add)(f"{leaf.hub.id}-{leaf.uuid}", self.consumer.channel_name)
