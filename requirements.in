@@ -12,3 +12,4 @@ psycopg2-binary
 coverage
 pytest-django
 pytest-asyncio
+pytest-cov
