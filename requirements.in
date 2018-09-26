@@ -1,5 +1,4 @@
 django
-django_jenkins
 django-cors-headers
 django-guardian
 django-oauth-toolkit
