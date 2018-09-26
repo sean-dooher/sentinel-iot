@@ -65,6 +65,7 @@ class ConsumerTests:
         if units:
             device_message['units'] = units
         await client.send_json_to(device_message)
+        await client.receive_nothing()
 
     @staticmethod
     async def send_subscribe(observer_client, observer_uuid, other_uuid, other_device):
@@ -248,26 +249,6 @@ class TestLeaves(ConsumerTests):
         await client.disconnect()
 
 
-    # @pytest.mark.asyncio
-    # @pytest.mark.django_db(transaction=True)
-    # async def test_create_group(self):
-    #     self.client = Client()
-    #     self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-    #     self.client.login(username="admin", password="password")
-
-    #     hub = self.create_hub("test_hub")
-    #     name = "py_create_test"
-    #     model = "01"
-    #     uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-    #     api_version = "3.2.3"
-    #     client, db_leaf = await self.send_create_leaf(name, model, uuid, hub, api_version)
-
-    #     async_to_sync(channel_layer.group_send)(
-    #         f"{db_leaf.hub.id}-{db_leaf.uuid}",
-    #         { "type": "leaf.send", "message": {}}
-    #     )
-    #     assert await client.receive_json_from(), "Expected a response"
-
     @pytest.mark.asyncio
     @pytest.mark.django_db(transaction=True)
     async def test_create_number_device(self):
@@ -282,7 +263,6 @@ class TestLeaves(ConsumerTests):
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
 
         await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 31231, 'number', "IN", {'auto': 1})
-        await client.receive_nothing()
 
         assert db_leaf.devices.count() == 1, "Expected one device"
         devices = {device.name: device for device in db_leaf.devices.all()}
@@ -294,78 +274,104 @@ class TestLeaves(ConsumerTests):
 
         await client.disconnect()
 
-#     def test_create_bool_device(self):
-#         hub = self.create_hub("test_hub")
-#         name = "py_device_test"
-#         model = "01"
-#         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-#         client, db_leaf = self.send_create_leaf(name, model, uuid, hub)
 
-#         self.send_device_update(client, db_leaf.uuid, 'bool_test', True, 'bool', "IN", {'auto': 1})
-#         assert db_leaf.devices.count() == 1, "Expected one device"
-#         devices = {device.name: device for device in db_leaf.devices.all()}
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_create_bool_device(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
 
-#         assert 'bool_test' in devices  # tests name implicitly
-#         bool_test = devices['bool_test']
-#         assert bool_test.format == 'bool', "Expected test to be a bool device"
-#         assert bool_test.value == True, "Wrong value"
+        hub = self.create_hub("test_hub")
+        name = "py_device_test"
+        model = "01"
+        uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
+        client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
 
-#     def test_create_string_device(self):
-#         hub = self.create_hub("test_hub")
-#         name = "py_device_test"
-#         model = "01"
-#         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-#         client, db_leaf = self.send_create_leaf(name, model, uuid, hub)
+        await self.send_device_update(client, db_leaf.uuid, 'bool_test', True, 'bool', "IN", {'auto': 1})
+        assert db_leaf.devices.count() == 1, "Expected one device"
+        devices = {device.name: device for device in db_leaf.devices.all()}
 
-#         self.send_device_update(client, db_leaf.uuid, 'string_dev', 'this is a test', 'string', "IN", {'auto': 1})
-#         assert db_leaf.devices.count() == 1, 'Expected one device'
-#         devices = {device.name: device for device in db_leaf.devices.all()}
+        assert 'bool_test' in devices  # tests name implicitly
+        bool_test = devices['bool_test']
+        assert bool_test.format == 'bool', "Expected test to be a bool device"
+        assert bool_test.value == True, "Wrong value"
 
-#         assert 'string_dev' in devices  # tests name implicitly
-#         string_dev = devices['string_dev']
-#         assert string_dev.format == 'string', "Expected test to be a string device"
-#         assert string_dev.value == 'this is a test', "Wrong value"
+        await client.disconnect()
 
-#     def test_create_multiple_devices(self):
-#         hub = self.create_hub("test_hub")
-#         name = "py_device_test"
-#         model = "01"
-#         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-#         client, db_leaf = self.send_create_leaf(name, model, uuid, hub)
 
-#         # send initial values, create devices in database
-#         self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
-#         self.send_device_update(client, db_leaf.uuid, 'door', False, 'bool', "OUT")
-#         self.send_device_update(client, db_leaf.uuid, 'thermometer', 50, 'number+units', "IN", {'auto': 1}, units="F")
-#         self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
-#         assert await client.receive_from() is None, "Didn't  expect a response"
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_create_string_device(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
 
-#         assert db_leaf.devices.count() == 4, "Expected four devices"
-#         devices = {device.name: device for device in db_leaf.devices.all()}
-#         # test all devices
-#         assert 'rfid_reader' in devices  # tests name implicitly
-#         rfid_device = devices['rfid_reader']
-#         assert rfid_device.format == 'number', "Expected rfid to be a number device"
-#         assert rfid_device.value == 125, "Wrong value"
-#         # self.assertDictEqual({'auto': 1}, rfid_device.options, "Wrong options dictionary")
+        hub = self.create_hub("test_hub")
+        name = "py_device_test"
+        model = "01"
+        uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
+        client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
 
-#         assert 'door' in devices
-#         door_device = devices['door']
-#         assert door_device.format == 'bool', "Expected door to be a boolean device"
-#         assert door_device.value == 0, "Wrong value"
-#         # self.assertDictEqual({}, door_device.options, "Wrong options dictionary")
+        await self.send_device_update(client, db_leaf.uuid, 'string_dev', 'this is a test', 'string', "IN", {'auto': 1})
+        assert db_leaf.devices.count() == 1, 'Expected one device'
+        devices = {device.name: device for device in db_leaf.devices.all()}
 
-#         assert 'thermometer' in devices
-#         thermometer_device = devices['thermometer']
-#         assert thermometer_device.format == 'number+units', "Expected device to be a number+unit device"
-#         assert thermometer_device.value == 50, "Wrong value"
-#         # self.assertDictEqual({'auto': 1}, thermometer_devide.options, "Wrong options dictionary")
+        assert 'string_dev' in devices  # tests name implicitly
+        string_dev = devices['string_dev']
+        assert string_dev.format == 'string', "Expected test to be a string device"
+        assert string_dev.value == 'this is a test', "Wrong value"
 
-#         assert 'led_display' in devices
-#         led_device = devices['led_display']
-#         assert led_device.format == 'string', "Expected device to be a number+unit device"
-#         assert led_device.value == "BLUE LIGHT MODE", "Wrong value"
-#         # self.assertDictEqual({'auto': 1}, led_device.options, "Wrong options dictionary")
+        await client.disconnect()
+
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_create_multiple_devices(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+
+        hub = self.create_hub("test_hub")
+        name = "py_device_test"
+        model = "01"
+        uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
+        client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+
+        # send initial values, create devices in database
+        await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
+        await self.send_device_update(client, db_leaf.uuid, 'door', False, 'bool', "OUT")
+        await self.send_device_update(client, db_leaf.uuid, 'thermometer', 50, 'number+units', "IN", {'auto': 1}, units="F")
+        await self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
+
+        assert db_leaf.devices.count() == 4, "Expected four devices"
+        devices = {device.name: device for device in db_leaf.devices.all()}
+        # test all devices
+        assert 'rfid_reader' in devices  # tests name implicitly
+        rfid_device = devices['rfid_reader']
+        assert rfid_device.format == 'number', "Expected rfid to be a number device"
+        assert rfid_device.value == 125, "Wrong value"
+        # self.assertDictEqual({'auto': 1}, rfid_device.options, "Wrong options dictionary")
+
+        assert 'door' in devices
+        door_device = devices['door']
+        assert door_device.format == 'bool', "Expected door to be a boolean device"
+        assert door_device.value == 0, "Wrong value"
+        # self.assertDictEqual({}, door_device.options, "Wrong options dictionary")
+
+        assert 'thermometer' in devices
+        thermometer_device = devices['thermometer']
+        assert thermometer_device.format == 'number+units', "Expected device to be a number+unit device"
+        assert thermometer_device.value == 50, "Wrong value"
+        # self.assertDictEqual({'auto': 1}, thermometer_devide.options, "Wrong options dictionary")
+
+        assert 'led_display' in devices
+        led_device = devices['led_display']
+        assert led_device.format == 'string', "Expected device to be a number+unit device"
+        assert led_device.value == "BLUE LIGHT MODE", "Wrong value"
+        # self.assertDictEqual({'auto': 1}, led_device.options, "Wrong options dictionary")
+
+        await client.disconnect()
 
 #     def test_update_device_multiple(self):
 #         hub = self.create_hub("test_hub")
