@@ -54,8 +54,6 @@ INSTALLED_APPS = [
     'webpack_loader',
     'corsheaders',
     'oauth2_provider',
-    # 'channels_api',
-    'django_jenkins'
 ]
 
 MIDDLEWARE = [
