@@ -18,6 +18,11 @@ class ConsumerTests:
         hub_group = PermGroup.objects.get(name="hub-" + str(hub.id))
         self.user.groups.add(hub_group)
         return hub
+    
+    def create_user_and_client(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
 
     async def send_create_leaf(self, name, model, uuid, hub, api_version="0.1.0", receive=True):
         token_response = self.client.post(f"/hub/{hub.id}/register", {'uuid': uuid})
@@ -92,7 +97,7 @@ class ConsumerTests:
             'value': expected_value,  # value should not have changed from last set request
             'format': expected_format
         }
-        response = await client.receive_from()
+        response = await client.receive_json_from()
         assert response is not None, "Expected a response after requesting data"
         assert response['type'] == expected_response['type']
         assert response['name'] == expected_response['name']
@@ -106,7 +111,7 @@ class ConsumerTests:
             'request': 'DATASTORE_GET',
             'name': name,
         }
-        response = await client.receive_from()
+        response = await client.receive_json_from()
         assert response is not None, "Expected a response"
         assert response['type'] == expected_response['type']
         assert response['request'] == expected_response['request']
@@ -119,7 +124,7 @@ class ConsumerTests:
             'request': 'DATASTORE_SET',
             'name': name,
         }
-        response = await client.receive_from()
+        response = await client.receive_json_from()
         assert response is not None, "Expected a response from setting datastore value"
         assert response['type'] == expected_response['type']
         assert response['request'] == expected_response['request']
@@ -132,7 +137,7 @@ class ConsumerTests:
             'request': 'DATASTORE_DELETE',
             'name': name,
         }
-        response = await client.receive_from()
+        response = await client.receive_json_from()
         assert response is not None, "Expected a response from deleting datastore value"
         assert response['type'] == expected_response['type']
         assert response['request'] == expected_response['request']
@@ -148,8 +153,7 @@ class ConsumerTests:
             'request': 'DATASTORE_' + method,
             'name': name,
         }
-        response = await client.receive_from()
-        assert response is not None, "Expected a response"
+        response = await client.receive_json_from()
         assert response['type'] == expected_response['type']
         assert response['request'] == expected_response['request']
         assert response['name'] == expected_response['name']
@@ -165,7 +169,7 @@ class ConsumerTests:
         }
         if permissions:
             data_message['permissions'] = permissions
-        await client.send_and_consume('websocket.receive', {'text': data_message})
+        await client.send_json_to(data_message)
 
     @staticmethod
     async def send_delete_datastore(client, requester, name):
@@ -174,7 +178,7 @@ class ConsumerTests:
             'uuid': requester,
             'name': name,
         }
-        await client.send_and_consume('websocket.receive', {'text': data_message})
+        await client.send_json_to(data_message)
 
     @staticmethod
     async def send_set_datastore(client, requester, name, value):
@@ -184,7 +188,7 @@ class ConsumerTests:
             'name': name,
             'value': value
         }
-        await client.send_and_consume('websocket.receive', {'text': data_message})
+        await client.send_json_to(data_message)
 
     @staticmethod
     async def send_get_datastore(client, requester, name):
@@ -193,7 +197,7 @@ class ConsumerTests:
             'uuid': requester,
             'name': name
         }
-        await client.send_and_consume('websocket.receive', {'text': data_message})
+        await client.send_json_to(data_message)
 
     @staticmethod
     async def send_create_condition(admin_client, admin_uuid, condition_name, predicate, actions):
@@ -223,17 +227,14 @@ class ConsumerTests:
                    'name': condition_name}
         await admin_client.send_and_consume('websocket.receive', {'text': message})
 
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
 class TestLeaves(ConsumerTests):
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_create(self):
         """
         Tests creating a leaf
         """
-
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
         name = "py_create_test"
@@ -250,12 +251,8 @@ class TestLeaves(ConsumerTests):
         await client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_create_number_device(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
         name = "py_device_test"
@@ -276,12 +273,8 @@ class TestLeaves(ConsumerTests):
         await client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_create_bool_device(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
         name = "py_device_test"
@@ -301,12 +294,8 @@ class TestLeaves(ConsumerTests):
         await client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_create_string_device(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
         name = "py_device_test"
@@ -326,12 +315,8 @@ class TestLeaves(ConsumerTests):
         await client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_create_multiple_devices(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
         name = "py_device_test"
@@ -375,12 +360,8 @@ class TestLeaves(ConsumerTests):
         await client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_update_device_multiple(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         name = "py_device_test"
         model = "01"
@@ -415,12 +396,8 @@ class TestLeaves(ConsumerTests):
         pass
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_subscribe(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
 
         # setup leaves
@@ -439,12 +416,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_subscription(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
@@ -481,12 +454,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_full_leaf_subscribe(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
@@ -504,12 +473,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_full_leaf_subscription(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
@@ -540,12 +505,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_full_leaf_subscription_with_other(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
@@ -569,12 +530,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_unsubscribe(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
 
         # setup leaves
@@ -608,12 +565,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_full_leaf_unsubscribe_multi(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
@@ -639,12 +592,8 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    @pytest.mark.asyncio
-    @pytest.mark.django_db(transaction=True)
     async def test_full_leaf_unsubscribe_multiple(self):
-        self.client = Client()
-        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
-        self.client.login(username="admin", password="password")
+        self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
@@ -672,34 +621,38 @@ class TestLeaves(ConsumerTests):
         await rfid_client.disconnect()
         await observer_client.disconnect()
 
-# class DatastoreTests(ConsumerTests):
-#     def test_datastore_create(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
 
-#         # make sure the datastore didn't exist beforehand
-#         self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
-#         self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestDatastore(ConsumerTests):
+    async def test_datastore_create(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
 
-#         # test create
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
-#         expected_response = {
-#             'type': 'DATASTORE_CREATED',
-#             'name': 'sean_home',
-#             'format': 'bool',
-#         }
-#         response = rfid_client.receive()
-#         assert response is not None, "Expected a message for creating datastore"
-#         assert response['type'] == expected_response['type']
-#         assert response['name'] == expected_response['name']
-#         assert response['format'] == expected_response['format']
+        # make sure the datastore didn't exist beforehand
+        await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
+        await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
 
-#         # test making another with same number
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
-#         assert rfid_client.receive_nothing()
+        # test create
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        expected_response = {
+            'type': 'DATASTORE_CREATED',
+            'name': 'sean_home',
+            'format': 'bool',
+        }
+        response = await rfid_client.receive_json_from()
+        assert response is not None, "Expected a message for creating datastore"
+        assert response['type'] == expected_response['type']
+        assert response['name'] == expected_response['name']
+        assert response['format'] == expected_response['format']
 
-#         # make sure value was saved
-#         self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        # test making another with same number
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
+        assert await rfid_client.receive_nothing()
+
+        # make sure value was saved
+        await self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
 
 #     def test_datastore_delete(self):
 #         hub = self.create_hub("test_hub")
