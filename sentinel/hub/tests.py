@@ -245,33 +245,54 @@ class TestLeaves(ConsumerTests):
         assert db_leaf.uuid == uuid, "Wrong uuid"
         assert db_leaf.api_version == api_version, "Wrong api_version"
 
+        await client.disconnect()
 
-#     def test_create_group(self):
-#         hub = self.create_hub("test_hub")
-#         name = "py_create_test"
-#         model = "01"
-#         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-#         api_version = "3.2.3"
-#         client, db_leaf = self.send_create_leaf(name, model, uuid, hub, api_version, False)
 
-#         Group(f"{db_leaf.hub.id}-{db_leaf.uuid}").send({'text': {}})
-#         assert await client.receive_from() is not None, "Expected a response"
+    # @pytest.mark.asyncio
+    # @pytest.mark.django_db(transaction=True)
+    # async def test_create_group(self):
+    #     self.client = Client()
+    #     self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+    #     self.client.login(username="admin", password="password")
 
-#     def test_create_number_device(self):
-#         hub = self.create_hub("test_hub")
-#         name = "py_device_test"
-#         model = "01"
-#         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-#         client, db_leaf = self.send_create_leaf(name, model, uuid, hub)
+    #     hub = self.create_hub("test_hub")
+    #     name = "py_create_test"
+    #     model = "01"
+    #     uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
+    #     api_version = "3.2.3"
+    #     client, db_leaf = await self.send_create_leaf(name, model, uuid, hub, api_version)
 
-#         self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 31231, 'number', "IN", {'auto': 1})
-#         assert db_leaf.devices.count() == 1, "Expected one device"
-#         devices = {device.name: device for device in db_leaf.devices.all()}
+    #     async_to_sync(channel_layer.group_send)(
+    #         f"{db_leaf.hub.id}-{db_leaf.uuid}",
+    #         { "type": "leaf.send", "message": {}}
+    #     )
+    #     assert await client.receive_json_from(), "Expected a response"
 
-#         assert 'rfid_reader' in devices  # tests name implicitly
-#         rfid_device = devices['rfid_reader']
-#         assert rfid_device.format == 'number', "Expected rfid to be a number device"
-#         assert rfid_device.value == 31231, "Wrong value"
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_create_number_device(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+
+        hub = self.create_hub("test_hub")
+        name = "py_device_test"
+        model = "01"
+        uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
+        client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+
+        await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 31231, 'number', "IN", {'auto': 1})
+        await client.receive_nothing()
+
+        assert db_leaf.devices.count() == 1, "Expected one device"
+        devices = {device.name: device for device in db_leaf.devices.all()}
+
+        assert 'rfid_reader' in devices  # tests name implicitly
+        rfid_device = devices['rfid_reader']
+        assert rfid_device.format == 'number', "Expected rfid to be a number device"
+        assert rfid_device.value == 31231, "Wrong value"
+
+        await client.disconnect()
 
 #     def test_create_bool_device(self):
 #         hub = self.create_hub("test_hub")

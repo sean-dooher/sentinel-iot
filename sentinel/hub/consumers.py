@@ -33,7 +33,7 @@ class LeafConsumer(JsonWebsocketConsumer):
     def disconnect(self, close_code):
         if 'user' in self.scope["session"]:
             hub = Hub.objects.get(pk=self.scope["session"]["hub"])
-            leaf = hub.get_leaf(self.scope["session"]["leaf"])
+            leaf = hub.get_leaf(self.scope["session"]["uuid"])
             leaf.is_connected = leaf.last_connected.timestamp() != self.scope["session"]["connect_time"]
             leaf.save()
             self.consumer = self # TODO: make unregister static
