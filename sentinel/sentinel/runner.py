@@ -1,4 +1,6 @@
-class PytestTestRunner(object):
+import os
+
+class PytestTestRunner:
     """Runs pytest to discover and run tests."""
 
     def __init__(self, verbosity=1, failfast=False, keepdb=False, **kwargs):
@@ -24,6 +26,10 @@ class PytestTestRunner(object):
             argv.append('--exitfirst')
         if self.keepdb:
             argv.append('--reuse-db')
+        if os.getenv("TEST_REPORT"):
+            argv.append("--cov=hub")
+            argv.append("--cov-report=xml:reports/coverage.xml")
+            argv.append("--junitxml=reports/junit.xml")
 
         argv.extend(test_labels)
         return pytest.main(argv)
