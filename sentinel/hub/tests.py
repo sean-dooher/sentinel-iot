@@ -74,6 +74,7 @@ class ConsumerTests:
                        'sub_uuid': other_uuid,
                        'sub_device': other_device}
         await observer_client.send_json_to(sub_message)
+        assert await observer_client.receive_nothing()
 
     @staticmethod
     async def send_unsubscribe(observer_client, observer_uuid, other_uuid, other_device):
@@ -373,223 +374,303 @@ class TestLeaves(ConsumerTests):
 
         await client.disconnect()
 
-#     def test_update_device_multiple(self):
-#         hub = self.create_hub("test_hub")
-#         name = "py_device_test"
-#         model = "01"
-#         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
-#         client, db_leaf = self.send_create_leaf(name, model, uuid, hub)
 
-#         self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
-#         self.send_device_update(client, db_leaf.uuid, 'door', False, 'bool', "OUT")
-#         self.send_device_update(client, db_leaf.uuid, 'thermometer', 50, 'number+units', "IN", {'auto': 1}, units="F")
-#         self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_update_device_multiple(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        name = "py_device_test"
+        model = "01"
+        uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
+        client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
 
-#         # test updating by updating all but door
-#         self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 33790, 'number', "IN", {'auto': 1})
-#         self.send_device_update(client, db_leaf.uuid, 'thermometer', 90, 'number+units', "IN", {'auto': 1}, units="F")
-#         self.send_device_update(client, db_leaf.uuid, 'led_display', "HERE WE", 'string', "OUT", {'auto': 1})
-#         assert await client.receive_from() is None, "Didn't  expect a response"
+        await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
+        await self.send_device_update(client, db_leaf.uuid, 'door', False, 'bool', "OUT")
+        await self.send_device_update(client, db_leaf.uuid, 'thermometer', 50, 'number+units', "IN", {'auto': 1}, units="F")
+        await self.send_device_update(client, db_leaf.uuid, 'led_display', "BLUE LIGHT MODE", 'string', "OUT", {'auto': 1})
 
-#         devices = {device.name: device for device in db_leaf.devices.all()}
-#         rfid_device = devices['rfid_reader']
-#         door_device = devices['door']
-#         thermometer_device = devices['thermometer']
-#         led_device = devices['led_display']
+        # test updating by updating all but door
+        await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 33790, 'number', "IN", {'auto': 1})
+        await self.send_device_update(client, db_leaf.uuid, 'thermometer', 90, 'number+units', "IN", {'auto': 1}, units="F")
+        await self.send_device_update(client, db_leaf.uuid, 'led_display', "HERE WE", 'string', "OUT", {'auto': 1})
 
-#         assert rfid_device.value == 33790, "Wrong value"
-#         assert door_device.value == False, "Wrong value"  # make sure door didn't change
-#         assert led_device.value == "HERE WE", "Wrong value"
-#         assert thermometer_device.value == 90, "Wrong value"
+        devices = {device.name: device for device in db_leaf.devices.all()}
+        rfid_device = devices['rfid_reader']
+        door_device = devices['door']
+        thermometer_device = devices['thermometer']
+        led_device = devices['led_display']
 
-#     @unittest.skip("Options not implemented yet")
-#     def test_options(self):
-#         pass
+        assert rfid_device.value == 33790, "Wrong value"
+        assert door_device.value == False, "Wrong value"  # make sure door didn't change
+        assert led_device.value == "HERE WE", "Wrong value"
+        assert thermometer_device.value == 90, "Wrong value"
 
-#     def test_subscribe(self):
-#         hub = self.create_hub("test_hub")
+        await client.disconnect()
 
-#         # setup leaves
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+    @pytest.mark.skip("Options not implemented yet")
+    def test_options(self):
+        pass
 
-#         # setup devices
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-#         # subscribe
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
-#         assert rfid_client.receive() is None, "Didn't  expect a response"
-#         assert observer_client.receive() is None, "Didn't  expect a response"
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_subscribe(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
 
-#     def test_subscription(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        # setup leaves
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         # update rfid device
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert rfid_client.receive() is None, "Didn't  expect a response"
+        # setup devices
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-#         # test that subscription message was received and check parameters
-#         sub_message = observer_client.receive()
-#         assert sub_message is not None, "Expected to receive a subscription update"
-#         assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Wrong type"
-#         assert sub_message['sub_uuid'] == rfid_leaf.uuid, "Wrong uuid"
-#         assert sub_message['sub_device'] == 'rfid_reader', "Wrong device"
-#         sub_status = {'type': 'DEVICE_STATUS',
-#                       'device': 'rfid_reader',
-#                       'format': 'number',
-#                       'value': 3032042781}
+        # subscribe
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        assert await rfid_client.receive_nothing()
 
-#         for key in sub_status:  # check that the message has the right values
-#             assert sub_message['message'][key] == sub_status[key]
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
 
-#         assert rfid_client.receive() is None, "Didn't  expect a response"  # make sure there are no more messages
 
-#         # make sure other device doesn't trigger subscription event
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
-#         assert observer_client.receive() is None, "Didn't  expect a response"
-#         assert rfid_client.receive() is None, "Didn't  expect a response"
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_subscription(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
 
-#     def test_full_leaf_subscribe(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        # update rfid device
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+        assert await rfid_client.receive_nothing(), "Didn't  expect a response"
 
-#         # subscribe to the rfid reader
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        # test that subscription message was received and check parameters
+        sub_message = await observer_client.receive_json_from()
+        assert sub_message is not None, "Expected to receive a subscription update"
+        assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Wrong type"
+        assert sub_message['sub_uuid'] == rfid_leaf.uuid, "Wrong uuid"
+        assert sub_message['sub_device'] == 'rfid_reader', "Wrong device"
+        sub_status = {'type': 'DEVICE_STATUS',
+                      'device': 'rfid_reader',
+                      'format': 'number',
+                      'value': 3032042781}
 
-#     def test_full_leaf_subscription(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        for key in sub_status:  # check that the message has the right values
+            assert sub_message['message'][key] == sub_status[key]
 
-#         # subscribe to the rfid reader
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        assert await rfid_client.receive_nothing(), "Didn't  expect a response"  # make sure there are no more messages
 
-#         # test that other device generates subscription event
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', True, 'bool')
-#         sub_message = observer_client.receive()
-#         assert sub_message is not None, "Expected to receive a subscription update"
-#         assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Wrong type"
-#         assert sub_message['sub_uuid'] == rfid_leaf.uuid, "Wrong uuid"
-#         assert sub_message['sub_device'] == 'leaf', "Wrong device"
-#         sub_status = {'type': 'DEVICE_STATUS',
-#                       'device': 'other_sensor',
-#                       'format': 'bool',
-#                       'value': True}
+        # make sure other device doesn't trigger subscription event
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        assert await observer_client.receive_nothing(), "Didn't  expect a response"
+        assert await rfid_client.receive_nothing(), "Didn't  expect a response"
 
-#         for key in sub_status:
-#             assert sub_message['message'][key] == sub_status[key]
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
 
-#         assert observer_client.receive() is None, "Didn't  expect a response"  # ensure there are no more messages
 
-#     def test_full_leaf_subscription_with_other(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_full_leaf_subscribe(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-#         # subscribe to the rfid reader
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        # subscribe to the rfid reader
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         sub_message = observer_client.receive()
-#         assert sub_message is not None, "Expected to receive a subscription update"
-#         assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Wrong type"
-#         assert sub_message['sub_uuid'] == rfid_leaf.uuid, "Wrong uuid"
-#         assert sub_message['sub_device'] == 'rfid_reader', "Wrong device"
-#         # ensure message doesn't show up twice
-#         assert observer_client.receive() is None, "Didn't  expect a response"
+        assert await observer_client.receive_nothing()
+        assert await rfid_client.receive_nothing()
 
-#     def test_unsubscribe(self):
-#         hub = self.create_hub("test_hub")
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
 
-#         # setup leaves
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         # setup devices
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_full_leaf_subscription(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-#         # subscribe to rfid_leaf
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        # subscribe to the rfid reader
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
 
-#         # update rfid device
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert rfid_client.receive() is None, "Didn't  expect a response"
+        # test that other device generates subscription event
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', True, 'bool')
+        sub_message = await observer_client.receive_json_from()
 
-#         # test that subscription message was received
-#         assert observer_client.receive() is not None, "Expected to receive a subscription update"
+        assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Wrong type"
+        assert sub_message['sub_uuid'] == rfid_leaf.uuid, "Wrong uuid"
+        assert sub_message['sub_device'] == 'leaf', "Wrong device"
+        sub_status = {'type': 'DEVICE_STATUS',
+                      'device': 'other_sensor',
+                      'format': 'bool',
+                      'value': True}
 
-#         assert observer_client.receive() is None, \
-#                           "Didn't  expect a response"  # make sure there are no more messages
+        for key in sub_status:
+            assert sub_message['message'][key] == sub_status[key]
 
-#         # unsubscribe
-#         self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        assert await observer_client.receive_nothing(), "Didn't  expect a response"  # ensure there are no more messages
 
-#         assert observer_client.receive() is None  # should not receive subscription updates any more
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
 
-#     def test_full_leaf_unsubscribe_multi(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         # setup devices
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_full_leaf_subscription_with_other(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
-#         assert observer_client.receive() is None, "Didn't  expect a response"
-#         assert rfid_client.receive() is None, "Didn't  expect a response"
+        # subscribe to the rfid reader
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
 
-#         # unsubscribe and make sure other sensor doesn't generate subscription events anymore
-#         self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
-#         assert observer_client.receive() is None, "Did not expect a message from other_sensor after unsubscribing"
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        sub_message = await observer_client.receive_json_from()
+        assert sub_message is not None, "Expected to receive a subscription update"
+        assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Wrong type"
+        assert sub_message['sub_uuid'] == rfid_leaf.uuid, "Wrong uuid"
+        assert sub_message['sub_device'] == 'rfid_reader', "Wrong device"
+        # ensure message doesn't show up twice
+        assert await observer_client.receive_nothing(), "Didn't  expect a response"
 
-#         # make sure that the original subscription to the rfid_reader still exists
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         assert observer_client.receive() is None, "Did not expect a message from other_sensor after unsubscribing"
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
 
-#     def test_full_leaf_unsubscribe_multiple(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         # setup devices
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_unsubscribe(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
 
-#         # subscribe to the rfid reader
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
-#         # subscribe to whole leaf
-#         self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
-#         assert observer_client.receive() is None, "Didn't  expect a response"
-#         assert rfid_client.receive() is None, "Didn't  expect a response"
+        # setup leaves
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf =  await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         # unsubscribe and make sure other sensor doesn't generate subscription events anymore
-#         self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
-#         assert observer_client.receive() is None, "Did not expect a message from other_sensor after unsubscribing"
+        # setup devices
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
-#         # make sure that the original subscription to the rfid_reader still exists
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         assert observer_client.receive() is not None, "Expected to still receive a subscription update"
+        # subscribe to rfid_leaf
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
 
+        # update rfid device
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+        assert await rfid_client.receive_nothing(), "Didn't  expect a response"
+
+        # test that subscription message was received
+        assert await observer_client.receive_nothing() is False, "Expected to receive a subscription update"
+        await observer_client.receive_json_from()
+        
+        assert await observer_client.receive_nothing(), "Didn't  expect a response"  # make sure there are no more messages
+
+        # unsubscribe
+        await self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+
+        assert await observer_client.receive_nothing()  # should not receive subscription updates any more
+
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
+
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_full_leaf_unsubscribe_multi(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+
+        # setup devices
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        assert await observer_client.receive_nothing(), "Didn't  expect a response"
+        assert await rfid_client.receive_nothing(), "Didn't  expect a response"
+
+        # unsubscribe and make sure other sensor doesn't generate subscription events anymore
+        await self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        assert await observer_client.receive_nothing(), "Did not expect a message from other_sensor after unsubscribing"
+
+        # make sure that the original subscription to the rfid_reader still exists
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        assert await observer_client.receive_nothing(), "Did not expect a message from other_sensor after unsubscribing"
+
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
+
+
+    @pytest.mark.asyncio
+    @pytest.mark.django_db(transaction=True)
+    async def test_full_leaf_unsubscribe_multiple(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(username="admin", password="password", email="admin@admin.om")
+        self.client.login(username="admin", password="password")
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+
+        # setup devices
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+
+        # subscribe to the rfid reader
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
+        # subscribe to whole leaf
+        await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        assert await observer_client.receive_nothing(), "Didn't  expect a response"
+        assert await rfid_client.receive_nothing(), "Didn't  expect a response"
+
+        # unsubscribe and make sure other sensor doesn't generate subscription events anymore
+        await self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'leaf')
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
+        assert await observer_client.receive_nothing(), "Did not expect a message from other_sensor after unsubscribing"
+
+        # make sure that the original subscription to the rfid_reader still exists
+        await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        assert await observer_client.receive_json_from() is not None, "Expected to still receive a subscription update"
+
+        await rfid_client.disconnect()
+        await observer_client.disconnect()
 
 # class DatastoreTests(ConsumerTests):
 #     def test_datastore_create(self):
@@ -615,7 +696,7 @@ class TestLeaves(ConsumerTests):
 
 #         # test making another with same number
 #         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
-#         assert rfid_client.receive() is None
+#         assert rfid_client.receive_nothing()
 
 #         # make sure value was saved
 #         self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
@@ -809,16 +890,16 @@ class TestLeaves(ConsumerTests):
 #             door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49',
 #                                                            hub)
 
-#             self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', initial, 'number')
-#             self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+#             await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', initial, 'number')
+#             await self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
 #             predicates = [operator, [rfid_leaf.uuid, 'rfid_reader'], literal]
 #             self.send_create_condition(admin_client, admin_leaf.uuid, name,
 #                                        predicates, actions=[self.create_action('SET', door_leaf.uuid, 'door_open', action_value=True)])
 
-#             self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', wrong, 'number')
-#             assert door_client.receive() is None  # condition has not been met yet
-#             self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', right, 'number')
+#             await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', wrong, 'number')
+#             assert door_client.receive_nothing()  # condition has not been met yet
+#             await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', right, 'number')
 
 #             expected = {
 #                 'type': 'SET_OUTPUT',
@@ -834,7 +915,7 @@ class TestLeaves(ConsumerTests):
 #             assert expected['device'] == response['device']
 #             assert expected['value'] == response['value']
 #             assert expected['format'] == response['format']
-#             assert door_client.receive() is None  # only gets one update
+#             assert door_client.receive_nothing()  # only gets one update
 #             self.send_delete_condition(admin_client, admin_leaf.uuid, name)
 
 #         test_basic('=', 3032042781, 33790, 3032042780, 3032042781)
@@ -851,24 +932,24 @@ class TestLeaves(ConsumerTests):
 #         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
 #         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
-#         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
+#         await self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
 #         predicates = ['AND', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
 #                               ['=', [other_leaf.uuid, 'other_sensor'], True]]]
 #         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_AND', predicates,
 #                                    actions=[self.create_action('SET', door_leaf.uuid, 'door_open', action_value=True)])
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert door_client.receive() is None  # other_sensor is false so the condition doesn't trigger
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         assert door_client.receive_nothing()  # other_sensor is false so the condition doesn't trigger
 
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
 
 #         response = door_client.receive()
 #         assert response is not None, "Expected a SET_OUTPUT response from condition"
 #         assert response['type'] == 'SET_OUTPUT'
-#         assert door_client.receive() is None  # only gets one update
+#         assert door_client.receive_nothing()  # only gets one update
 #         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_AND")
 
 #     def test_binary_or(self):
@@ -878,27 +959,27 @@ class TestLeaves(ConsumerTests):
 #         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
 #         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
-#         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
+#         await self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
 #         predicates = ['OR', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
 #                              ['=', [other_leaf.uuid, 'other_sensor'], True]]]
 #         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_OR', predicates,
 #                                    actions=[self.create_action('SET', door_leaf.uuid, 'door_open', action_value=True)])
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 #         assert door_client.receive() is not None, "Expected a response as one condition is true"
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
-#         assert door_client.receive() is None, "Expected no response as both conditions are false"
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
+#         assert door_client.receive_nothing(), "Expected no response as both conditions are false"
 
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
 #         assert door_client.receive() is not None, "Expected SET_OUTPUT as other condition is true"
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 
-#         assert door_client.receive() is None  # only gets one update
+#         assert door_client.receive_nothing()  # only gets one update
 #         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_OR")
 
 #     def test_binary_xor(self):
@@ -908,28 +989,28 @@ class TestLeaves(ConsumerTests):
 #         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
 #         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
-#         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
+#         await self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
 #         predicates = ['XOR', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
 #                               ['=', [other_leaf.uuid, 'other_sensor'], True]]]
 #         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_OR', predicates,
 #                                    actions=[self.create_action('SET', door_leaf.uuid, 'door_open', action_value=True)])
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert door_client.receive() is None, "Expected no response as both conditions are true"
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         assert door_client.receive_nothing(), "Expected no response as both conditions are true"
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 12312, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 12312, 'number')
 #         assert door_client.receive() is not None, "Expected a response as one condition is true"
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert door_client.receive() is None, "Expected no response as both conditions are true"
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         assert door_client.receive_nothing(), "Expected no response as both conditions are true"
 
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
 #         assert door_client.receive() is not None, "Expected a response as one condition is true"
 
-#         assert door_client.receive() is None  # only gets one update
+#         assert door_client.receive_nothing()  # only gets one update
 #         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_OR")
 
 #     def test_nested(self):
@@ -940,10 +1021,10 @@ class TestLeaves(ConsumerTests):
 #         third_client, third_leaf = self.send_create_leaf('third_leaf', '0', '0e86b123-42db-46a5-a816-4c194f6d33b5', hub)
 #         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
-#         self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', False, 'bool')
-#         self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
+#         await self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', False, 'bool')
+#         await self.send_device_update(door_client, door_leaf.uuid, 'door_open', False, 'bool', mode='OUT')
 
 #         predicates = ['OR', [['AND', [['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781],
 #                                       ['=', [third_leaf.uuid, 'third_sensor'], True]]],
@@ -952,20 +1033,20 @@ class TestLeaves(ConsumerTests):
 #         self.send_create_condition(admin_client, admin_leaf.uuid, 'binary_nested', predicates,
 #                                    actions=[self.create_action('SET', door_leaf.uuid, 'door_open', action_value=True)])
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert door_client.receive() is None, "Expected no response as only one nested condition is true"
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         assert door_client.receive_nothing(), "Expected no response as only one nested condition is true"
 
-#         self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', True, 'bool')
+#         await self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', True, 'bool')
 
 #         assert door_client.receive() is not None, "Expected SET_OUTPUT as both inner conditions are true"
 
-#         self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', False, 'bool')
-#         assert door_client.receive() is None, "Expected no response as only one nested condition is true"
+#         await self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', False, 'bool')
+#         assert door_client.receive_nothing(), "Expected no response as only one nested condition is true"
 
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'false')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'false')
 #         assert door_client.receive() is not None, "Expected a response as one outer condition is true"
 
-#         assert door_client.receive() is None  # only gets one update
+#         assert door_client.receive_nothing()  # only gets one update
 #         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_nested")
 
 #     def test_invalid_output_device(self):
@@ -974,8 +1055,8 @@ class TestLeaves(ConsumerTests):
 #         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
 #         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
 
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
 
 #         predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 3032042781]
 #         self.send_create_condition(admin_client, admin_leaf.uuid, "invalid_output_condition",
@@ -993,7 +1074,7 @@ class TestLeaves(ConsumerTests):
 #         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
 
 #         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'door_open', False, 'bool')
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 301323, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 301323, 'number')
 
 #         predicates = ['=', [rfid_leaf.uuid, 'rfid_reader'], 33790]
 #         self.send_create_condition(admin_client, admin_leaf.uuid, name,
@@ -1003,15 +1084,15 @@ class TestLeaves(ConsumerTests):
 
 #         assert door_open.value == False, \
 #                          'The RFID leaf does not meet the predicate, so the datastore should be false'
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
 #         door_open.refresh_from_db()
 #         assert door_open.value == False, \
 #                          'The RFID leaf does not meet the predicate, so the datastore should be false'
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
 #         door_open.refresh_from_db()
 #         assert door_open.value == True, \
 #                          'The RFID leaf does meet the predicate, so the datastore should be true'
-#         self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
+#         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
 #         door_open.refresh_from_db()
 #         assert door_open.value == True, \
 #                          'The datastore should not update to false if the predicate is no longer true'
@@ -1029,9 +1110,9 @@ class TestLeaves(ConsumerTests):
 #         assert hub2.leaves.count() == 1
 #         assert hub1.leaves.count() == 1
 
-#         self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid', 323, 'number')
-#         assert hub1_client.receive() is None, "Expected no response from both on device creation"
-#         assert hub2_client.receive() is None, "Expected no response from both on device creation"
+#         await self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid', 323, 'number')
+#         assert hub1_client.receive_nothing(), "Expected no response from both on device creation"
+#         assert hub2_client.receive_nothing(), "Expected no response from both on device creation"
 
 #         assert hub2_leaf.devices.count() == 0
 #         assert hub1_leaf.devices.count() == 1
@@ -1044,16 +1125,16 @@ class TestLeaves(ConsumerTests):
 #         observer_client, observer_leaf = self.send_create_leaf('rfid_leaf', '0',
 #                                                                'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub1)
 #         # set initial values
-#         self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 33790, 'number')
 
 #         # subscribe
 #         self.send_subscribe(observer_client, observer_leaf.uuid, hub1_leaf.uuid, 'rfid_reader')
 
 #         # update rfid device
-#         self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert hub1_client.receive() is None, "Didn't  expect a response"
-#         assert hub2_client.receive() is None, "Didn't  expect a response"
+#         await self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         assert hub1_client.receive_nothing(), "Didn't  expect a response"
+#         assert hub2_client.receive_nothing(), "Didn't  expect a response"
 
 #         # test that subscription message was received and check parameters
 #         sub_message = observer_client.receive()
@@ -1061,10 +1142,10 @@ class TestLeaves(ConsumerTests):
 #         assert sub_message['type'] == 'SUBSCRIPTION_UPDATE', "Expected message to be a subscription update"
 
 #         # make sure other device doesn't trigger subscription event
-#         self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 3230, 'number')
-#         assert observer_client.receive() is None, "Didn't  expect a response"
-#         assert hub1_client.receive() is None, "Didn't  expect a response"
-#         assert hub2_client.receive() is None, "Didn't  expect a response"
+#         await self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 3230, 'number')
+#         assert observer_client.receive_nothing(), "Didn't  expect a response"
+#         assert hub1_client.receive_nothing(), "Didn't  expect a response"
+#         assert hub2_client.receive_nothing(), "Didn't  expect a response"
 
 #     def test_multiple_hubs_conditions(self):
 #         hub1 = self.create_hub("first_hub")
@@ -1074,10 +1155,10 @@ class TestLeaves(ConsumerTests):
 #         hub2_client, hub2_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub2)
 #         out_client2, out_leaf2 = self.send_create_leaf('rfid_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub2)
 
-#         self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 33790, 'number')
-#         self.send_device_update(out_client1, out_leaf1.uuid, 'output', False, 'bool', mode="OUT")
-#         self.send_device_update(out_client2, out_leaf2.uuid, 'output', False, 'bool', mode="OUT")
+#         await self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 33790, 'number')
+#         await self.send_device_update(out_client1, out_leaf1.uuid, 'output', False, 'bool', mode="OUT")
+#         await self.send_device_update(out_client2, out_leaf2.uuid, 'output', False, 'bool', mode="OUT")
 
 #         predicate = ['=', [hub1_leaf.uuid, 'rfid_reader'], 3032042781]
 #         self.send_create_condition(hub1_client, hub1_leaf.uuid, "multi_condition",
@@ -1085,15 +1166,15 @@ class TestLeaves(ConsumerTests):
 #                                                                           'output', action_value=True)])
 
 #         # send value that would satisfy predicate from wrong hub
-#         self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         await self.send_device_update(hub2_client, hub2_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 
 #         # ensure no response was received by either output device
-#         assert out_client1.receive() is None, "Leaf from wrong hub satisfied predicate"
-#         assert out_client2.receive() is None, "Condition created on wrong hub"
+#         assert out_client1.receive_nothing(), "Leaf from wrong hub satisfied predicate"
+#         assert out_client2.receive_nothing(), "Condition created on wrong hub"
 
 #         # satisfy predicate from correct hub
-#         self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
+#         await self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 
 #         # ensure that only one hub receives output
 #         assert out_client1.receive() is not None, "Expected an out on hub1"
-#         assert out_client2.receive() is None, "Did not expect second hub to receive output"
+#         assert out_client2.receive_nothing(), "Did not expect second hub to receive output"
