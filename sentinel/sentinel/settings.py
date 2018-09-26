@@ -24,6 +24,8 @@ if TESTING:
         'django.contrib.auth.hashers.MD5PasswordHasher',
     )
 
+TEST_RUNNER = 'sentinel.runner.PytestTestRunner'
+
 # Application definition
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'assets'),
