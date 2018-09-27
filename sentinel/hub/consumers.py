@@ -287,7 +287,7 @@ def hub_handle_datastore_delete(message):
             reply = {'type': 'DATASTORE_DELETED',
                      'hub': message.hub.id,
                      'name': message.data['name']}
-            message.reply_channel.send({'text': json.dumps(reply)})
+            message.reply(reply)
         else:
             raise PermissionDenied(message.leaf.uuid, 'DATASTORE_DELETE', name=message.data['name'])
     except Datastore.DoesNotExist:
