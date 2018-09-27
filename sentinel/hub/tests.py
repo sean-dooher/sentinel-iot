@@ -653,182 +653,223 @@ class TestDatastore(ConsumerTests):
 
         # make sure value was saved
         await self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        await rfid_client.disconnect()
 
-#     def test_datastore_delete(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+    async def test_datastore_delete(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
 
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
-#         rfid_client.receive()
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        await rfid_client.receive_json_from()
 
-#         # test delete
-#         self.send_delete_datastore(rfid_client, rfid_leaf.uuid, 'sean_home')
-#         expected_response = {
-#             'type': 'DATASTORE_DELETED',
-#             'name': 'sean_home'
-#         }
+        # test delete
+        await self.send_delete_datastore(rfid_client, rfid_leaf.uuid, 'sean_home')
+        expected_response = {
+            'type': 'DATASTORE_DELETED',
+            'name': 'sean_home'
+        }
 
-#         response = rfid_client.receive()
-#         assert response is not None, "Expected a message for deleting datastore"
-#         assert response['type'] == expected_response['type']
-#         assert response['name'] == expected_response['name']
+        response = await rfid_client.receive_json_from()
+        assert response['type'] == expected_response['type']
+        assert response['name'] == expected_response['name']
 
-#         # make sure delete was successful
-#         self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
-#         self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
+        # make sure delete was successful
+        await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
+        await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
+        await rfid_client.disconnect()
 
-#     def test_datastore_update(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
-#         assert rfid_client.receive() is not None, "Expected creation message"
-#         # set new value and check for success with a read
 
-#         self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
-#         self.send_set_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True)
-#         self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
+    async def test_datastore_update(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        assert await rfid_client.receive_json_from(), "Expected creation message"
+        
+        # set new value and check for success with a read
+        await self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
+        await self.send_set_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True)
+        await self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
+        
+        await rfid_client.disconnect()
 
-#     def test_datastore_permissions_default_deny(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
-#         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
-#         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
-#         permissions = {
-#             'default': 'deny',  # deny reads and writes by default
-#             door_leaf.uuid: 'read',  # the door can read the value
-#             light_leaf.uuid: 'write',  # the light can read and write
-#             admin_leaf.uuid: 'admin'
-#         }
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
-#         assert rfid_client.receive() is not None, "Expected a response from creating datastore"
+    async def test_datastore_permissions_default_deny(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
+        other_client, other_leaf = await self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
-#         self.assertDatastoreReadFailed(other_client, other_leaf.uuid, 'sean_home')
-#         self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
-#         self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
+        permissions = {
+            'default': 'deny',  # deny reads and writes by default
+            door_leaf.uuid: 'read',  # the door can read the value
+            light_leaf.uuid: 'write',  # the light can read and write
+            admin_leaf.uuid: 'admin'
+        }
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        assert await rfid_client.receive_json_from(), "Expected a response from creating datastore"
 
-#     def test_datastore_permissions_default_write(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        await self.assertDatastoreReadFailed(other_client, other_leaf.uuid, 'sean_home')
+        await self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
+        await self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
+        
+        await rfid_client.disconnect()
+        await door_client.disconnect()
+        await light_client.disconnect()
+        await other_client.disconnect()
+        await admin_client.disconnect()
 
-#         permissions = {
-#             'default': 'write'
-#         }
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
-#         rfid_client.receive()
+    async def test_datastore_permissions_default_write(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
 
-#         # ensures reading with write permissions works and last 'set' was not successful
-#         self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', False, 'bool')
+        permissions = {
+            'default': 'write'
+        }
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        await rfid_client.receive_json_from()
 
-#         self.send_set_datastore(light_client, light_leaf.uuid, 'sean_home', True)
-#         assert light_client.receive() is not None, "Expected new value update upon writing"
+        # ensures reading with write permissions works and last 'set' was not successful
+        await self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', False, 'bool')
 
-#         self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
-#         self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
+        await self.send_set_datastore(light_client, light_leaf.uuid, 'sean_home', True)
+        assert await light_client.receive_json_from(), "Expected new value update upon writing"
 
-#     @unittest.skip("TODO: fix")
-#     def test_datastore_permissions_deny(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
-#         other_client, other_leaf = self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
-#         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        await self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
+        await self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
+        
+        await rfid_client.disconnect()
+        await light_client.disconnect()
+        
+    @pytest.mark.skip("TODO: fix, update permissions api")
+    async def test_datastore_permissions_deny(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
+        other_client, other_leaf = await self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
-#         permissions = {
-#             'default': 'write',  # deny reads and writes by default
-#             door_leaf.uuid: 'read',  # the door can read the value
-#             light_leaf.uuid: 'write',  # the light can read and write
-#             admin_leaf.uuid: 'admin',
-#             other_leaf.uuid: 'deny'
-#         }
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
-#         assert rfid_client.receive() is not None, "Expected a response from creating datastore"
+        permissions = {
+            'default': 'write',  # deny reads and writes by default
+            door_leaf.uuid: 'read',  # the door can read the value
+            light_leaf.uuid: 'write',  # the light can read and write
+            admin_leaf.uuid: 'admin',
+            other_leaf.uuid: 'deny'
+        }
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        assert await rfid_client.receive_json_from(), "Expected a response from creating datastore"
 
-#         self.assertDatastoreReadFailed(other_client, other_leaf.uuid, 'sean_home')
-#         self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
-#         self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
+        await self.assertDatastoreReadFailed(other_client, other_leaf.uuid, 'sean_home')
+        await self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
+        await self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
 
-#     def test_datastore_permissions_read(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
-#         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        await rfid_client.disconnect()
+        await door_client.disconnect()
+        await light_client.disconnect()
+        await other_client.disconnect()
+        await admin_client.disconnect()
 
-#         permissions = {
-#             'default': 'deny',  # deny reads and writes by default
-#             door_leaf.uuid: 'read',  # the door can read the value
-#             light_leaf.uuid: 'write',  # the light can read and write
-#             admin_leaf.uuid: 'admin'
-#         }
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
-#         rfid_client.receive()
+    async def test_datastore_permissions_read(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
-#         # test read
-#         self.assertDatastoreReadSuccess(door_client, door_leaf.uuid, 'sean_home', False, 'bool')
-#         self.assertDatastoreSetFailed(door_client, door_leaf.uuid, 'sean_home', True)
-#         self.assertDatastoreDeleteFailed(door_client, door_leaf.uuid, 'sean_home')
+        permissions = {
+            'default': 'deny',  # deny reads and writes by default
+            door_leaf.uuid: 'read',  # the door can read the value
+            light_leaf.uuid: 'write',  # the light can read and write
+            admin_leaf.uuid: 'admin'
+        }
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        await rfid_client.receive_json_from()
 
-#     def test_datastore_permissions_write(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
-#         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        # test read
+        await self.assertDatastoreReadSuccess(door_client, door_leaf.uuid, 'sean_home', False, 'bool')
+        await self.assertDatastoreSetFailed(door_client, door_leaf.uuid, 'sean_home', True)
+        await self.assertDatastoreDeleteFailed(door_client, door_leaf.uuid, 'sean_home')
+        
+        await rfid_client.disconnect()
+        await door_client.disconnect()
+        await light_client.disconnect()
+        await admin_client.disconnect()
 
-#         permissions = {
-#             'default': 'deny',  # deny reads and writes by default
-#             door_leaf.uuid: 'read',  # the door can read the value
-#             light_leaf.uuid: 'write',  # the light can read and write
-#             admin_leaf.uuid: 'admin'
-#         }
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
-#         rfid_client.receive()
+    async def test_datastore_permissions_write(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
-#         # ensures reading with write permissions works and last 'set' was not successful
-#         self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', False, 'bool')
+        permissions = {
+            'default': 'deny',  # deny reads and writes by default
+            door_leaf.uuid: 'read',  # the door can read the value
+            light_leaf.uuid: 'write',  # the light can read and write
+            admin_leaf.uuid: 'admin'
+        }
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        await rfid_client.receive_json_from()
 
-#         self.send_set_datastore(light_client, light_leaf.uuid, 'sean_home', True)
-#         assert light_client.receive() is not None, "Expected new value update upon writing"
+        # ensures reading with write permissions works and last 'set' was not successful
+        await self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', False, 'bool')
 
-#         self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
-#         self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
+        await self.send_set_datastore(light_client, light_leaf.uuid, 'sean_home', True)
+        assert await light_client.receive_json_from(), "Expected new value update upon writing"
 
-#     def test_datastore_permissions_admin(self):
-#         hub = self.create_hub("test_hub")
-#         rfid_client, rfid_leaf = self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-#         door_client, door_leaf = self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-#         light_client, light_leaf = self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
-#         admin_client, admin_leaf = self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        await self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
+        await self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
+        
+        await rfid_client.disconnect()
+        await door_client.disconnect()
+        await light_client.disconnect()
+        await admin_client.disconnect()
 
-#         permissions = {
-#             'default': 'deny',  # deny reads and writes by default
-#             door_leaf.uuid: 'read',  # the door can read the value
-#             light_leaf.uuid: 'write',  # the light can read and write
-#             admin_leaf.uuid: 'admin'
-#         }
-#         self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
-#         rfid_client.receive()
+    async def test_datastore_permissions_admin(self):
+        self.create_user_and_client()
+        hub = self.create_hub("test_hub")
+        rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
 
-#         # test admin
-#         self.send_set_datastore(admin_client, admin_leaf.uuid, 'sean_home', False)
-#         assert admin_client.receive() is not None, "Expected new value update upon writing"
+        permissions = {
+            'default': 'deny',  # deny reads and writes by default
+            door_leaf.uuid: 'read',  # the door can read the value
+            light_leaf.uuid: 'write',  # the light can read and write
+            admin_leaf.uuid: 'admin'
+        }
+        await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool', permissions)
+        await rfid_client.receive_json_from()
 
-#         self.assertDatastoreReadSuccess(admin_client, admin_leaf.uuid, 'sean_home', False, 'bool')
-#         self.send_delete_datastore(admin_client, admin_leaf.uuid, 'sean_home')
-#         expected_response = {
-#             'type': 'DATASTORE_DELETED',
-#             'name': 'sean_home'
-#         }
-#         response = admin_client.receive()
-#         assert response is not None, "Expected a message for creating datastore"
-#         assert response['type'] == expected_response['type']
-#         assert response['name'] == expected_response['name']
+        # test admin
+        await self.send_set_datastore(admin_client, admin_leaf.uuid, 'sean_home', False)
+        assert await admin_client.receive_json_from(), "Expected new value update upon writing"
 
+        await self.assertDatastoreReadSuccess(admin_client, admin_leaf.uuid, 'sean_home', False, 'bool')
+        await self.send_delete_datastore(admin_client, admin_leaf.uuid, 'sean_home')
+        expected_response = {
+            'type': 'DATASTORE_DELETED',
+            'name': 'sean_home'
+        }
+        response = await admin_client.receive_json_from()
+        assert response['type'] == expected_response['type']
+        assert response['name'] == expected_response['name']
+
+        await rfid_client.disconnect()
+        await door_client.disconnect()
+        await light_client.disconnect()
+        await admin_client.disconnect()
 
 # class ConditionsTests(ConsumerTests):
 #     def test_comparator_conditions(self):
@@ -922,13 +963,13 @@ class TestDatastore(ConsumerTests):
 #                                    actions=[self.create_action('SET', door_leaf.uuid, 'door_open', action_value=True)])
 
 #         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
-#         assert door_client.receive() is not None, "Expected a response as one condition is true"
+#         assert door_client.receive_json_from(), "Expected a response as one condition is true"
 
 #         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042780, 'number')
 #         assert door_client.receive_nothing(), "Expected no response as both conditions are false"
 
 #         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'bool')
-#         assert door_client.receive() is not None, "Expected SET_OUTPUT as other condition is true"
+#         assert door_client.receive_json_from(), "Expected SET_OUTPUT as other condition is true"
 
 #         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 
@@ -955,13 +996,13 @@ class TestDatastore(ConsumerTests):
 #         assert door_client.receive_nothing(), "Expected no response as both conditions are true"
 
 #         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 12312, 'number')
-#         assert door_client.receive() is not None, "Expected a response as one condition is true"
+#         assert door_client.receive_json_from(), "Expected a response as one condition is true"
 
 #         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 #         assert door_client.receive_nothing(), "Expected no response as both conditions are true"
 
 #         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', False, 'bool')
-#         assert door_client.receive() is not None, "Expected a response as one condition is true"
+#         assert door_client.receive_json_from(), "Expected a response as one condition is true"
 
 #         assert door_client.receive_nothing()  # only gets one update
 #         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_OR")
@@ -991,13 +1032,13 @@ class TestDatastore(ConsumerTests):
 
 #         await self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', True, 'bool')
 
-#         assert door_client.receive() is not None, "Expected SET_OUTPUT as both inner conditions are true"
+#         assert door_client.receive_json_from(), "Expected SET_OUTPUT as both inner conditions are true"
 
 #         await self.send_device_update(third_client, third_leaf.uuid, 'third_sensor', False, 'bool')
 #         assert door_client.receive_nothing(), "Expected no response as only one nested condition is true"
 
 #         await self.send_device_update(other_client, other_leaf.uuid, 'other_sensor', True, 'false')
-#         assert door_client.receive() is not None, "Expected a response as one outer condition is true"
+#         assert door_client.receive_json_from(), "Expected a response as one outer condition is true"
 
 #         assert door_client.receive_nothing()  # only gets one update
 #         self.send_delete_condition(admin_client, admin_leaf.uuid, "binary_nested")
@@ -1129,5 +1170,5 @@ class TestDatastore(ConsumerTests):
 #         await self.send_device_update(hub1_client, hub1_leaf.uuid, 'rfid_reader', 3032042781, 'number')
 
 #         # ensure that only one hub receives output
-#         assert out_client1.receive() is not None, "Expected an out on hub1"
+#         assert out_client1.receive_json_from(), "Expected an out on hub1"
 #         assert out_client2.receive_nothing(), "Did not expect second hub to receive output"
