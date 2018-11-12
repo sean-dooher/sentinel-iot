@@ -566,7 +566,7 @@ class TestLeaves(ConsumerTests):
         await self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
 
-        # assert await observer_client.receive_nothing()  # should not receive subscription updates any more
+        assert await observer_client.receive_nothing()  # should not receive subscription updates any more
 
 
     async def test_full_leaf_unsubscribe_multi(self, disconnect):
