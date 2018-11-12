@@ -1,6 +1,6 @@
 import pytest
 from channels.testing import WebsocketCommunicator
-from django.test import Client
+from django.test import Client, override_settings
 from guardian.models import Group as PermGroup
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User

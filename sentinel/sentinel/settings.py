@@ -127,6 +127,13 @@ CHANNEL_LAYERS = {
     }
 }
 
+if TESTING:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
