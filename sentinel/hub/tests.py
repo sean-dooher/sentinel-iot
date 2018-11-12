@@ -1,6 +1,6 @@
 import pytest
 from channels.testing import WebsocketCommunicator
-from django.test import Client, override_settings
+from django.test import Client
 from guardian.models import Group as PermGroup
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
@@ -12,6 +12,13 @@ from sentinel.routing import application
 logging.disable(logging.ERROR)
 
 class ConsumerTests:
+    @pytest.yield_fixture(autouse=True)
+    async def disconnect(self):
+        to_disconnect = []
+        yield to_disconnect
+        for client in to_disconnect:
+            await client.disconnect()
+
     def create_hub(self, name):
         hub = Hub(name=name)
         hub.save()
@@ -230,7 +237,7 @@ class ConsumerTests:
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 class TestLeaves(ConsumerTests):
-    async def test_create(self):
+    async def test_create(self, disconnect):
         """
         Tests creating a leaf
         """
@@ -242,16 +249,15 @@ class TestLeaves(ConsumerTests):
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         api_version = "3.2.3"
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub, api_version)
+        disconnect.append(client)
 
         assert db_leaf.name == name, "Wrong name"
         assert db_leaf.model == model, "Wrong model"
         assert db_leaf.uuid == uuid, "Wrong uuid"
         assert db_leaf.api_version == api_version, "Wrong api_version"
 
-        await client.disconnect()
 
-
-    async def test_create_number_device(self):
+    async def test_create_number_device(self, disconnect):
         self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
@@ -259,6 +265,7 @@ class TestLeaves(ConsumerTests):
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+        disconnect.append(client)
 
         await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 31231, 'number', "IN", {'auto': 1})
 
@@ -270,10 +277,8 @@ class TestLeaves(ConsumerTests):
         assert rfid_device.format == 'number', "Expected rfid to be a number device"
         assert rfid_device.value == 31231, "Wrong value"
 
-        await client.disconnect()
 
-
-    async def test_create_bool_device(self):
+    async def test_create_bool_device(self, disconnect):
         self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
@@ -281,6 +286,7 @@ class TestLeaves(ConsumerTests):
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+        disconnect.append(client)
 
         await self.send_device_update(client, db_leaf.uuid, 'bool_test', True, 'bool', "IN", {'auto': 1})
         assert db_leaf.devices.count() == 1, "Expected one device"
@@ -291,10 +297,8 @@ class TestLeaves(ConsumerTests):
         assert bool_test.format == 'bool', "Expected test to be a bool device"
         assert bool_test.value == True, "Wrong value"
 
-        await client.disconnect()
 
-
-    async def test_create_string_device(self):
+    async def test_create_string_device(self, disconnect):
         self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
@@ -302,6 +306,7 @@ class TestLeaves(ConsumerTests):
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+        disconnect.append(client)
 
         await self.send_device_update(client, db_leaf.uuid, 'string_dev', 'this is a test', 'string', "IN", {'auto': 1})
         assert db_leaf.devices.count() == 1, 'Expected one device'
@@ -312,10 +317,7 @@ class TestLeaves(ConsumerTests):
         assert string_dev.format == 'string', "Expected test to be a string device"
         assert string_dev.value == 'this is a test', "Wrong value"
 
-        await client.disconnect()
-
-
-    async def test_create_multiple_devices(self):
+    async def test_create_multiple_devices(self, disconnect):
         self.create_user_and_client()
 
         hub = self.create_hub("test_hub")
@@ -323,6 +325,7 @@ class TestLeaves(ConsumerTests):
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+        disconnect.append(client)
 
         # send initial values, create devices in database
         await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
@@ -357,16 +360,15 @@ class TestLeaves(ConsumerTests):
         assert led_device.value == "BLUE LIGHT MODE", "Wrong value"
         # self.assertDictEqual({'auto': 1}, led_device.options, "Wrong options dictionary")
 
-        await client.disconnect()
 
-
-    async def test_update_device_multiple(self):
+    async def test_update_device_multiple(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         name = "py_device_test"
         model = "01"
         uuid = "a581b491-da64-4895-9bb6-5f8d76ebd44e"
         client, db_leaf = await self.send_create_leaf(name, model, uuid, hub)
+        disconnect.append(client)
 
         await self.send_device_update(client, db_leaf.uuid, 'rfid_reader', 125, 'number', "IN", {'auto': 1})
         await self.send_device_update(client, db_leaf.uuid, 'door', False, 'bool', "OUT")
@@ -389,20 +391,22 @@ class TestLeaves(ConsumerTests):
         assert led_device.value == "HERE WE", "Wrong value"
         assert thermometer_device.value == 90, "Wrong value"
 
-        await client.disconnect()
 
     @pytest.mark.skip("Options not implemented yet")
-    def test_options(self):
+    def test_options(self, disconnect):
         pass
 
 
-    async def test_subscribe(self):
+    async def test_subscribe(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
 
         # setup leaves
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
 
         # setup devices
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
@@ -412,15 +416,16 @@ class TestLeaves(ConsumerTests):
         await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
         assert await rfid_client.receive_nothing()
 
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
 
-
-    async def test_subscription(self):
+    async def test_subscription(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
+
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
         await self.send_subscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
@@ -450,15 +455,16 @@ class TestLeaves(ConsumerTests):
         assert await observer_client.receive_nothing(), "Didn't  expect a response"
         assert await rfid_client.receive_nothing(), "Didn't  expect a response"
 
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
 
-
-    async def test_full_leaf_subscribe(self):
+    async def test_full_leaf_subscribe(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
+
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
@@ -469,11 +475,8 @@ class TestLeaves(ConsumerTests):
         assert await observer_client.receive_nothing()
         assert await rfid_client.receive_nothing()
 
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
 
-
-    async def test_full_leaf_subscription(self):
+    async def test_full_leaf_subscription(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
@@ -505,11 +508,15 @@ class TestLeaves(ConsumerTests):
         await observer_client.disconnect()
 
 
-    async def test_full_leaf_subscription_with_other(self):
+    async def test_full_leaf_subscription_with_other(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
+
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'other_sensor', False, 'bool')
 
@@ -526,17 +533,17 @@ class TestLeaves(ConsumerTests):
         # ensure message doesn't show up twice
         assert await observer_client.receive_nothing(), "Didn't  expect a response"
 
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
 
-
-    async def test_unsubscribe(self):
+    async def test_unsubscribe(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
 
         # setup leaves
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+        
         observer_client, observer_leaf =  await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
 
         # setup devices
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
@@ -559,17 +566,17 @@ class TestLeaves(ConsumerTests):
         await self.send_unsubscribe(observer_client, observer_leaf.uuid, rfid_leaf.uuid, 'rfid_reader')
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
 
-        assert await observer_client.receive_nothing()  # should not receive subscription updates any more
-
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
+        # assert await observer_client.receive_nothing()  # should not receive subscription updates any more
 
 
-    async def test_full_leaf_unsubscribe_multi(self):
+    async def test_full_leaf_unsubscribe_multi(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+        
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
 
         # setup devices
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
@@ -588,15 +595,15 @@ class TestLeaves(ConsumerTests):
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         assert await observer_client.receive_nothing(), "Did not expect a message from other_sensor after unsubscribing"
 
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
 
-
-    async def test_full_leaf_unsubscribe_multiple(self):
+    async def test_full_leaf_unsubscribe_multiple(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+        
         observer_client, observer_leaf = await self.send_create_leaf('rfid_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(observer_client)
 
         # setup devices
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 3790, 'number')
@@ -618,17 +625,15 @@ class TestLeaves(ConsumerTests):
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
         assert await observer_client.receive_json_from() is not None, "Expected to still receive a subscription update"
 
-        await rfid_client.disconnect()
-        await observer_client.disconnect()
-
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 class TestDatastore(ConsumerTests):
-    async def test_datastore_create(self):
+    async def test_datastore_create(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
 
         # make sure the datastore didn't exist beforehand
         await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
@@ -653,12 +658,12 @@ class TestDatastore(ConsumerTests):
 
         # make sure value was saved
         await self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
-        await rfid_client.disconnect()
 
-    async def test_datastore_delete(self):
+    async def test_datastore_delete(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
 
         await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
         await rfid_client.receive_json_from()
@@ -677,13 +682,14 @@ class TestDatastore(ConsumerTests):
         # make sure delete was successful
         await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'GET')
         await self.assertUnknownDatastore(rfid_client, rfid_leaf.uuid, 'sean_home', 'SET', False)
-        await rfid_client.disconnect()
 
 
-    async def test_datastore_update(self):
+    async def test_datastore_update(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         await self.send_create_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', False, 'bool')
         assert await rfid_client.receive_json_from(), "Expected creation message"
         
@@ -692,17 +698,25 @@ class TestDatastore(ConsumerTests):
         await self.send_set_datastore(rfid_client, rfid_leaf.uuid, 'sean_home', True)
         await self.assertDatastoreReadSuccess(rfid_client, rfid_leaf.uuid, 'sean_home', True, 'bool')
         
-        await rfid_client.disconnect()
 
-
-    async def test_datastore_permissions_default_deny(self):
+    async def test_datastore_permissions_default_deny(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
+
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
-        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
+        disconnect.append(rfid_client)
+
         other_client, other_leaf = await self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        disconnect.append(other_client)
+
+        door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(door_client)
+
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        disconnect.append(light_client)
+
         admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        disconnect.append(admin_client)
 
         permissions = {
             'default': 'deny',  # deny reads and writes by default
@@ -716,18 +730,16 @@ class TestDatastore(ConsumerTests):
         await self.assertDatastoreReadFailed(other_client, other_leaf.uuid, 'sean_home')
         await self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
         await self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
-        
-        await rfid_client.disconnect()
-        await door_client.disconnect()
-        await light_client.disconnect()
-        await other_client.disconnect()
-        await admin_client.disconnect()
 
-    async def test_datastore_permissions_default_write(self):
+
+    async def test_datastore_permissions_default_write(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        disconnect.append(light_client)
 
         permissions = {
             'default': 'write'
@@ -743,19 +755,26 @@ class TestDatastore(ConsumerTests):
 
         await self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
         await self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
-        
-        await rfid_client.disconnect()
-        await light_client.disconnect()
+
         
     @pytest.mark.skip("TODO: fix, update permissions api")
-    async def test_datastore_permissions_deny(self):
+    async def test_datastore_permissions_deny(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
-        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690', hub)
+        disconnect.append(door_client)
+
+        light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        disconnect.append(light_client)
+
         other_client, other_leaf = await self.send_create_leaf('other_leaf', '0', '7cfb0bde-7b0e-430b-a033-034eb7422f4b', hub)
+        disconnect.append(other_client)
+
         admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        disconnect.append(admin_client)
 
         permissions = {
             'default': 'write',  # deny reads and writes by default
@@ -771,19 +790,21 @@ class TestDatastore(ConsumerTests):
         await self.assertDatastoreSetFailed(other_client, other_leaf.uuid, 'sean_home', True)
         await self.assertDatastoreDeleteFailed(other_client, other_leaf.uuid, 'sean_home')
 
-        await rfid_client.disconnect()
-        await door_client.disconnect()
-        await light_client.disconnect()
-        await other_client.disconnect()
-        await admin_client.disconnect()
 
-    async def test_datastore_permissions_read(self):
+    async def test_datastore_permissions_read(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(door_client)
+
         light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        disconnect.append(light_client)
+
         admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        disconnect.append(admin_client)
 
         permissions = {
             'default': 'deny',  # deny reads and writes by default
@@ -798,19 +819,22 @@ class TestDatastore(ConsumerTests):
         await self.assertDatastoreReadSuccess(door_client, door_leaf.uuid, 'sean_home', False, 'bool')
         await self.assertDatastoreSetFailed(door_client, door_leaf.uuid, 'sean_home', True)
         await self.assertDatastoreDeleteFailed(door_client, door_leaf.uuid, 'sean_home')
-        
-        await rfid_client.disconnect()
-        await door_client.disconnect()
-        await light_client.disconnect()
-        await admin_client.disconnect()
 
-    async def test_datastore_permissions_write(self):
+
+    async def test_datastore_permissions_write(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(door_client)
+
         light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        disconnect.append(light_client)
+
         admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        disconnect.append(admin_client)
 
         permissions = {
             'default': 'deny',  # deny reads and writes by default
@@ -829,19 +853,22 @@ class TestDatastore(ConsumerTests):
 
         await self.assertDatastoreReadSuccess(light_client, light_leaf.uuid, 'sean_home', True, 'bool')
         await self.assertDatastoreDeleteFailed(light_client, light_leaf.uuid, 'sean_home')
-        
-        await rfid_client.disconnect()
-        await door_client.disconnect()
-        await light_client.disconnect()
-        await admin_client.disconnect()
 
-    async def test_datastore_permissions_admin(self):
+
+    async def test_datastore_permissions_admin(self, disconnect):
         self.create_user_and_client()
         hub = self.create_hub("test_hub")
         rfid_client, rfid_leaf = await self.send_create_leaf('rfid_leaf', '0', 'a581b491-da64-4895-9bb6-5f8d76ebd44e', hub)
+        disconnect.append(rfid_client)
+
         door_client, door_leaf = await self.send_create_leaf('door_leaf', '0', 'cd1b7879-d17a-47e5-bc14-26b3fc554e49', hub)
+        disconnect.append(door_client)
+
         light_client, light_leaf = await self.send_create_leaf('light_leaf', '0', '3cbb357f-3dda-4463-9055-581b82ab8690',  hub)
+        disconnect.append(light_client)
+
         admin_client, admin_leaf = await self.send_create_leaf('admin_leaf', '0', '2e11b9fc-5725-4843-8b9c-4caf2d69c499', hub)
+        disconnect.append(admin_client)
 
         permissions = {
             'default': 'deny',  # deny reads and writes by default
@@ -866,10 +893,6 @@ class TestDatastore(ConsumerTests):
         assert response['type'] == expected_response['type']
         assert response['name'] == expected_response['name']
 
-        await rfid_client.disconnect()
-        await door_client.disconnect()
-        await light_client.disconnect()
-        await admin_client.disconnect()
 
 # class ConditionsTests(ConsumerTests):
 #     def test_comparator_conditions(self):
