@@ -1158,15 +1158,22 @@ class TestConditions(ConsumerTests):
         assert door_open.value == False, \
                          'The RFID leaf does not meet the predicate, so the datastore should be false'
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
+
         door_open.refresh_from_db()
         assert door_open.value == False, \
                          'The RFID leaf does not meet the predicate, so the datastore should be false'
+        
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 33790, 'number')
+        await rfid_client.receive_nothing()
         door_open.refresh_from_db()
+        
         assert door_open.value == True, \
                          'The RFID leaf does meet the predicate, so the datastore should be true'
+        
         await self.send_device_update(rfid_client, rfid_leaf.uuid, 'rfid_reader', 0, 'number')
+        await rfid_client.receive_nothing()
         door_open.refresh_from_db()
+        
         assert door_open.value == True, \
                          'The datastore should not update to false if the predicate is no longer true'
 
