@@ -95,6 +95,7 @@ class ConsumerTests:
                        'sub_uuid': other_uuid,
                        'sub_device': other_device}
         await observer_client.send_json_to(sub_message)
+        assert await observer_client.receive_nothing()
 
     async def assertDatastoreReadSuccess(self, client, requester, name, expected_value=None, expected_format=None):
         await self.send_get_datastore(client, requester, name)
