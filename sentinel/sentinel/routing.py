@@ -1,6 +1,15 @@
-from channels.routing import route, include
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.sessions import SessionMiddlewareStack
+import hub.routing
 
-channel_routing = [
-    include("hub.routing.websocket_routing", path=r"^/hub/"),
-    include("hub.routing.client_routing", path=r"^/client/")
-]
+application = ProtocolTypeRouter({
+    # (http->django views is added by default)
+    'websocket': SessionMiddlewareStack(
+        AuthMiddlewareStack(
+            URLRouter(
+                hub.routing.websocket_routing
+            )
+        )
+    )
+})

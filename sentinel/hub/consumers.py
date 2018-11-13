@@ -1,8 +1,9 @@
 import json
 import logging
 
-from channels import Group
-from channels.auth import channel_session_user, channel_session_user_from_http
+from channels.generic.websocket import JsonWebsocketConsumer
+from asgiref.sync import async_to_sync
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -10,7 +11,7 @@ from django.utils import timezone
 from guardian.shortcuts import assign_perm, remove_perm
 from guardian.models import Group as PermGroup
 
-from .messages import MessageType, MessageV1, Message
+from .messages import MessageType, MessageV2, Message
 from .models import Leaf, Subscription, Device, Datastore, Hub
 from .models import NOT, AND, OR, XOR, SetAction, Condition, ConditionalSubscription, ChangeAction
 from .models import GreaterThanPredicate, LessThanPredicate, EqualPredicate
@@ -19,8 +20,36 @@ from .utils import InvalidLeaf, PermissionDenied, InvalidMessage
 
 logger = logging.getLogger(__name__)
 
+class LeafConsumer(JsonWebsocketConsumer):
+    def connect(self):
+        id = int(self.scope["url_route"]["kwargs"]["id"])
 
-def handle(message):
+        if Hub.objects.filter(id=id).exists():
+            self.scope["session"]["hub"] = id
+            self.accept()
+        else:
+            self.close()
+
+    def disconnect(self, close_code):
+        if 'user' in self.scope["session"]:
+            hub = Hub.objects.get(pk=self.scope["session"]["hub"])
+            leaf = hub.get_leaf(self.scope["session"]["uuid"])
+            leaf.is_connected = leaf.last_connected.timestamp() != self.scope["session"]["connect_time"]
+            leaf.save()
+            self.consumer = self # TODO: make unregister static
+            MessageV2.unregister_leaf(self, leaf)
+
+    def receive_json(self, content):
+        try:
+            handle(MessageV2(self, content))
+        except InvalidMessage:
+            logger.error("Failed to handle message, aborting.")
+
+    def leaf_send(self, event):
+        self.send_json(event['message'])
+
+
+def handle(message: Message):
     try:
         if not message.validate():
             raise InvalidMessage(message)
@@ -53,32 +82,6 @@ def handle(message):
         reply = e.get_error_message()
         reply['hub'] = message.hub.id
         message.reply(reply)
-
-
-@channel_session_user_from_http
-def ws_add(message, id):
-    # Accept the connection
-    if Hub.objects.filter(id=id).exists():
-        message.channel_session['hub'] = id
-    message.reply_channel.send({"accept": True})
-
-
-@channel_session_user_from_http
-def ws_disconnect(message):
-    if 'user' in message.channel_session:
-        hub = Hub.objects.get(pk=message.channel_session['hub'])
-        leaf = hub.get_leaf(message.channel_session['uuid'])
-        leaf.is_connected = leaf.last_connected.timestamp() != message.channel_session['connect_time']
-        leaf.save()
-        MessageV1.unregister_leaf(message, leaf)
-
-
-@channel_session_user
-def ws_message(message):
-    try:
-        handle(MessageV1(message))
-    except InvalidMessage:
-        logger.error("Failed to handle message, aborting.")
 
 
 def hub_handle_config(message: Message):
@@ -284,7 +287,7 @@ def hub_handle_datastore_delete(message):
             reply = {'type': 'DATASTORE_DELETED',
                      'hub': message.hub.id,
                      'name': message.data['name']}
-            message.reply_channel.send({'text': json.dumps(reply)})
+            message.reply(reply)
         else:
             raise PermissionDenied(message.leaf.uuid, 'DATASTORE_DELETE', name=message.data['name'])
     except Datastore.DoesNotExist:

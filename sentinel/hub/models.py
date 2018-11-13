@@ -3,7 +3,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from polymorphic.models import PolymorphicModel
-from channels import Group
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from types import SimpleNamespace
 import json
 
@@ -64,11 +65,6 @@ class BooleanValue(Value):
 class Hub(models.Model):
     name = models.CharField(max_length=100)
 
-    class Meta:
-        permissions = (
-            ('view_hub', 'View Hub'),
-        )
-
     def __str__(self):
         return repr(self)
 
@@ -110,7 +106,6 @@ class Leaf(models.Model):
 
     class Meta:
         unique_together = (('uuid', 'hub'),)
-        permissions = (('view_leaf', 'View Leaf'),)
 
     def update_time(self):
         self.last_updated = timezone.now()
@@ -185,8 +180,11 @@ class Leaf(models.Model):
         self.send_message(message)
 
     def send_message(self, message: dict) -> None:
-        message = {"text": json.dumps(message)}
-        Group(f"{self.hub.id}-{self.uuid}").send(message)
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"{self.hub.id}-{self.uuid}",
+            { "type": "leaf.send", "message": message}
+        )
 
     def send_subscriber_update(self, device):
         seen_devices = set()
@@ -211,10 +209,6 @@ class Leaf(models.Model):
     @property
     def message_template(self):
         return {"uuid": self.uuid, "hub_id": self.hub_id}
-
-    @property
-    def group(self):
-        return Group(f"{self.hub.id}-{self.uuid}")
 
     def __repr__(self):
         return "Leaf <name: {}, uuid:{}>".format(self.name, self.uuid)
@@ -331,9 +325,6 @@ class Datastore(models.Model):
 
     class Meta:
         unique_together = (('name', 'hub'),)
-        permissions = (
-            ('view_datastore', 'Can view the datastore'),
-        )
 
     @property
     def format(self):
@@ -564,9 +555,6 @@ class Condition(models.Model):
     hub = models.ForeignKey(Hub, related_name="conditions", on_delete=models.CASCADE)
 
     class Meta:
-        permissions = (
-            ('view_condition', 'View Condition'),
-        )
         unique_together = (('name', 'hub'),)
 
     def execute(self):

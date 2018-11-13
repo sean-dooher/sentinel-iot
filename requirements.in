@@ -1,5 +1,4 @@
 django
-django_jenkins
 django-cors-headers
 django-guardian
 django-oauth-toolkit
@@ -7,9 +6,10 @@ django-polymorphic
 django-webpack-loader
 djangorestframework
 websockets
-channels==1.1.8
-channels-api
-redis
-asgi-redis
+channels
+channels_redis
 psycopg2-binary
 coverage
+pytest-django
+pytest-asyncio
+pytest-cov
