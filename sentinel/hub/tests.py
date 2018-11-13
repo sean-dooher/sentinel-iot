@@ -221,8 +221,7 @@ class ConsumerTests:
                    }
         await admin_client.send_json_to(message)
         if handle:
-            await admin_client.receive_nothing()
-            await admin_client.receive_nothing()
+            await admin_client.receive_nothing(timeout=2)
 
     @staticmethod
     def create_action(action_type, action_target, action_device, action_value=None):
