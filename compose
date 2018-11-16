@@ -1,0 +1,8 @@
+#! /bin/bash
+
+if [ "$#" -ne 0 ]; then
+    docker-compose -f docker-compose.yml -f local-compose.yml $@
+else
+    docker-compose -f docker-compose.yml -f local-compose.yml up
+fi
+
