@@ -25,7 +25,7 @@ services:
       - database
       - redis
     volumes:
-      - static:/sentinel/static
+      - static:/static
   workerserver:
     image: seandooher/sentinel-iot:${ID:-latest}
     command: /entry/entrypoint-worker.sh
