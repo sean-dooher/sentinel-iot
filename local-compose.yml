@@ -1,9 +1,25 @@
-version: '3'
+version: '3.4'
 services:
   nginx:
     ports:
       - "80:80"
-  interfaceserver:
+    volumes:
+      - ./sentinel/assets/bundles:/static/bundles
+  reactserver:
+    build:
+      context: .
+      target: react-pkg
+    working_dir: /sentinel
+    command: sh -c "npm install package.json; npm run watch"
+    volumes:
+      - ./sentinel/webpack-stats.json:/sentinel/webpack-stats.json
+      - ./sentinel/:/sentinel/
+  interfaceserver:    
+    depends_on:
+      - reactserver
+    volumes:
+      - ./sentinel:/sentinel
+      - ./sentinel/assets/bundles:/static/bundles
     env_file:
       - config/local.env
   workerserver:

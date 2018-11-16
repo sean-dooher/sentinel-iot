@@ -29,6 +29,7 @@
     "client-oauth2": "^4.2.1",
     "dragula": "^3.7.2",
     "js-cookie": "^2.2.0",
+    "package.json": "^2.0.1",
     "prop-types": "^15.6.2",
     "react-dragula": "^1.1.17",
     "react-redux": "^5.0.7",
