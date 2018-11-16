@@ -6,7 +6,7 @@ python manage.py migrate
 python manage.py collectstatic --noinput
 
 if [ "$DJANGO_DEBUG" = "TRUE" ]; then
-    exec daphne -b 0.0.0.0 -p 8000 ${PROJECT_NAME}.asgi:application
-else
     exec python3 manage.py runserver 0.0.0.0:8000
+else
+    exec daphne -b 0.0.0.0 -p 8000 ${PROJECT_NAME}.asgi:application
 fi
