@@ -13,3 +13,6 @@ coverage
 pytest-django
 pytest-asyncio
 pytest-cov
+djangochannelsrestframework
+channelsmultiplexer
+
