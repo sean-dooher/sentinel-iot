@@ -26,16 +26,6 @@ services:
       - redis
     volumes:
       - static:/static
-  workerserver:
-    image: seandooher/sentinel-iot:${ID:-latest}
-    command: /entry/entrypoint-worker.sh
-    environment:
-      POSTGRES_HOST: "database"
-      PROJECT_NAME: "sentinel"
-      DJANGO_DOCKER: "TRUE"
-    depends_on:
-      - database
-      - redis
   database:
     image: postgres:9.5
   redis:

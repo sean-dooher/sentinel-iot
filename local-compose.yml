@@ -22,9 +22,6 @@ services:
       - ./sentinel/assets/bundles:/static/bundles
     env_file:
       - config/local.env
-  workerserver:
-    env_file:
-      - config/local.env
   database:
     volumes:
       - db_data:/var/lib/postgresql/data

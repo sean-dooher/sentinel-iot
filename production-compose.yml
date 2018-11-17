@@ -18,8 +18,17 @@ services:
     env_file:
       - config/production.env
   workerserver:
+    image: seandooher/sentinel-iot:${ID:-latest}
+    command: /entry/entrypoint-worker.sh
+    environment:
+      POSTGRES_HOST: "database"
+      PROJECT_NAME: "sentinel"
+      DJANGO_DOCKER: "TRUE"
     env_file:
       - config/production.env
+    depends_on:
+      - database
+      - redis
   database:
     env_file:
       - config/production.env
