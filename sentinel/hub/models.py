@@ -6,8 +6,10 @@ from polymorphic.models import PolymorphicModel
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from types import SimpleNamespace
+import logging
 import json
 
+logger = logging.getLogger(__name__)
 
 class Value(PolymorphicModel):
     value = None
@@ -185,6 +187,8 @@ class Leaf(models.Model):
             f"{self.hub.id}-{self.uuid}",
             { "type": "leaf.send", "message": message}
         )
+        logger.info(f"{self.hub.id} -- <{self.uuid}> sent: {message}")
+        
 
     def send_subscriber_update(self, device):
         seen_devices = set()
