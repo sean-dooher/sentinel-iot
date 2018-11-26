@@ -141,7 +141,6 @@ class LeafDetail(generics.RetrieveDestroyAPIView):
             raise PermissionDenied
 
     def put(self, request, **kwargs):
-        print(request.data)
         try:
             value = request.data.get('value', '')
             format = request.data.get('format', '')
@@ -155,7 +154,7 @@ class LeafDetail(generics.RetrieveDestroyAPIView):
             if leaf.devices.filter(name=device).exists():
                 device = leaf.devices.get(name=device)
                 if device.mode == 'OUT':
-                    leaf.group.send({'text':json.dumps({'type': 'SET_OUTPUT', 'device': device.name, 'value': value, 'format': format})})
+                    leaf.send_message({'type': 'SET_OUTPUT', 'device': device.name, 'value': value, 'format': format})
                     return JsonResponse({'accepted': True})
                 else:
                     return JsonResponse({'accepted': False, 'reason': f'{device} is not an output device'})
