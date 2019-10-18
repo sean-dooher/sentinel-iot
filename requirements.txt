@@ -44,7 +44,7 @@ pytest==4.0.0             # via pytest-asyncio, pytest-cov, pytest-django
 pytz==2018.7              # via django
 requests==2.20.1          # via django-oauth-toolkit
 six==1.11.0               # via autobahn, automat, django-guardian, more-itertools, pyhamcrest, pytest, txaio
-twisted==18.9.0           # via daphne
+twisted==19.7.0           # via daphne
 txaio==18.8.1             # via autobahn
 urllib3==1.24.1           # via requests
 websockets==7.0
